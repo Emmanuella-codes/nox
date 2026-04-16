@@ -1,0 +1,17 @@
+{
+  "name": "nox",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "yarn workspace web dev",
+    "build": "yarn workspace web build",
+    "lint": "yarn workspace web lint"
+  },
+  "license": "MIT",
+  "packageManager": "yarn@4.13.0"
+}
