@@ -60,6 +60,10 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusUnauthorized
 	case messages.Invalid_Payload:
 		return fiber.StatusBadRequest
+	case messages.Email_Not_Verified:
+		return fiber.StatusForbidden
+	case messages.Internal_Error:
+		return fiber.StatusInternalServerError
 	default:
 		return fiber.StatusInternalServerError
 	}

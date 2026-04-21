@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
   fullname   TEXT NOT NULL,
   email      TEXT UNIQUE NOT NULL,
   password   TEXT NOT NULL,
+  email_verified BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

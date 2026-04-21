@@ -14,6 +14,8 @@ type Config struct {
 	RedisURL           string
 	JWTAccessSecret    string
 	JWTRefreshSecret   string
+	JWTIssuer          string
+	JWTAudience        string
 	JWTAccessTTL       time.Duration
 	JWTRefreshTTL      time.Duration
 	GhostPersonaSecret string
@@ -33,6 +35,8 @@ func Load() (*Config, error) {
 		RedisURL:           getEnv("REDIS_URL", ""),
 		JWTAccessSecret:    getEnv("JWT_ACCESS_SECRET", getEnv("JWT_SECRET", "")),
 		JWTRefreshSecret:   getEnv("JWT_REFRESH_SECRET", ""),
+		JWTIssuer:          getEnv("JWT_ISSUER", "nox-api"),
+		JWTAudience:        getEnv("JWT_AUDIENCE", "nox-client"),
 		JWTAccessTTL:       getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:      getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
 		GhostPersonaSecret: getEnv("GHOST_PERSONA_SECRET", ""),

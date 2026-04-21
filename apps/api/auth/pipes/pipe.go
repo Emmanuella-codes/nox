@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/emmanuella-codes/nox/auth/messages"
 	"github.com/emmanuella-codes/nox/auth/services"
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/models"
@@ -11,6 +12,7 @@ import (
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 )
 
 type AuthPipe struct {
@@ -55,11 +57,43 @@ func (p *AuthPipe) issueTokenPair(ctx context.Context, userID uuid.UUID) (*servi
 		return nil, err
 	}
 
-	if err := p.redis.Set(ctx, refreshSessionKey(tokens.RefreshTokenID), userID.String(), p.cfg.JWTRefreshTTL).Err(); err != nil {
+	if err := p.storeRefreshSession(ctx, userID, tokens.RefreshTokenID); err != nil {
 		return nil, err
 	}
 
 	return tokens, nil
+}
+
+func (p *AuthPipe) storeRefreshSession(ctx context.Context, userID uuid.UUID, tokenID string) error {
+	pipe := p.redis.TxPipeline()
+	pipe.Set(ctx, refreshSessionKey(tokenID), userID.String(), p.cfg.JWTRefreshTTL)
+	pipe.SAdd(ctx, userRefreshSessionsKey(userID), tokenID)
+	pipe.Expire(ctx, userRefreshSessionsKey(userID), p.cfg.JWTRefreshTTL)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (p *AuthPipe) deleteRefreshSession(ctx context.Context, userID uuid.UUID, tokenID string) error {
+	pipe := p.redis.TxPipeline()
+	pipe.Del(ctx, refreshSessionKey(tokenID))
+	pipe.SRem(ctx, userRefreshSessionsKey(userID), tokenID)
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (p *AuthPipe) revokeUserRefreshSessions(ctx context.Context, userID uuid.UUID) error {
+	sessionIDs, err := p.redis.SMembers(ctx, userRefreshSessionsKey(userID)).Result()
+	if err != nil {
+		return err
+	}
+
+	pipe := p.redis.TxPipeline()
+	for _, sessionID := range sessionIDs {
+		pipe.Del(ctx, refreshSessionKey(sessionID))
+	}
+	pipe.Del(ctx, userRefreshSessionsKey(userID))
+	_, err = pipe.Exec(ctx)
+	return err
 }
 
 func authResponse(user *models.User, tokens *services.TokenPair) *AuthResponse {
@@ -87,8 +121,31 @@ func pipeError[T any](message shared.PipeMessage) *shared.PipeRes[T] {
 	}
 }
 
+func pipeInternalError[T any]() *shared.PipeRes[T] {
+	return pipeError[T](messages.Internal_Error)
+}
+
+func logInternalError(err error, operation string) {
+	if err == nil {
+		return
+	}
+	log.Error().Err(err).Str("operation", operation).Msg("auth internal error")
+}
+
+func logRefreshTokenReuse(userID uuid.UUID, tokenID string, operation string) {
+	log.Warn().
+		Str("user_id", userID.String()).
+		Str("token_id", tokenID).
+		Str("operation", operation).
+		Msg("possible refresh token reuse detected")
+}
+
 func refreshSessionKey(tokenID string) string {
 	return "session:" + tokenID
+}
+
+func userRefreshSessionsKey(userID uuid.UUID) string {
+	return "sessions:user:" + userID.String()
 }
 
 func normalizeEmail(email string) string {

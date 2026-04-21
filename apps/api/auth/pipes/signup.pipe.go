@@ -16,7 +16,8 @@ func (p *AuthPipe) SignupPipe(ctx context.Context, dto dtos.SignupDTO) *shared.P
 
 	userExists, err := p.userRepo.FindUserByEmail(ctx, email)
 	if err != nil {
-		return pipeError[AuthResponse](shared.CreatePipeMessage(err.Error()))
+		logInternalError(err, "signup.find_user_by_email")
+		return pipeInternalError[AuthResponse]()
 	}
 	if userExists != nil {
 		return pipeError[AuthResponse](messages.User_Already_Exists)
@@ -24,7 +25,8 @@ func (p *AuthPipe) SignupPipe(ctx context.Context, dto dtos.SignupDTO) *shared.P
 
 	passwordHash, err := p.hashService.HashPassword(dto.Password)
 	if err != nil {
-		return pipeError[AuthResponse](shared.CreatePipeMessage(err.Error()))
+		logInternalError(err, "signup.hash_password")
+		return pipeInternalError[AuthResponse]()
 	}
 
 	fullname := strings.TrimSpace(dto.Firstname + " " + dto.Lastname)
@@ -33,12 +35,14 @@ func (p *AuthPipe) SignupPipe(ctx context.Context, dto dtos.SignupDTO) *shared.P
 		if errors.Is(err, user.ErrUserAlreadyExists) {
 			return pipeError[AuthResponse](messages.User_Already_Exists)
 		}
-		return pipeError[AuthResponse](shared.CreatePipeMessage(err.Error()))
+		logInternalError(err, "signup.create_user")
+		return pipeInternalError[AuthResponse]()
 	}
 
 	tokens, err := p.issueTokenPair(ctx, createdUser.ID)
 	if err != nil {
-		return pipeError[AuthResponse](shared.CreatePipeMessage(err.Error()))
+		logInternalError(err, "signup.issue_token_pair")
+		return pipeInternalError[AuthResponse]()
 	}
 
 	return pipeSuccess(messages.User_Created, authResponse(createdUser, tokens))

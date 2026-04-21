@@ -18,22 +18,29 @@ func (p *AuthPipe) RefreshPipe(ctx context.Context, refreshToken string) *shared
 
 	sessionUserID, err := p.redis.Get(ctx, refreshSessionKey(claims.ID)).Result()
 	if errors.Is(err, redis.Nil) {
+		logRefreshTokenReuse(claims.UserID, claims.ID, "refresh.missing_session")
+		_ = p.revokeUserRefreshSessions(ctx, claims.UserID)
 		return pipeError[services.TokenPair](messages.Invalid_Token)
 	}
 	if err != nil {
-		return pipeError[services.TokenPair](shared.CreatePipeMessage(err.Error()))
+		logInternalError(err, "refresh.get_session")
+		return pipeInternalError[services.TokenPair]()
 	}
 	if sessionUserID != claims.UserID.String() {
+		logRefreshTokenReuse(claims.UserID, claims.ID, "refresh.session_user_mismatch")
+		_ = p.revokeUserRefreshSessions(ctx, claims.UserID)
 		return pipeError[services.TokenPair](messages.Invalid_Token)
 	}
 
-	if err := p.redis.Del(ctx, refreshSessionKey(claims.ID)).Err(); err != nil {
-		return pipeError[services.TokenPair](shared.CreatePipeMessage(err.Error()))
+	if err := p.deleteRefreshSession(ctx, claims.UserID, claims.ID); err != nil {
+		logInternalError(err, "refresh.delete_session")
+		return pipeInternalError[services.TokenPair]()
 	}
 
 	tokens, err := p.issueTokenPair(ctx, claims.UserID)
 	if err != nil {
-		return pipeError[services.TokenPair](shared.CreatePipeMessage(err.Error()))
+		logInternalError(err, "refresh.issue_token_pair")
+		return pipeInternalError[services.TokenPair]()
 	}
 
 	return pipeSuccess(messages.Token_Refreshed, tokens)

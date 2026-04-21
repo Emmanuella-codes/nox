@@ -3,6 +3,7 @@ package token
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -22,15 +23,15 @@ type Claims struct {
 
 // Sign creates a token with a generated jti.
 func Sign(userID uuid.UUID, tokenType, secret string, ttl time.Duration) (string, error) {
-	return signWithID(userID, uuid.NewString(), tokenType, secret, ttl)
+	return SignWithOptions(userID, uuid.NewString(), tokenType, secret, ttl, "", "")
 }
 
 // SignWithID creates a token with an explicit jti.
 func SignWithID(userID uuid.UUID, tokenID, tokenType, secret string, ttl time.Duration) (string, error) {
-	return signWithID(userID, tokenID, tokenType, secret, ttl)
+	return SignWithOptions(userID, tokenID, tokenType, secret, ttl, "", "")
 }
 
-func signWithID(userID uuid.UUID, tokenID, tokenType, secret string, ttl time.Duration) (string, error) {
+func SignWithOptions(userID uuid.UUID, tokenID, tokenType, secret string, ttl time.Duration, issuer string, audience string) (string, error) {
 	if secret == "" {
 		return "", errors.New("jwt secret is empty")
 	}
@@ -47,6 +48,8 @@ func signWithID(userID uuid.UUID, tokenID, tokenType, secret string, ttl time.Du
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			ID:        tokenID,
+			Issuer:    issuer,
+			Audience:  jwt.ClaimStrings{audience},
 		},
 	}
 
@@ -56,6 +59,10 @@ func signWithID(userID uuid.UUID, tokenID, tokenType, secret string, ttl time.Du
 
 // Verify parses and validates a token, checking type and required claims.
 func Verify(rawToken, secret, expectedType string) (*Claims, error) {
+	return VerifyWithOptions(rawToken, secret, expectedType, "", "")
+}
+
+func VerifyWithOptions(rawToken, secret, expectedType string, issuer string, audience string) (*Claims, error) {
 	if secret == "" {
 		return nil, errors.New("jwt secret is empty")
 	}
@@ -82,6 +89,12 @@ func Verify(rawToken, secret, expectedType string) (*Claims, error) {
 	}
 	if claims.ID == "" {
 		return nil, errors.New("missing token id claim")
+	}
+	if issuer != "" && claims.Issuer != issuer {
+		return nil, errors.New("invalid issuer")
+	}
+	if audience != "" && !slices.Contains(claims.Audience, audience) {
+		return nil, errors.New("invalid audience")
 	}
 
 	return claims, nil

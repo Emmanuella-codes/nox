@@ -2,10 +2,15 @@ package services
 
 import "golang.org/x/crypto/bcrypt"
 
-type HashService struct{}
+const dummyPassword = "nox-dummy-password"
+
+type HashService struct {
+	dummyHash string
+}
 
 func NewHashService() *HashService {
-	return &HashService{}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(dummyPassword), bcrypt.DefaultCost)
+	return &HashService{dummyHash: string(hash)}
 }
 
 func (s *HashService) HashPassword(password string) (string, error) {
@@ -19,4 +24,8 @@ func (s *HashService) HashPassword(password string) (string, error) {
 
 func (s *HashService) ComparePassword(hash string, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
+
+func (s *HashService) CompareDummyPassword(password string) {
+	_ = bcrypt.CompareHashAndPassword([]byte(s.dummyHash), []byte(password))
 }

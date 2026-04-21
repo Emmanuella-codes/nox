@@ -8,6 +8,8 @@ const (
 	Invalid_Credentials shared.PipeMessage = "invalid_credentials"
 	Invalid_Token       shared.PipeMessage = "invalid_token"
 	Invalid_Payload     shared.PipeMessage = "invalid_payload"
+	Internal_Error      shared.PipeMessage = "internal_error"
+	Email_Not_Verified  shared.PipeMessage = "email_not_verified"
 
 	// +
 	User_Created    shared.PipeMessage = "user_created_successfully"

@@ -40,17 +40,17 @@ func (s *TokenService) IssuePair(userID uuid.UUID) (*TokenPair, error) {
 }
 
 func (s *TokenService) SignAccessToken(userID uuid.UUID) (string, error) {
-	return sharedtoken.Sign(userID, sharedtoken.AccessTokenType, s.cfg.JWTAccessSecret, s.cfg.JWTAccessTTL)
+	return sharedtoken.SignWithOptions(userID, uuid.NewString(), sharedtoken.AccessTokenType, s.cfg.JWTAccessSecret, s.cfg.JWTAccessTTL, s.cfg.JWTIssuer, s.cfg.JWTAudience)
 }
 
 func (s *TokenService) SignRefreshToken(userID uuid.UUID, tokenID string) (string, error) {
-	return sharedtoken.SignWithID(userID, tokenID, sharedtoken.RefreshTokenType, s.cfg.JWTRefreshSecret, s.cfg.JWTRefreshTTL)
+	return sharedtoken.SignWithOptions(userID, tokenID, sharedtoken.RefreshTokenType, s.cfg.JWTRefreshSecret, s.cfg.JWTRefreshTTL, s.cfg.JWTIssuer, s.cfg.JWTAudience)
 }
 
 func (s *TokenService) VerifyAccessToken(rawToken string) (*sharedtoken.Claims, error) {
-	return sharedtoken.Verify(rawToken, s.cfg.JWTAccessSecret, sharedtoken.AccessTokenType)
+	return sharedtoken.VerifyWithOptions(rawToken, s.cfg.JWTAccessSecret, sharedtoken.AccessTokenType, s.cfg.JWTIssuer, s.cfg.JWTAudience)
 }
 
 func (s *TokenService) VerifyRefreshToken(rawToken string) (*sharedtoken.Claims, error) {
-	return sharedtoken.Verify(rawToken, s.cfg.JWTRefreshSecret, sharedtoken.RefreshTokenType)
+	return sharedtoken.VerifyWithOptions(rawToken, s.cfg.JWTRefreshSecret, sharedtoken.RefreshTokenType, s.cfg.JWTIssuer, s.cfg.JWTAudience)
 }

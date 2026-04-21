@@ -19,7 +19,7 @@ func JWT(cfg *config.Config) fiber.Handler {
 			return unauthorized(c)
 		}
 
-		claims, err := sharedtoken.Verify(token, cfg.JWTAccessSecret, sharedtoken.AccessTokenType)
+		claims, err := sharedtoken.VerifyWithOptions(token, cfg.JWTAccessSecret, sharedtoken.AccessTokenType, cfg.JWTIssuer, cfg.JWTAudience)
 		if err != nil {
 			return unauthorized(c)
 		}
