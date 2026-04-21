@@ -4,14 +4,18 @@ import (
 	"context"
 	"time"
 
+	"github.com/emmanuella-codes/nox/auth/pipes"
+	"github.com/emmanuella-codes/nox/auth/routers"
+	"github.com/emmanuella-codes/nox/auth/services"
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/middleware"
+	"github.com/emmanuella-codes/nox/repositories"
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
-func RunServer(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) {
+func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Client, repos *repositories.Repositories) {
 	app := fiber.New(fiber.Config{
 		AppName:      "nox-api",
 		ReadTimeout:  10 * time.Second,
@@ -20,6 +24,20 @@ func RunServer(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) {
 	})
 
 	app.Use(middleware.Logger())
+
+	authPipe := pipes.NewAuthPipe(pipes.AuthPipeDeps{
+		UserRepo:     repos.User,
+		HashService:  services.NewHashService(),
+		TokenService: services.NewTokenService(cfg),
+		Redis:        redisClient,
+		Config:       cfg,
+	})
+
+	api := app.Group("/api/v1")
+	api.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
+	routers.RegisterRoutes(api, authPipe, middleware.JWT(cfg))
 
 	go func() {
 		<-ctx.Done()

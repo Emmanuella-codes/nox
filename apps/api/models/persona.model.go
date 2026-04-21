@@ -15,7 +15,7 @@ const (
 
 type Persona struct {
 	ID             uuid.UUID   `json:"id"`
-	UserID         uuid.UUID   `json:"user_id"`
+	UserID         uuid.UUID   `json:"-"`
 	Handle         string      `json:"handle"`
 	DisplayName    string      `json:"display_name"`
 	Bio            string      `json:"bio"`

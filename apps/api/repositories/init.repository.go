@@ -1,9 +1,16 @@
 package repositories
 
 import (
-	"log"
-
+	"github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func InitRepository(pool *pgxpool.Pool, logger *log.Logger) {}
+type Repositories struct {
+	User user.UserRepository
+}
+
+func Init(pool *pgxpool.Pool) *Repositories {
+	return &Repositories{
+		User: user.NewUserRepository(pool),
+	}
+}

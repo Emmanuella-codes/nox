@@ -18,7 +18,7 @@ func Connect(ctx context.Context, databaseUrl string) (*pgxpool.Pool, error) {
 	cfg.MaxConns = 20
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = 5 * time.Minute
-	cfg.HealthCheckPeriod = 1 * time.Second
+	cfg.HealthCheckPeriod = 30 * time.Second
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

@@ -11,7 +11,7 @@ type Comment struct {
 	PersonaID uuid.UUID `json:"persona_id"`
 	PostID    uuid.UUID `json:"post_id"`
 	Body      string    `json:"body"` // 280 characters
-	ParentID  uuid.UUID `json:"parent_id"`
+	ParentID  *uuid.UUID `json:"parent_id,omitempty"`
 	LikeCount int       `json:"like_count"`
 	CreatedAt time.Time `json:"created_at"`
 }

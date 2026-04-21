@@ -18,23 +18,24 @@ const (
 type MediaType string
 
 const (
-	ImageMediaType MediaType = "image"
-	VideoMediaType MediaType = "video"
+	ImageMediaType      MediaType = "image"
+	YouTubeMediaType    MediaType = "youtube"
+	SoundCloudMediaType MediaType = "soundcloud"
 )
 
 type Post struct {
-	ID           uuid.UUID `json:"id"`
-	PersonaID    uuid.UUID `json:"persona_id"`
-	EventID      uuid.UUID `json:"event_id"`
-	Body         string    `json:"body"` // 350 characters
-	PostType     PostType  `json:"post_type"`
-	MediaURL     []string  `json:"media_url"`
-	MediaType    MediaType `json:"media_type"`
-	Location     string    `json:"location"`
-	LikeCount    int       `json:"like_count"`
-	CommentCount int       `json:"comment_count"`
-	RepostCount  int       `json:"repost_count"`
-	Is_Repost    bool      `json:"is_repost"`
-	RepostOf     uuid.UUID `json:"repost_of"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           uuid.UUID  `json:"id"`
+	PersonaID    uuid.UUID  `json:"persona_id"`
+	EventID      *uuid.UUID `json:"event_id,omitempty"`
+	Body         string     `json:"body"`
+	PostType     PostType   `json:"post_type"`
+	MediaURL     string     `json:"media_url,omitempty"`
+	MediaType    MediaType  `json:"media_type,omitempty"`
+	Location     string     `json:"location,omitempty"`
+	LikeCount    int        `json:"like_count"`
+	CommentCount int        `json:"comment_count"`
+	RepostCount  int        `json:"repost_count"`
+	IsRepost     bool       `json:"is_repost"`
+	RepostOf     *uuid.UUID `json:"repost_of,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
