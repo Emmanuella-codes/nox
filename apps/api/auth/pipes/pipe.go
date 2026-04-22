@@ -15,6 +15,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const maxEmailVerificationAttempts = 5
+
 type AuthPipe struct {
 	userRepo     user.UserRepository
 	hashService  *services.HashService
@@ -147,11 +149,43 @@ func (p *AuthPipe) sendVerificationOTP(ctx context.Context, user *models.User) e
 		return err
 	}
 
-	if err := p.redis.Set(ctx, emailVerificationKey(user.ID.String()), otpHash, p.cfg.EmailOTPTTL).Err(); err != nil {
+	userID := user.ID.String()
+	pipe := p.redis.TxPipeline()
+	pipe.Set(ctx, emailVerificationKey(userID), otpHash, p.cfg.EmailOTPTTL)
+	pipe.Del(ctx, emailVerificationAttemptsKey(userID))
+	if _, err := pipe.Exec(ctx); err != nil {
 		return err
 	}
 
 	return p.emailService.SendVerificationOTP(ctx, user.Email, otp)
+}
+
+func (p *AuthPipe) recordFailedVerificationAttempt(ctx context.Context, userID string) (int64, error) {
+	attemptsKey := emailVerificationAttemptsKey(userID)
+
+	attempts, err := p.redis.Incr(ctx, attemptsKey).Result()
+	if err != nil {
+		return 0, err
+	}
+
+	if attempts == 1 {
+		ttl, err := p.redis.TTL(ctx, emailVerificationKey(userID)).Result()
+		if err != nil {
+			return 0, err
+		}
+		if ttl > 0 {
+			if err := p.redis.Expire(ctx, attemptsKey, ttl).Err(); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	return attempts, nil
+}
+
+func (p *AuthPipe) deleteEmailVerification(ctx context.Context, userID string) error {
+	_, err := p.redis.Del(ctx, emailVerificationKey(userID), emailVerificationAttemptsKey(userID)).Result()
+	return err
 }
 
 func logInternalError(err error, operation string) {
@@ -179,6 +213,10 @@ func userRefreshSessionsKey(userID uuid.UUID) string {
 
 func emailVerificationKey(userID string) string {
 	return "email_verify:" + userID
+}
+
+func emailVerificationAttemptsKey(userID string) string {
+	return "email_verify_attempts:" + userID
 }
 
 func normalizeEmail(email string) string {

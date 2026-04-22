@@ -52,7 +52,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		return c.JSON(fiber.Map{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 	})
 
-	shared_api.BaseRouter(api.Group("/auth"), routers.AuthRoutes(authController))
+	shared_api.BaseRouter(api.Group("/auth"), routers.AuthRoutes(authController, redisClient))
 
 	go func() {
 		<-ctx.Done()

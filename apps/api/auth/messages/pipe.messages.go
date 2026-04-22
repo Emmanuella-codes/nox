@@ -8,11 +8,13 @@ const (
 	Invalid_Credentials    shared.PipeMessage = "invalid_credentials"
 	Invalid_Token          shared.PipeMessage = "invalid_token"
 	Invalid_Payload        shared.PipeMessage = "invalid_payload"
+	Unknown_Error          shared.PipeMessage = "unknown_error"
 	Internal_Error         shared.PipeMessage = "internal_error"
 	Email_Not_Verified     shared.PipeMessage = "email_not_verified"
 	Email_Already_Verified shared.PipeMessage = "email_already_verified"
 	Invalid_OTP            shared.PipeMessage = "invalid_otp"
 	OTP_Expired            shared.PipeMessage = "otp_expired"
+	OTP_Locked             shared.PipeMessage = "otp_locked"
 
 	// +
 	User_Created      shared.PipeMessage = "user_created_successfully"

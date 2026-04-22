@@ -32,6 +32,18 @@ func (p *AuthPipe) VerifyEmailPipe(ctx context.Context, dto dtos.VerifyEmailDTO)
 		return pipeInternalError[any]()
 	}
 	if !p.otpService.Compare(otpHash, dto.OTP) {
+		attempts, err := p.recordFailedVerificationAttempt(ctx, foundUser.ID.String())
+		if err != nil {
+			logInternalError(err, "verify_email.record_failed_attempt")
+			return pipeInternalError[any]()
+		}
+		if attempts >= maxEmailVerificationAttempts {
+			if err := p.deleteEmailVerification(ctx, foundUser.ID.String()); err != nil {
+				logInternalError(err, "verify_email.delete_locked_otp")
+				return pipeInternalError[any]()
+			}
+			return pipeError[any](messages.OTP_Locked)
+		}
 		return pipeError[any](messages.Invalid_OTP)
 	}
 
@@ -39,7 +51,7 @@ func (p *AuthPipe) VerifyEmailPipe(ctx context.Context, dto dtos.VerifyEmailDTO)
 		logInternalError(err, "verify_email.mark_verified")
 		return pipeInternalError[any]()
 	}
-	if err := p.redis.Del(ctx, emailVerificationKey(foundUser.ID.String())).Err(); err != nil {
+	if err := p.deleteEmailVerification(ctx, foundUser.ID.String()); err != nil {
 		logInternalError(err, "verify_email.delete_otp")
 		return pipeInternalError[any]()
 	}

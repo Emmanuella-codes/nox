@@ -66,9 +66,13 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusConflict
 	case messages.Invalid_OTP, messages.OTP_Expired:
 		return fiber.StatusUnauthorized
+	case messages.OTP_Locked:
+		return fiber.StatusTooManyRequests
 	case messages.Internal_Error:
 		return fiber.StatusInternalServerError
+	case messages.Unknown_Error:
+		return fiber.StatusBadRequest
 	default:
-		return fiber.StatusInternalServerError
+		return fiber.StatusBadRequest
 	}
 }
