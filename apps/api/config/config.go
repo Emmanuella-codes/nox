@@ -19,6 +19,10 @@ type Config struct {
 	JWTAccessTTL       time.Duration
 	JWTRefreshTTL      time.Duration
 	EmailOTPTTL        time.Duration
+	BrevoAPIKey        string
+	BrevoBaseURL       string
+	MailFromEmail      string
+	MailFromName       string
 	GhostPersonaSecret string
 	Environment        string
 }
@@ -41,6 +45,10 @@ func Load() (*Config, error) {
 		JWTAccessTTL:       getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:      getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
 		EmailOTPTTL:        getDurationEnv("EMAIL_OTP_TTL", 10*time.Minute),
+		BrevoAPIKey:        getEnv("BREVO_API_KEY", ""),
+		BrevoBaseURL:       getEnv("BREVO_BASE_URL", "https://api.brevo.com"),
+		MailFromEmail:      getEnv("MAIL_FROM_EMAIL", ""),
+		MailFromName:       getEnv("MAIL_FROM_NAME", "Nox"),
 		GhostPersonaSecret: getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:        getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 	}

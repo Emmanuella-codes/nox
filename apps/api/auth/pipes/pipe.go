@@ -151,7 +151,7 @@ func (p *AuthPipe) sendVerificationOTP(ctx context.Context, user *models.User) e
 		return err
 	}
 
-	return p.emailService.SendVerificationOTP(user.Email, otp)
+	return p.emailService.SendVerificationOTP(ctx, user.Email, otp)
 }
 
 func logInternalError(err error, operation string) {

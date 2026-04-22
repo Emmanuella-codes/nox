@@ -12,6 +12,7 @@ import (
 	"github.com/emmanuella-codes/nox/middleware"
 	"github.com/emmanuella-codes/nox/repositories"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
+	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
@@ -27,11 +28,18 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 
 	app.Use(middleware.Logger())
 
+	mailProvider := mail.NewBrevoProvider(mail.BrevoConfig{
+		APIKey:      cfg.BrevoAPIKey,
+		BaseURL:     cfg.BrevoBaseURL,
+		SenderEmail: cfg.MailFromEmail,
+		SenderName:  cfg.MailFromName,
+	})
+
 	authPipe := pipes.NewAuthPipe(pipes.AuthPipeDeps{
 		UserRepo:     repos.User,
 		HashService:  services.NewHashService(),
 		OTPService:   services.NewOTPService(),
-		EmailService: services.NewEmailService(),
+		EmailService: services.NewEmailService(mailProvider),
 		TokenService: services.NewTokenService(cfg),
 		Redis:        redisClient,
 		Config:       cfg,
