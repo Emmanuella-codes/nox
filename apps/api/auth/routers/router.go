@@ -28,6 +28,18 @@ func AuthRoutes(controller *controllers.AuthController) []api.RouterSchema {
 		},
 		{
 			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/verify-email",
+			Middlewares: []typings.FiberMiddleware{rateLimit},
+			Handler:     controller.VerifyEmail,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/resend-verification",
+			Middlewares: []typings.FiberMiddleware{rateLimit},
+			Handler:     controller.ResendVerification,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
 			Path:        "/refresh",
 			Middlewares: []typings.FiberMiddleware{rateLimit},
 			Handler:     controller.Refresh,

@@ -18,6 +18,8 @@ import (
 type AuthPipe struct {
 	userRepo     user.UserRepository
 	hashService  *services.HashService
+	otpService   *services.OTPService
+	emailService *services.EmailService
 	tokenService *services.TokenService
 	redis        *redis.Client
 	cfg          *config.Config
@@ -26,6 +28,8 @@ type AuthPipe struct {
 type AuthPipeDeps struct {
 	UserRepo     user.UserRepository
 	HashService  *services.HashService
+	OTPService   *services.OTPService
+	EmailService *services.EmailService
 	TokenService *services.TokenService
 	Redis        *redis.Client
 	Config       *config.Config
@@ -45,10 +49,17 @@ func NewAuthPipe(deps AuthPipeDeps) *AuthPipe {
 	return &AuthPipe{
 		userRepo:     deps.UserRepo,
 		hashService:  deps.HashService,
+		otpService:   deps.OTPService,
+		emailService: deps.EmailService,
 		tokenService: deps.TokenService,
 		redis:        deps.Redis,
 		cfg:          deps.Config,
 	}
+}
+
+type VerificationResponse struct {
+	User             UserResponse `json:"user"`
+	ExpiresInSeconds int64        `json:"expires_in_seconds"`
 }
 
 func (p *AuthPipe) issueTokenPair(ctx context.Context, userID uuid.UUID) (*services.TokenPair, error) {
@@ -125,6 +136,24 @@ func pipeInternalError[T any]() *shared.PipeRes[T] {
 	return pipeError[T](messages.Internal_Error)
 }
 
+func (p *AuthPipe) sendVerificationOTP(ctx context.Context, user *models.User) error {
+	otp, err := p.otpService.Generate()
+	if err != nil {
+		return err
+	}
+
+	otpHash, err := p.otpService.Hash(otp)
+	if err != nil {
+		return err
+	}
+
+	if err := p.redis.Set(ctx, emailVerificationKey(user.ID.String()), otpHash, p.cfg.EmailOTPTTL).Err(); err != nil {
+		return err
+	}
+
+	return p.emailService.SendVerificationOTP(user.Email, otp)
+}
+
 func logInternalError(err error, operation string) {
 	if err == nil {
 		return
@@ -146,6 +175,10 @@ func refreshSessionKey(tokenID string) string {
 
 func userRefreshSessionsKey(userID uuid.UUID) string {
 	return "sessions:user:" + userID.String()
+}
+
+func emailVerificationKey(userID string) string {
+	return "email_verify:" + userID
 }
 
 func normalizeEmail(email string) string {

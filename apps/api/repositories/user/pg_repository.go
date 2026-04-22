@@ -25,13 +25,14 @@ func (r *pgRepository) CreateUser(ctx context.Context, fullname string, email st
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO users (fullname, email, password)
 		VALUES ($1, $2, $3)
-		RETURNING id, fullname, email, password, email_verified, created_at, updated_at
+		RETURNING id, fullname, email, password, email_verified, email_verified_at, created_at, updated_at
 	`, fullname, email, passwordHash).Scan(
 		&user.ID,
 		&user.Fullname,
 		&user.Email,
 		&user.Password,
 		&user.EmailVerified,
+		&user.EmailVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -44,17 +45,12 @@ func (r *pgRepository) CreateUser(ctx context.Context, fullname string, email st
 	return user, nil
 }
 
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode
-}
-
 func (r *pgRepository) FindUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	err := r.db.QueryRow(ctx,
-		`SELECT id, fullname, email, password, email_verified, created_at, updated_at FROM users WHERE email = $1`,
+		`SELECT id, fullname, email, password, email_verified, email_verified_at, created_at, updated_at FROM users WHERE email = $1`,
 		email,
-	).Scan(&user.ID, &user.Fullname, &user.Email, &user.Password, &user.EmailVerified, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Fullname, &user.Email, &user.Password, &user.EmailVerified, &user.EmailVerifiedAt, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -62,4 +58,20 @@ func (r *pgRepository) FindUserByEmail(ctx context.Context, email string) (*mode
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *pgRepository) MarkEmailVerified(ctx context.Context, userID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE users
+		SET email_verified = true,
+			email_verified_at = now(),
+			updated_at = now()
+		WHERE id = $1
+	`, userID)
+	return err
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode
 }

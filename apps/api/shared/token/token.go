@@ -21,12 +21,12 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// Sign creates a token with a generated jti.
+// creates a token with a generated jwt token id.
 func Sign(userID uuid.UUID, tokenType, secret string, ttl time.Duration) (string, error) {
 	return SignWithOptions(userID, uuid.NewString(), tokenType, secret, ttl, "", "")
 }
 
-// SignWithID creates a token with an explicit jti.
+// creates a token with an explicit jwt token id.
 func SignWithID(userID uuid.UUID, tokenID, tokenType, secret string, ttl time.Duration) (string, error) {
 	return SignWithOptions(userID, tokenID, tokenType, secret, ttl, "", "")
 }
@@ -57,7 +57,7 @@ func SignWithOptions(userID uuid.UUID, tokenID, tokenType, secret string, ttl ti
 	return t.SignedString([]byte(secret))
 }
 
-// Verify parses and validates a token, checking type and required claims.
+// parses and validates a token, checking type and required claims.
 func Verify(rawToken, secret, expectedType string) (*Claims, error) {
 	return VerifyWithOptions(rawToken, secret, expectedType, "", "")
 }

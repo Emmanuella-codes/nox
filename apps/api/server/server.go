@@ -30,6 +30,8 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	authPipe := pipes.NewAuthPipe(pipes.AuthPipeDeps{
 		UserRepo:     repos.User,
 		HashService:  services.NewHashService(),
+		OTPService:   services.NewOTPService(),
+		EmailService: services.NewEmailService(),
 		TokenService: services.NewTokenService(cfg),
 		Redis:        redisClient,
 		Config:       cfg,

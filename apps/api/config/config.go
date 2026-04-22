@@ -18,6 +18,7 @@ type Config struct {
 	JWTAudience        string
 	JWTAccessTTL       time.Duration
 	JWTRefreshTTL      time.Duration
+	EmailOTPTTL        time.Duration
 	GhostPersonaSecret string
 	Environment        string
 }
@@ -39,6 +40,7 @@ func Load() (*Config, error) {
 		JWTAudience:        getEnv("JWT_AUDIENCE", "nox-client"),
 		JWTAccessTTL:       getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:      getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
+		EmailOTPTTL:        getDurationEnv("EMAIL_OTP_TTL", 10*time.Minute),
 		GhostPersonaSecret: getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:        getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 	}
