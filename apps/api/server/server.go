@@ -10,6 +10,12 @@ import (
 	"github.com/emmanuella-codes/nox/auth/services"
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/middleware"
+	personacontrollers "github.com/emmanuella-codes/nox/persona/controllers"
+	personapipes "github.com/emmanuella-codes/nox/persona/pipes"
+	personarouters "github.com/emmanuella-codes/nox/persona/routers"
+	postcontrollers "github.com/emmanuella-codes/nox/post/controllers"
+	postpipes "github.com/emmanuella-codes/nox/post/pipes"
+	postrouters "github.com/emmanuella-codes/nox/post/routers"
 	"github.com/emmanuella-codes/nox/repositories"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
@@ -45,14 +51,19 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		Config:       cfg,
 	})
 
-	authController := controllers.NewAuthController(authPipe)
-
-	api := app.Group("/api/v1")
-	api.Get("/health", func(c *fiber.Ctx) error {
+	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 	})
 
+	authController := controllers.NewAuthController(authPipe)
+	personaController := personacontrollers.NewPersonaController(personapipes.NewPersonaPipe(repos.Persona))
+	postController := postcontrollers.NewPostController(postpipes.NewPostPipe(repos.Post, repos.Persona))
+
+	api := app.Group("/api/v1")
+
 	shared_api.BaseRouter(api.Group("/auth"), routers.AuthRoutes(authController, redisClient))
+	shared_api.BaseRouter(api.Group("/personas"), personarouters.PersonaRoutes(personaController, cfg, repos.Persona))
+	shared_api.BaseRouter(api.Group("/posts"), postrouters.PostRoutes(postController, cfg, repos.Persona))
 
 	go func() {
 		<-ctx.Done()

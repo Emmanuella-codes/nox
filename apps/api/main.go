@@ -21,6 +21,10 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
+	if err := db.RunMigrations(cfg.DatabaseURL); err != nil {
+		log.Fatal().Err(err).Msg("failed to run database migrations")
+	}
+
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect database")
