@@ -12,26 +12,42 @@ import (
 	"github.com/google/uuid"
 )
 
-func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreatePostDTO) *shared.PipeRes[models.Post] {
-	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.PersonaID)
-	if err != nil {
-		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[models.Post](messages.Persona_Not_Found)
-		}
-		return pipeInternalError[models.Post](err, "post.find_persona")
-	}
-	if persona.UserID != userID {
-		return pipeError[models.Post](messages.Forbidden)
-	}
-
+func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreatePostDTO) *shared.PipeRes[PostResponse] {
 	dto.Body = strings.TrimSpace(dto.Body)
 	dto.MediaURL = strings.TrimSpace(dto.MediaURL)
 	dto.Location = strings.TrimSpace(dto.Location)
 
-	post, err := p.postRepo.CreatePost(ctx, dto.PersonaID, dto)
-	if err != nil {
-		return pipeInternalError[models.Post](err, "post.create")
+	if !validPostingMode(dto.PostingMode) {
+		return pipeError[PostResponse](messages.Invalid_Posting_Mode)
 	}
 
-	return pipeSuccess(messages.Post_Created, post)
+	var persona *models.Persona
+	switch dto.PostingMode {
+	case models.PublicPostingMode:
+		if dto.PersonaID == nil || *dto.PersonaID == uuid.Nil {
+			return pipeError[PostResponse](messages.Persona_Required)
+		}
+
+		foundPersona, err := p.personaRepo.FindPersonaByID(ctx, *dto.PersonaID)
+		if err != nil {
+			if err == persona_repo.ErrPersonaNotFound {
+				return pipeError[PostResponse](messages.Persona_Not_Found)
+			}
+			return pipeInternalError[PostResponse](err, "post.find_persona")
+		}
+		if foundPersona.UserID != userID || foundPersona.PersonaType != models.VisiblePersonaType {
+			return pipeError[PostResponse](messages.Forbidden)
+		}
+		persona = foundPersona
+	case models.AnonymousPostingMode:
+		dto.PersonaID = nil
+	}
+
+	post, err := p.postRepo.CreatePost(ctx, userID, dto)
+	if err != nil {
+		return pipeInternalError[PostResponse](err, "post.create")
+	}
+
+	response := postResponse(post, persona)
+	return pipeSuccess(messages.Post_Created, &response)
 }

@@ -19,7 +19,7 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
-func (r *pgRepository) CreatePost(ctx context.Context, personaID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error) {
+func (r *pgRepository) CreatePost(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error) {
 	var eventID *uuid.UUID
 	if dto.EventID != uuid.Nil {
 		eventID = &dto.EventID
@@ -27,11 +27,12 @@ func (r *pgRepository) CreatePost(ctx context.Context, personaID uuid.UUID, dto 
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO posts (
-			persona_id, event_id, body, post_type, media_url, media_type, location
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, persona_id, event_id, body, post_type, COALESCE(media_url, ''), COALESCE(media_type, ''),
-		          COALESCE(location, ''), like_count, comment_count, repost_count, is_repost, repost_of, created_at
-	`, personaID, eventID, dto.Body, dto.PostType, emptyToNil(dto.MediaURL), emptyToNil(string(dto.MediaType)), emptyToNil(dto.Location))
+			author_user_id, persona_id, posting_mode, event_id, body, post_type, media_url, media_type, location
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, author_user_id, persona_id, posting_mode, event_id, body, post_type,
+		          COALESCE(media_url, ''), COALESCE(media_type, ''), COALESCE(location, ''),
+		          like_count, comment_count, repost_count, is_repost, repost_of, created_at
+	`, authorUserID, dto.PersonaID, dto.PostingMode, eventID, dto.Body, dto.PostType, emptyToNil(dto.MediaURL), emptyToNil(string(dto.MediaType)), emptyToNil(dto.Location))
 
 	post, err := scanPost(row)
 	if err != nil {
@@ -43,8 +44,9 @@ func (r *pgRepository) CreatePost(ctx context.Context, personaID uuid.UUID, dto 
 
 func (r *pgRepository) FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, persona_id, event_id, body, post_type, COALESCE(media_url, ''), COALESCE(media_type, ''),
-		       COALESCE(location, ''), like_count, comment_count, repost_count, is_repost, repost_of, created_at
+		SELECT id, author_user_id, persona_id, posting_mode, event_id, body, post_type,
+		       COALESCE(media_url, ''), COALESCE(media_type, ''), COALESCE(location, ''),
+		       like_count, comment_count, repost_count, is_repost, repost_of, created_at
 		FROM posts
 		WHERE id = $1
 	`, postID)
@@ -59,10 +61,11 @@ func (r *pgRepository) FindPostByID(ctx context.Context, postID uuid.UUID) (*mod
 
 func (r *pgRepository) FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, persona_id, event_id, body, post_type, COALESCE(media_url, ''), COALESCE(media_type, ''),
-		       COALESCE(location, ''), like_count, comment_count, repost_count, is_repost, repost_of, created_at
+		SELECT id, author_user_id, persona_id, posting_mode, event_id, body, post_type,
+		       COALESCE(media_url, ''), COALESCE(media_type, ''), COALESCE(location, ''),
+		       like_count, comment_count, repost_count, is_repost, repost_of, created_at
 		FROM posts
-		WHERE persona_id = $1
+		WHERE persona_id = $1 AND posting_mode = 'public'
 		ORDER BY created_at DESC
 		LIMIT $2
 	`, personaID, normalizeLimit(limit))
@@ -89,11 +92,14 @@ func (r *pgRepository) FindPostsByPersonaID(ctx context.Context, personaID uuid.
 
 func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT p.id, p.persona_id, p.event_id, p.body, p.post_type, COALESCE(p.media_url, ''), COALESCE(p.media_type, ''),
-		       COALESCE(p.location, ''), p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
+		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
+		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
+		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
 		FROM posts p
-		JOIN personas pe ON pe.id = p.persona_id
-		WHERE p.persona_id = $1 OR pe.persona_type = 'visible'
+		LEFT JOIN personas pe ON pe.id = p.persona_id
+		WHERE p.posting_mode = 'anonymous'
+		   OR p.persona_id = $1
+		   OR (p.posting_mode = 'public' AND pe.persona_type = 'visible')
 		ORDER BY p.created_at DESC
 		LIMIT $2
 	`, personaID, normalizeLimit(limit))
@@ -135,11 +141,14 @@ type postScanner interface {
 
 func scanPost(scanner postScanner) (*models.Post, error) {
 	var post models.Post
+	var personaID uuid.NullUUID
 	var eventID uuid.NullUUID
 	var repostOf uuid.NullUUID
 	err := scanner.Scan(
 		&post.ID,
-		&post.PersonaID,
+		&post.AuthorUserID,
+		&personaID,
+		&post.PostingMode,
 		&eventID,
 		&post.Body,
 		&post.PostType,
@@ -155,6 +164,9 @@ func scanPost(scanner postScanner) (*models.Post, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+	if personaID.Valid {
+		post.PersonaID = &personaID.UUID
 	}
 	if eventID.Valid {
 		post.EventID = &eventID.UUID

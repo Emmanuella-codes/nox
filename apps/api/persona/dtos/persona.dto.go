@@ -3,7 +3,7 @@ package dtos
 import "github.com/emmanuella-codes/nox/models"
 
 type CreatePersonaDTO struct {
-	Handle      string             `json:"handle" validate:"required"`
+	Handle      string             `json:"handle"`
 	DisplayName string             `json:"display_name" validate:"required"`
 	Bio         string             `json:"bio" validate:"required"`
 	AvatarURL   string             `json:"avatar_url" validate:"required"`

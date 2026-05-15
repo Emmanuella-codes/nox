@@ -51,7 +51,7 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
 	case messages.Handle_Already_Taken, messages.Ghost_Persona_Already_Set:
 		return fiber.StatusConflict
-	case messages.Invalid_Payload, messages.Invalid_Persona_Type:
+	case messages.Invalid_Payload, messages.Invalid_Persona_Type, messages.Handle_Required:
 		return fiber.StatusBadRequest
 	case messages.Persona_Not_Found:
 		return fiber.StatusNotFound

@@ -35,7 +35,7 @@ func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 }
 
 func validPersonaType(personaType models.PersonaType) bool {
-	return personaType == models.VisiblePersonaType || personaType == models.GhostPersonaType
+	return personaType == models.VisiblePersonaType
 }
 
 func (p *PersonaPipe) ensureOwnedPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[models.Persona]) {

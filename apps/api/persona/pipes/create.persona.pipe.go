@@ -13,7 +13,6 @@ import (
 )
 
 func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreatePersonaDTO) *shared.PipeRes[models.Persona] {
-	dto.Handle = strings.ToLower(strings.TrimSpace(dto.Handle))
 	dto.DisplayName = strings.TrimSpace(dto.DisplayName)
 	dto.Bio = strings.TrimSpace(dto.Bio)
 	dto.AvatarURL = strings.TrimSpace(dto.AvatarURL)
@@ -21,6 +20,11 @@ func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, d
 
 	if !validPersonaType(dto.PersonaType) {
 		return pipeError[models.Persona](messages.Invalid_Persona_Type)
+	}
+
+	dto.Handle = strings.ToLower(strings.TrimSpace(dto.Handle))
+	if dto.Handle == "" {
+		return pipeError[models.Persona](messages.Handle_Required)
 	}
 
 	persona, err := p.repo.CreatePersona(ctx, userID, dto)

@@ -13,7 +13,7 @@ import (
 var ErrPostNotFound = errors.New("post not found")
 
 type PostRepository interface {
-	CreatePost(ctx context.Context, personaID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error)
+	CreatePost(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error)
 	FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error)
 	FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
 	FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)

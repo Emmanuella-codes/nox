@@ -47,7 +47,7 @@ func pipeError(ctx *fiber.Ctx, status int, message shared.PipeMessage) error {
 
 func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
-	case messages.Invalid_Payload:
+	case messages.Invalid_Payload, messages.Invalid_Posting_Mode, messages.Persona_Required:
 		return fiber.StatusBadRequest
 	case messages.Post_Not_Found, messages.Persona_Not_Found:
 		return fiber.StatusNotFound

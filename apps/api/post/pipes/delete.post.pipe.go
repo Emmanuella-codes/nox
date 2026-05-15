@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/emmanuella-codes/nox/post/messages"
-	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
@@ -19,14 +18,7 @@ func (p *PostPipe) DeletePostPipe(ctx context.Context, userID uuid.UUID, postID 
 		return pipeInternalError[any](err, "post.find_for_delete")
 	}
 
-	persona, err := p.personaRepo.FindPersonaByID(ctx, post.PersonaID)
-	if err != nil {
-		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[any](messages.Persona_Not_Found)
-		}
-		return pipeInternalError[any](err, "post.find_persona_for_delete")
-	}
-	if persona.UserID != userID {
+	if post.AuthorUserID != userID {
 		return pipeError[any](messages.Forbidden)
 	}
 

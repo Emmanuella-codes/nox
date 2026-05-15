@@ -14,7 +14,7 @@ func PostRoutes(controller *controllers.PostController, cfg *config.Config, pers
 		{
 			RouteMethod: api.RouteMethod("POST"),
 			Path:        "/",
-			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg), middleware.RequirePersonaOwner(personaRepo)},
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
 			Handler:     controller.CreatePost,
 		},
 		{
