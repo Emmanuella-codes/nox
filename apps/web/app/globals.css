@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -7,8 +8,8 @@
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
-  --font-geist-sans: Arial, Helvetica, sans-serif;
-  --font-geist-mono: "Courier New", Courier, monospace;
+  --font-geist-sans: "Space Grotesk", Inter, system-ui, sans-serif;
+  --font-geist-mono: "JetBrains Mono", monospace;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -95,7 +96,8 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Inter, system-ui, sans-serif;
+  letter-spacing: -0.005em;
 }
 
 .dark {
@@ -135,11 +137,17 @@ body {
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
   }
   html {
     @apply font-sans;
+    scrollbar-width: none;
+  }
+  ::-webkit-scrollbar {
+    display: none;
   }
 }
