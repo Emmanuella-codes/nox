@@ -8,7 +8,16 @@ import (
 	"github.com/emmanuella-codes/nox/auth/pipes"
 	"github.com/emmanuella-codes/nox/auth/routers"
 	"github.com/emmanuella-codes/nox/auth/services"
+	commentcontrollers "github.com/emmanuella-codes/nox/comment/controllers"
+	commentpipes "github.com/emmanuella-codes/nox/comment/pipes"
+	commentrouters "github.com/emmanuella-codes/nox/comment/routers"
 	"github.com/emmanuella-codes/nox/config"
+	eventcontrollers "github.com/emmanuella-codes/nox/event/controllers"
+	eventpipes "github.com/emmanuella-codes/nox/event/pipes"
+	eventrouters "github.com/emmanuella-codes/nox/event/routers"
+	likecontrollers "github.com/emmanuella-codes/nox/like/controllers"
+	likepipes "github.com/emmanuella-codes/nox/like/pipes"
+	likerouters "github.com/emmanuella-codes/nox/like/routers"
 	"github.com/emmanuella-codes/nox/middleware"
 	personacontrollers "github.com/emmanuella-codes/nox/persona/controllers"
 	personapipes "github.com/emmanuella-codes/nox/persona/pipes"
@@ -58,12 +67,18 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	authController := controllers.NewAuthController(authPipe)
 	personaController := personacontrollers.NewPersonaController(personapipes.NewPersonaPipe(repos.Persona))
 	postController := postcontrollers.NewPostController(postpipes.NewPostPipe(repos.Post, repos.Persona))
+	commentController := commentcontrollers.NewCommentController(commentpipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
+	likeController := likecontrollers.NewLikeController(likepipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
+	eventController := eventcontrollers.NewEventController(eventpipes.NewEventPipe(repos.Event, repos.Persona))
 
 	api := app.Group("/api/v1")
 
 	shared_api.BaseRouter(api.Group("/auth"), routers.AuthRoutes(authController, redisClient))
 	shared_api.BaseRouter(api.Group("/personas"), personarouters.PersonaRoutes(personaController, cfg, repos.Persona))
 	shared_api.BaseRouter(api.Group("/posts"), postrouters.PostRoutes(postController, cfg, repos.Persona))
+	shared_api.BaseRouter(api, commentrouters.CommentRoutes(commentController, cfg))
+	shared_api.BaseRouter(api, likerouters.LikeRoutes(likeController, cfg))
+	shared_api.BaseRouter(api.Group("/events"), eventrouters.EventRoutes(eventController, cfg))
 
 	go func() {
 		<-ctx.Done()

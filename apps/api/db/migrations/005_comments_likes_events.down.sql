@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS post_likes;
+DROP TABLE IF EXISTS comments;

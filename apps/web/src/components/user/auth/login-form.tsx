@@ -32,7 +32,13 @@ export function LoginForm({ className }: LoginFormProps) {
     setStatus("loading");
     setMessage("");
     try {
-      await login({ email: email.trim(), password });
+      const response = await login({ email: email.trim(), password });
+      if (response.data?.tokens.access_token) {
+        localStorage.setItem("nox_access_token", response.data.tokens.access_token);
+      }
+      if (response.data?.tokens.refresh_token && remember) {
+        localStorage.setItem("nox_refresh_token", response.data.tokens.refresh_token);
+      }
       setStatus("success");
       setMessage(remember ? "Session ready." : "Signed in for this visit.");
     } catch (error) {

@@ -1,6 +1,9 @@
 package repositories
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/comment"
+	"github.com/emmanuella-codes/nox/repositories/event"
+	"github.com/emmanuella-codes/nox/repositories/like"
 	"github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/repositories/user"
@@ -8,15 +11,21 @@ import (
 )
 
 type Repositories struct {
-	User user.UserRepository
+	User    user.UserRepository
 	Persona persona.PersonaRepository
-	Post post.PostRepository
+	Post    post.PostRepository
+	Comment comment.CommentRepository
+	Like    like.LikeRepository
+	Event   event.EventRepository
 }
 
 func Init(pool *pgxpool.Pool) *Repositories {
 	return &Repositories{
-		User: user.NewUserRepository(pool),
+		User:    user.NewUserRepository(pool),
 		Persona: persona.NewPersonaRepository(pool),
-		Post: post.NewPostRepository(pool),
+		Post:    post.NewPostRepository(pool),
+		Comment: comment.NewCommentRepository(pool),
+		Like:    like.NewLikeRepository(pool),
+		Event:   event.NewEventRepository(pool),
 	}
 }
