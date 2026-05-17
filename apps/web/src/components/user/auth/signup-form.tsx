@@ -8,13 +8,13 @@ import type { SignupFormProps } from "@/src/types/components/auth";
 import { signup } from "@/src/utils/api/user/auth";
 import { ApiRequestError } from "@/src/utils/api/api";
 
-export function SignupForm({ className }: SignupFormProps) {
+export function SignupForm({ className, onSuccess }: SignupFormProps) {
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");
 
   const canSubmit = useMemo(
@@ -38,14 +38,13 @@ export function SignupForm({ className }: SignupFormProps) {
     setStatus("loading");
     setMessage("");
     try {
-      await signup({
+      const res = await signup({
         firstname: firstname.trim(),
         lastname: lastname.trim(),
         email: email.trim(),
         password,
       });
-      setStatus("success");
-      setMessage("Verification code sent. Check your email.");
+      onSuccess?.(email.trim(), password, res.data?.expires_in_seconds ?? 600);
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof ApiRequestError ? error.message : "Unable to create account.");
@@ -110,13 +109,7 @@ export function SignupForm({ className }: SignupFormProps) {
       </div>
 
       {message ? (
-        <p
-          className={`mt-4 rounded-[8px] border px-3 py-2 text-[12px] font-medium ${
-            status === "success"
-              ? "border-[var(--nox-success)] bg-[var(--nox-success-soft)] text-[var(--nox-success)]"
-              : "border-[var(--nox-danger)] bg-[var(--nox-danger-soft)] text-[var(--nox-danger)]"
-          }`}
-        >
+        <p className="mt-4 rounded-[8px] border border-(--nox-danger) bg-(--nox-danger-soft) px-3 py-2 text-[12px] font-medium text-(--nox-danger)">
           {message}
         </p>
       ) : null}

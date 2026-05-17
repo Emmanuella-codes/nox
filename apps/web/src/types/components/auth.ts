@@ -55,6 +55,7 @@ export interface LoginFormProps {
 export interface SignupFormProps {
   theme: AuthTheme;
   onSubmit?: ComponentProps<"form">["onSubmit"];
+  onSuccess?: (email: string, password: string, expiresInSeconds: number) => void;
   className?: string;
   style?: CSSProperties;
 }

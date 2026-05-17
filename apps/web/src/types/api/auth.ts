@@ -36,3 +36,12 @@ export interface VerificationResponse {
   user: AuthUser;
   expires_in_seconds: number;
 }
+
+export interface VerifyEmailRequest {
+  email: string;
+  otp: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
+}

@@ -5,10 +5,10 @@ import { CalendarDays, Ghost, Grid2X2, Search, User } from "lucide-react";
 import { AuthBrandPanel } from "@/src/components/user/auth/auth-brand-panel";
 import { AuthModeTabs } from "@/src/components/user/auth/auth-mode-tabs";
 import { AuthShell } from "@/src/components/user/auth/auth-shell";
-// import { AuthStatusBar } from "@/src/components/user/auth/auth-status-bar";
 import { darkAuthTheme } from "@/src/components/user/auth/auth-theme";
 import { LoginForm } from "@/src/components/user/auth/login-form";
 import { SignupForm } from "@/src/components/user/auth/signup-form";
+import { VerifyEmailForm } from "@/src/components/user/auth/verify-email-form";
 import type { AuthMode } from "@/src/types/components/auth";
 
 const navItems = [
@@ -18,13 +18,55 @@ const navItems = [
   { label: "profile", icon: User },
 ];
 
+interface PendingVerification {
+  email: string;
+  password: string;
+  expiresInSeconds: number;
+}
+
 export function AuthScreen() {
   const [mode, setMode] = useState<AuthMode>("login");
+  const [pending, setPending] = useState<PendingVerification | null>(null);
   const isLogin = mode === "login";
+
+  function handleSignupSuccess(email: string, password: string, expiresInSeconds: number) {
+    setPending({ email, password, expiresInSeconds });
+  }
+
+  if (pending) {
+    return (
+      <AuthShell theme={darkAuthTheme} sidePanel={<AuthBrandPanel />}>
+        <div className="flex flex-1 flex-col px-5 py-7">
+          <VerifyEmailForm
+            email={pending.email}
+            password={pending.password}
+            expiresInSeconds={pending.expiresInSeconds}
+          />
+        </div>
+        <div className="border-t border-(--nox-divider)">
+          <nav className="grid grid-cols-4 pt-2 pb-3">
+            {navItems.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <span
+                  key={item.label}
+                  className={`flex flex-col items-center gap-1 text-[9.5px] font-medium ${
+                    index === 0 ? "text-(--nox-accent)" : "text-(--nox-ink-soft)"
+                  }`}
+                >
+                  <Icon className="size-4" strokeWidth={1.7} />
+                  {item.label}
+                </span>
+              );
+            })}
+          </nav>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell theme={darkAuthTheme} sidePanel={<AuthBrandPanel />}>
-      {/* <AuthStatusBar /> */}
       <div className="flex flex-1 flex-col px-5 pb-0">
         <header className="pt-7">
           <div className="mb-5 flex size-12 items-center justify-center rounded-[12px] border border-(--nox-accent-line) bg-(--nox-accent-soft) text-(--nox-accent-ink)">
@@ -47,19 +89,18 @@ export function AuthScreen() {
         {isLogin ? (
           <LoginForm theme={darkAuthTheme} className="mt-5" />
         ) : (
-          <SignupForm theme={darkAuthTheme} className="mt-5" />
+          <SignupForm theme={darkAuthTheme} className="mt-5" onSuccess={handleSignupSuccess} />
         )}
 
         <div className="mt-auto border-t border-(--nox-divider) pt-3">
           <nav className="grid grid-cols-4 border-t border-(--nox-divider) pt-2 pb-3">
             {navItems.map((item, index) => {
               const Icon = item.icon;
-              const active = index === 0;
               return (
                 <span
                   key={item.label}
                   className={`flex flex-col items-center gap-1 text-[9.5px] font-medium ${
-                    active ? "text-(--nox-accent)" : "text-(--nox-ink-soft)"
+                    index === 0 ? "text-(--nox-accent)" : "text-(--nox-ink-soft)"
                   }`}
                 >
                   <Icon className="size-4" strokeWidth={1.7} />
