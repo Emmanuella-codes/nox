@@ -6,7 +6,6 @@ import { CalendarDays, Grid2X2, Search, User } from "lucide-react";
 import { OnboardingShell } from "@/src/components/user/onboarding/onboarding-shell";
 import { OnboardingBrandPanel } from "@/src/components/user/onboarding/onboarding-brand-panel";
 import { OnboardingProgress } from "@/src/components/user/onboarding/onboarding-progress";
-import { PersonaTypeStep, type PersonaMode } from "@/src/components/user/onboarding/steps/persona-type-step";
 import { PersonaSetupStep } from "@/src/components/user/onboarding/steps/persona-setup-step";
 import { GenreStep } from "@/src/components/user/onboarding/steps/genre-step";
 import { createPersona } from "@/src/utils/api/user/persona";
@@ -20,14 +19,11 @@ const navItems = [
   { label: "profile", icon: User },
 ];
 
-// Ghost onboarding: steps 0 → 1 (type → genres)
-// Visible onboarding: steps 0 → 1 → 2 (type → setup → genres)
-type Step = 0 | 1 | 2;
+type Step = 0 | 1;
 
 export function OnboardingScreen() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(0);
-  const [personaMode, setPersonaMode] = useState<PersonaMode | null>(null);
 
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -37,29 +33,24 @@ export function OnboardingScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const isGhost = personaMode === "ghost";
-  const totalSteps = isGhost ? 2 : 3;
-
   async function handleFinish() {
     setLoading(true);
     setError("");
 
     try {
-      if (personaMode === "visible") {
-        const token = getAccessToken();
-        await createPersona(
-          {
-            handle,
-            display_name: displayName,
-            bio,
-            avatar_url: "",
-            cover_url: "",
-            persona_type: "visible",
-            genre_tags: genreTags,
-          },
-          token,
-        );
-      }
+      const token = getAccessToken();
+      await createPersona(
+        {
+          handle,
+          display_name: displayName,
+          bio,
+          avatar_url: "",
+          cover_url: "",
+          persona_type: "visible",
+          genre_tags: genreTags,
+        },
+        token,
+      );
       router.push("/feed");
     } catch (err) {
       setLoading(false);
@@ -68,27 +59,11 @@ export function OnboardingScreen() {
   }
 
   function advanceFromStep0() {
-    if (!personaMode) return;
     setStep(1);
-  }
-
-  function advanceFromStep1() {
-    // step 1 is persona-setup (visible only). ghost goes directly to genres at step 1
-    setStep(2);
   }
 
   function renderStep() {
     if (step === 0) {
-      return (
-        <PersonaTypeStep
-          selected={personaMode}
-          onSelect={setPersonaMode}
-          onContinue={advanceFromStep0}
-        />
-      );
-    }
-
-    if (step === 1 && !isGhost) {
       return (
         <PersonaSetupStep
           handle={handle}
@@ -99,29 +74,27 @@ export function OnboardingScreen() {
             setDisplayName(d);
             setBio(b);
           }}
-          onContinue={advanceFromStep1}
+          onContinue={advanceFromStep0}
           onBack={() => setStep(0)}
         />
       );
     }
 
-    // step 1 for ghost, step 2 for visible → genres
     return (
       <GenreStep
         selected={genreTags}
-        isGhost={isGhost}
         loading={loading}
         error={error}
         onChange={setGenreTags}
         onContinue={handleFinish}
-        onBack={() => setStep(isGhost ? 0 : 1)}
+        onBack={() => setStep(0)}
       />
     );
   }
 
   return (
     <OnboardingShell sidePanel={<OnboardingBrandPanel />}>
-      <OnboardingProgress current={step} total={totalSteps} />
+      <OnboardingProgress current={step} total={2} />
 
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto py-5">
         {renderStep()}

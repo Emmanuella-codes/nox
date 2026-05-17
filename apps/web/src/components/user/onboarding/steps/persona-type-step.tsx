@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, Ghost, User } from "lucide-react";
 
-export type PersonaMode = "ghost" | "visible";
+export type PersonaMode = "anonymous" | "visible";
 
 interface PersonaTypeStepProps {
   selected: PersonaMode | null;
@@ -26,14 +26,14 @@ export function PersonaTypeStep({ selected, onSelect, onContinue }: PersonaTypeS
       <div className="mt-5 flex flex-col gap-3">
         <button
           type="button"
-          onClick={() => onSelect("ghost")}
+          onClick={() => onSelect("anonymous")}
           className="w-full rounded-[14px] border p-4 text-left transition"
           style={{
-            borderColor: selected === "ghost" ? "var(--nox-accent)" : "var(--nox-border)",
-            borderWidth: selected === "ghost" ? "1.5px" : "1px",
-            background: selected === "ghost" ? "var(--nox-accent-soft)" : "var(--nox-surface)",
+            borderColor: selected === "anonymous" ? "var(--nox-accent)" : "var(--nox-border)",
+            borderWidth: selected === "anonymous" ? "1.5px" : "1px",
+            background: selected === "anonymous" ? "var(--nox-accent-soft)" : "var(--nox-surface)",
             boxShadow:
-              selected === "ghost" ? "0 0 24px rgba(167,139,250,0.12)" : "none",
+              selected === "anonymous" ? "0 0 24px rgba(167,139,250,0.12)" : "none",
           }}
         >
           <div className="flex items-start gap-3">
@@ -41,16 +41,16 @@ export function PersonaTypeStep({ selected, onSelect, onContinue }: PersonaTypeS
               className="flex size-10 shrink-0 items-center justify-center rounded-[10px]"
               style={{
                 background:
-                  selected === "ghost" ? "rgba(167,139,250,0.18)" : "var(--nox-surface-alt)",
-                color: selected === "ghost" ? "var(--nox-accent)" : "var(--nox-ink-mid)",
+                  selected === "anonymous" ? "rgba(167,139,250,0.18)" : "var(--nox-surface-alt)",
+                color: selected === "anonymous" ? "var(--nox-accent)" : "var(--nox-ink-mid)",
               }}
             >
               <Ghost className="size-5" strokeWidth={1.6} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[15px] font-bold text-(--nox-ink)">Ghost mode</span>
-                {selected === "ghost" ? (
+                <span className="text-[15px] font-bold text-(--nox-ink)">Anonymous mode</span>
+                {selected === "anonymous" ? (
                   <span
                     className="flex size-5 shrink-0 items-center justify-center rounded-full"
                     style={{ background: "var(--nox-accent)" }}
@@ -61,8 +61,8 @@ export function PersonaTypeStep({ selected, onSelect, onContinue }: PersonaTypeS
                   <span className="size-5 shrink-0 rounded-full border border-(--nox-border-strong)" />
                 )}
               </div>
-              <p className="mt-1.5 text-[12px] leading-[1.5] text-(--nox-ink-mid)">
-                Post anonymously. Your identity is never stored alongside any ghost post.
+              <p className="mt-1.5 text-[12px] leading-normal text-(--nox-ink-mid)">
+                Post without exposing your persona. Each anonymous post is unlinked publicly.
               </p>
               <p
                 className="mt-2 font-mono text-[9.5px] font-semibold uppercase tracking-[0.16em]"
@@ -111,7 +111,7 @@ export function PersonaTypeStep({ selected, onSelect, onContinue }: PersonaTypeS
                   <span className="size-5 shrink-0 rounded-full border border-(--nox-border-strong)" />
                 )}
               </div>
-              <p className="mt-1.5 text-[12px] leading-[1.5] text-(--nox-ink-mid)">
+              <p className="mt-1.5 text-[12px] leading-normal text-(--nox-ink-mid)">
                 Post as your DJ alias or public name. Build a following, list events, and archive sets.
               </p>
             </div>

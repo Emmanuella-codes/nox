@@ -8,83 +8,101 @@ import { FeedTabs, type FeedTab } from "@/src/components/user/feed/feed-tabs";
 import { PostCard } from "@/src/components/user/feed/post-card";
 import { ComposeBar } from "@/src/components/user/feed/compose-bar";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
-import { getPersonaFeed } from "@/src/utils/api/user/post";
+import { getPersonaFeed, likePost, unlikePost } from "@/src/utils/api/user/post";
+import { getMyPersonas } from "@/src/utils/api/user/persona";
+import { getAccessToken } from "@/src/utils/auth/session";
 import type { Post } from "@/src/types/api/post";
-
-// Placeholder posts for loading / empty states
-const PLACEHOLDER_POSTS: Post[] = [
-  {
-    id: "1",
-    author: { mode: "anonymous" },
-    body: "The 3am afro-house set at fabric last night was something else. #afrohouse #fabric",
-    post_type: "text",
-    like_count: 47,
-    comment_count: 8,
-    repost_count: 3,
-    is_repost: false,
-    created_at: new Date(Date.now() - 25 * 60_000).toISOString(),
-  },
-  {
-    id: "2",
-    author: {
-      mode: "public",
-      persona: {
-        id: "p1",
-        handle: "djkayode",
-        display_name: "DJ Kayode",
-        avatar_url: "",
-      },
-    },
-    body: "New amapiano edit dropping Friday. First listen for everyone who shows up to the Lagos pop-up. #amapiano #lagos",
-    post_type: "text",
-    like_count: 123,
-    comment_count: 22,
-    repost_count: 14,
-    is_repost: false,
-    created_at: new Date(Date.now() - 2 * 3600_000).toISOString(),
-  },
-  {
-    id: "3",
-    author: { mode: "anonymous" },
-    body: "Why do DJs still play the same afrobeats top-5 at every Shoreditch event? Where's the curation? #afrobeats",
-    post_type: "text",
-    like_count: 88,
-    comment_count: 31,
-    repost_count: 5,
-    is_repost: false,
-    created_at: new Date(Date.now() - 5 * 3600_000).toISOString(),
-  },
-  {
-    id: "4",
-    author: {
-      mode: "public",
-      persona: {
-        id: "p2",
-        handle: "nnekabeats",
-        display_name: "Nneka Beats",
-        avatar_url: "",
-      },
-    },
-    body: "Soundcloud mix just hit 10k plays. Thank you all. Afro-soul only, always. #afrosoul",
-    post_type: "text",
-    like_count: 210,
-    comment_count: 44,
-    repost_count: 29,
-    is_repost: false,
-    created_at: new Date(Date.now() - 8 * 3600_000).toISOString(),
-  },
-];
 
 export function FeedScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<FeedTab>("for-you");
-  const [posts, setPosts] = useState<Post[]>(PLACEHOLDER_POSTS);
-  const [loading, setLoading] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [viewerPersonaID, setViewerPersonaID] = useState("");
+  const [likedPostIDs, setLikedPostIDs] = useState<Set<string>>(new Set());
 
-  // Future: fetch real feed based on tab
   useEffect(() => {
-    // Real fetch would go here when API endpoints are ready
-  }, [tab]);
+    async function loadFeed() {
+      setLoading(true);
+      setMessage("");
+
+      try {
+        const token = getAccessToken();
+        if (!token) {
+          setMessage("Sign in to load your feed.");
+          return;
+        }
+
+        const personasRes = await getMyPersonas(token);
+        const primaryPersona = personasRes.data?.[0];
+        if (!primaryPersona) {
+          setMessage("Create a public persona to load the feed.");
+          return;
+        }
+        setViewerPersonaID(primaryPersona.id);
+
+        if (tab === "events") {
+          router.push("/events");
+          return;
+        }
+
+        if (tab === "sets" || tab === "following") {
+          setPosts([]);
+          setMessage(`${tab.replace("-", " ")} is not connected yet.`);
+          return;
+        }
+
+        const feedRes = await getPersonaFeed(primaryPersona.id);
+        setPosts(feedRes.data ?? []);
+      } catch {
+        setMessage("Could not load feed.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFeed();
+  }, [router, tab]);
+
+  async function handleToggleLike(post: Post) {
+    const token = getAccessToken();
+    if (!token || !viewerPersonaID) return;
+
+    const nextLikedIDs = new Set(likedPostIDs);
+    const liked = nextLikedIDs.has(post.id);
+    if (liked) {
+      nextLikedIDs.delete(post.id);
+    } else {
+      nextLikedIDs.add(post.id);
+    }
+
+    setLikedPostIDs(nextLikedIDs);
+    setPosts((current) =>
+      current.map((item) =>
+        item.id === post.id
+          ? { ...item, like_count: Math.max(0, item.like_count + (liked ? -1 : 1)) }
+          : item,
+      ),
+    );
+
+    try {
+      if (liked) {
+        await unlikePost(post.id, viewerPersonaID, token);
+      } else {
+        await likePost(post.id, viewerPersonaID, token);
+      }
+    } catch {
+      setLikedPostIDs(likedPostIDs);
+      setPosts((current) =>
+        current.map((item) =>
+          item.id === post.id
+            ? { ...item, like_count: Math.max(0, item.like_count + (liked ? 1 : -1)) }
+            : item,
+        ),
+      );
+    }
+  }
 
   return (
     <FeedShell>
@@ -105,7 +123,7 @@ export function FeedScreen() {
           }}
         >
           <Ghost className="size-3" strokeWidth={1.8} />
-          ghost
+          anonymous
         </button>
       </header>
 
@@ -130,13 +148,21 @@ export function FeedScreen() {
             ))}
           </div>
         ) : (
+          posts.length > 0 ? (
           posts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
+              liked={likedPostIDs.has(post.id)}
+              onLike={handleToggleLike}
               onClick={() => router.push(`/posts/${post.id}`)}
             />
           ))
+          ) : (
+            <p className="px-4 py-10 text-center text-[13px] text-(--nox-ink-soft)">
+              {message || "No posts yet."}
+            </p>
+          )
         )}
       </div>
 

@@ -7,8 +7,10 @@ import { AuthField } from "@/src/components/user/auth/auth-field";
 import type { LoginFormProps } from "@/src/types/components/auth";
 import { login } from "@/src/utils/api/user/auth";
 import { ApiRequestError } from "@/src/utils/api/api";
+import { useRouter } from "next/navigation";
 
 export function LoginForm({ className }: LoginFormProps) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,6 +43,7 @@ export function LoginForm({ className }: LoginFormProps) {
       }
       setStatus("success");
       setMessage(remember ? "Session ready." : "Signed in for this visit.");
+      router.push("/feed");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof ApiRequestError ? error.message : "Unable to sign in.");

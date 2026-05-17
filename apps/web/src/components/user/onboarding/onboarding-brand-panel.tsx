@@ -13,14 +13,14 @@ export function OnboardingBrandPanel() {
           your scene,<br />your rules.
         </h2>
         <p className="mt-5 max-w-md text-[15px] leading-7 text-(--nox-ink-mid)">
-          Post publicly under your name or stay ghost. Switch modes per post — your identity always stays in your control.
+          Post publicly under your name or stay anonymous. Switch modes per post and keep control of what people see.
         </p>
       </div>
 
       <div className="grid gap-3">
         <PanelRow
           icon={<Ghost className="size-4" />}
-          label="Ghost posts are never tied to your real account publicly"
+          label="Anonymous posts are not tied to your persona publicly"
         />
         <PanelRow
           icon={<Users className="size-4" />}

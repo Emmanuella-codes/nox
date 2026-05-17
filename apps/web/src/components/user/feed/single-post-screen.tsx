@@ -3,10 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Send, Ghost, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import { Avatar } from "@/src/components/user/shared/avatar";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { CommentItem } from "@/src/components/user/feed/comment-item";
-import { getPost } from "@/src/utils/api/user/post";
-import { getPostComments } from "@/src/utils/api/user/comment";
+import { getPost, likePost, unlikePost } from "@/src/utils/api/user/post";
+import { createComment, getPostComments } from "@/src/utils/api/user/comment";
+import { getMyPersonas } from "@/src/utils/api/user/persona";
+import { getAccessToken } from "@/src/utils/auth/session";
+import { ApiRequestError } from "@/src/utils/api/api";
 import type { Post } from "@/src/types/api/post";
 import type { Comment } from "@/src/types/api/comment";
 
@@ -50,16 +54,26 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
   const [commentBody, setCommentBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [viewerPersonaID, setViewerPersonaID] = useState("");
+  const [liked, setLiked] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [togglingLike, setTogglingLike] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
+        const token = getAccessToken();
         const [postRes, commentsRes] = await Promise.all([
           getPost(postId),
           getPostComments(postId),
         ]);
         setPost(postRes.data ?? null);
         setComments(commentsRes.data ?? []);
+        if (token) {
+          const personasRes = await getMyPersonas(token);
+          setViewerPersonaID(personasRes.data?.[0]?.id ?? "");
+        }
       } catch {
         setError("Could not load post.");
       } finally {
@@ -71,10 +85,63 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
 
   const isAnon = post?.author.mode === "anonymous";
   const persona = post?.author.persona;
+  const canAct = Boolean(getAccessToken() && viewerPersonaID);
+
+  async function handleToggleLike() {
+    if (!post || togglingLike || !canAct) return;
+    const token = getAccessToken();
+    const previousPost = post;
+    const nextLiked = !liked;
+
+    setTogglingLike(true);
+    setActionError("");
+    setLiked(nextLiked);
+    setPost({
+      ...post,
+      like_count: Math.max(0, post.like_count + (nextLiked ? 1 : -1)),
+    });
+
+    try {
+      if (nextLiked) {
+        await likePost(post.id, viewerPersonaID, token);
+      } else {
+        await unlikePost(post.id, viewerPersonaID, token);
+      }
+    } catch (err) {
+      setLiked(!nextLiked);
+      setPost(previousPost);
+      setActionError(err instanceof ApiRequestError ? err.message : "Could not update like.");
+    } finally {
+      setTogglingLike(false);
+    }
+  }
+
+  async function handleCreateComment() {
+    if (!post || !commentBody.trim() || submittingComment || !canAct) return;
+    const token = getAccessToken();
+    setSubmittingComment(true);
+    setActionError("");
+
+    try {
+      const res = await createComment(
+        post.id,
+        { persona_id: viewerPersonaID, body: commentBody.trim() },
+        token,
+      );
+      if (res.data) {
+        setComments((current) => [...current, res.data as Comment]);
+        setPost({ ...post, comment_count: post.comment_count + 1 });
+      }
+      setCommentBody("");
+    } catch (err) {
+      setActionError(err instanceof ApiRequestError ? err.message : "Could not add comment.");
+    } finally {
+      setSubmittingComment(false);
+    }
+  }
 
   return (
     <FeedShell>
-      {/* Header */}
       <header className="flex items-center gap-3 border-b border-(--nox-divider) px-4 py-3 pt-[env(safe-area-inset-top,12px)]">
         <button
           type="button"
@@ -106,7 +173,6 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
 
         {post && (
           <>
-            {/* Expanded post */}
             <div className="border-b border-(--nox-divider) px-4 py-4">
               <div className="flex items-center gap-3">
                 {isAnon ? (
@@ -117,12 +183,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
                     <Ghost className="size-5" strokeWidth={1.6} style={{ color: "var(--nox-ink-mid)" }} />
                   </div>
                 ) : (
-                  <div
-                    className="flex size-10 items-center justify-center rounded-full text-[15px] font-bold"
-                    style={{ background: "var(--nox-accent-soft)", color: "var(--nox-accent-ink)" }}
-                  >
-                    {persona?.display_name?.[0]?.toUpperCase() ?? "?"}
-                  </div>
+                  <Avatar id={persona?.id ?? "anon"} name={persona?.display_name ?? "?"} size={40} />
                 )}
                 <div>
                   {isAnon ? (
@@ -131,7 +192,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
                       style={{ background: "var(--nox-surface-alt)", color: "var(--nox-ink-mid)" }}
                     >
                       <Ghost className="size-2.5" strokeWidth={1.8} />
-                      ghost
+                      anonymous
                     </span>
                   ) : (
                     <>
@@ -148,11 +209,13 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
 
               <p className="mt-3 text-[11px] text-(--nox-ink-soft)">{formatTime(post.created_at)}</p>
 
-              {/* Engagement row */}
               <div className="mt-3 flex items-center gap-6 border-t border-(--nox-divider) pt-3">
                 <button
                   type="button"
+                  onClick={handleToggleLike}
+                  disabled={!canAct || togglingLike}
                   className="flex items-center gap-1.5 text-[13px] text-(--nox-ink-soft) transition hover:text-(--nox-accent)"
+                  style={{ color: liked ? "var(--nox-accent)" : undefined }}
                 >
                   <Heart className="size-4" strokeWidth={1.7} />
                   {formatCount(post.like_count)}
@@ -200,6 +263,9 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
 
       {/* Comment input */}
       <div className="border-t border-(--nox-divider) px-4 py-3 pb-[env(safe-area-inset-bottom,12px)]">
+        {actionError ? (
+          <p className="mb-2 text-[12px] font-medium text-(--nox-danger)">{actionError}</p>
+        ) : null}
         <div className="flex items-center gap-3">
           <div
             className="flex size-8 shrink-0 items-center justify-center rounded-full"
@@ -217,7 +283,8 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
             />
             <button
               type="button"
-              disabled={!commentBody.trim()}
+              disabled={!commentBody.trim() || !canAct || submittingComment}
+              onClick={handleCreateComment}
               className="shrink-0 transition disabled:opacity-40"
               style={{ color: "var(--nox-accent)" }}
             >

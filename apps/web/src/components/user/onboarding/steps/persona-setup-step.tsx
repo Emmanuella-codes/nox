@@ -49,7 +49,7 @@ export function PersonaSetupStep({
   return (
     <div className="flex flex-1 flex-col px-5">
       <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-(--nox-ink-soft)">
-        Step 2 of 3
+        Step 2 of 2
       </p>
       <h2 className="mt-2 text-[24px] font-bold leading-tight tracking-[-0.03em] text-(--nox-ink)">
         Set up your persona
@@ -65,7 +65,7 @@ export function PersonaSetupStep({
             label="handle"
             type="text"
             value={handleValue}
-            placeholder="djkayode"
+            placeholder="petiti_candy"
             autoComplete="off"
             icon={<AtSign className="size-4" strokeWidth={1.7} />}
             error={handleError}
@@ -81,7 +81,7 @@ export function PersonaSetupStep({
           label="display name"
           type="text"
           value={displayName}
-          placeholder="DJ Kayode"
+          placeholder="Kꨄ︎dija"
           autoComplete="off"
           icon={<Type className="size-4" strokeWidth={1.7} />}
           onChange={(v) => onChange({ handle, displayName: v, bio })}

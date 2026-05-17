@@ -20,3 +20,19 @@ export function getPersonaFeed(personaID: string) {
 export function getPersonaPosts(personaID: string) {
   return apiRequest<Post[]>(`/posts/persona/${personaID}`);
 }
+
+export function likePost(postID: string, personaID: string, token: string) {
+  return apiRequest<null, { persona_id: string }>(`/posts/${postID}/likes`, {
+    method: "POST",
+    body: { persona_id: personaID },
+    token,
+  });
+}
+
+export function unlikePost(postID: string, personaID: string, token: string) {
+  return apiRequest<null, { persona_id: string }>(`/posts/${postID}/likes`, {
+    method: "DELETE",
+    body: { persona_id: personaID },
+    token,
+  });
+}

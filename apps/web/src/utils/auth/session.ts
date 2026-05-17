@@ -5,3 +5,7 @@ export function getAccessToken() {
 
   return localStorage.getItem("nox_access_token") ?? "";
 }
+
+export function hasAccessToken() {
+  return Boolean(getAccessToken());
+}

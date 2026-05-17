@@ -23,7 +23,6 @@ const GENRE_OPTIONS = [
 
 interface GenreStepProps {
   selected: string[];
-  isGhost: boolean;
   loading: boolean;
   error: string;
   onChange: (tags: string[]) => void;
@@ -33,7 +32,6 @@ interface GenreStepProps {
 
 export function GenreStep({
   selected,
-  isGhost,
   loading,
   error,
   onChange,
@@ -51,13 +49,13 @@ export function GenreStep({
   return (
     <div className="flex flex-1 flex-col px-5">
       <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-(--nox-ink-soft)">
-        {isGhost ? "Step 2 of 2" : "Step 3 of 3"}
+        Step 2 of 2
       </p>
       <h2 className="mt-2 text-[24px] font-bold leading-tight tracking-[-0.03em] text-(--nox-ink)">
-        What's your scene?
+        What&apos;s your scene?
       </h2>
       <p className="mt-2 text-[13px] leading-6 text-(--nox-ink-soft)">
-        Pick the genres you're into. This tunes your feed and helps people find you.
+        Pick the genres you&apos;re into. This will tune your feed when preferences are connected.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -94,15 +92,13 @@ export function GenreStep({
       ) : null}
 
       <div className="mt-auto flex gap-3 pb-1">
-        {!isGhost && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex min-h-12 items-center justify-center rounded-[10px] border border-(--nox-border-strong) px-5 text-[14px] font-semibold text-(--nox-ink) transition hover:border-(--nox-ink)"
-          >
-            Back
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex min-h-12 items-center justify-center rounded-[10px] border border-(--nox-border-strong) px-5 text-[14px] font-semibold text-(--nox-ink) transition hover:border-(--nox-ink)"
+        >
+          Back
+        </button>
         <button
           type="button"
           disabled={loading}

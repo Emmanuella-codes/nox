@@ -1,11 +1,14 @@
 "use client";
 
 import { Heart, MessageCircle, Repeat2, Ghost } from "lucide-react";
+import { Avatar } from "@/src/components/user/shared/avatar";
 import type { Post } from "@/src/types/api/post";
 
 interface PostCardProps {
   post: Post;
   onClick?: () => void;
+  liked?: boolean;
+  onLike?: (post: Post) => void;
 }
 
 function formatTime(isoString: string): string {
@@ -30,7 +33,7 @@ function extractHashtags(body: string): { segments: { text: string; isTag: boole
   };
 }
 
-export function PostCard({ post, onClick }: PostCardProps) {
+export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps) {
   const isAnon = post.author.mode === "anonymous";
   const persona = post.author.persona;
   const { segments } = extractHashtags(post.body);
@@ -52,15 +55,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
               <Ghost className="size-4" strokeWidth={1.6} style={{ color: "var(--nox-ink-mid)" }} />
             </div>
           ) : (
-            <div
-              className="flex size-9 items-center justify-center rounded-full text-[13px] font-bold"
-              style={{
-                background: "var(--nox-accent-soft)",
-                color: "var(--nox-accent-ink)",
-              }}
-            >
-              {persona?.display_name?.[0]?.toUpperCase() ?? "?"}
-            </div>
+            <Avatar id={persona?.id ?? "anon"} name={persona?.display_name ?? "?"} size={36} />
           )}
         </div>
 
@@ -77,7 +72,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
                 }}
               >
                 <Ghost className="size-2.5" strokeWidth={1.8} />
-                ghost
+                anonymous
               </span>
             ) : (
               <>
@@ -125,7 +120,11 @@ export function PostCard({ post, onClick }: PostCardProps) {
             <button
               type="button"
               className="flex items-center gap-1.5 text-[12px] text-(--nox-ink-soft) transition hover:text-(--nox-accent)"
-              onClick={(e) => e.stopPropagation()}
+              style={{ color: liked ? "var(--nox-accent)" : undefined }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLike?.(post);
+              }}
             >
               <Heart className="size-3.5" strokeWidth={1.7} />
               {post.like_count > 0 && formatCount(post.like_count)}

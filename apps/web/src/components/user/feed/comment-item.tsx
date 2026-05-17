@@ -35,7 +35,7 @@ export function CommentItem({ comment, isReply = false }: CommentItemProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[12px] font-semibold text-(--nox-ink)">
-            @{comment.persona_id.slice(0, 8)}
+            public commenter
           </span>
           <span className="text-[11px] text-(--nox-ink-soft)">
             {formatTime(comment.created_at)}
