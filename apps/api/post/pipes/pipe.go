@@ -1,0 +1,116 @@
+package pipes
+
+import (
+	"time"
+
+	"github.com/emmanuella-codes/nox/models"
+	"github.com/emmanuella-codes/nox/post/messages"
+	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	post_repo "github.com/emmanuella-codes/nox/repositories/post"
+	"github.com/emmanuella-codes/nox/shared"
+	"github.com/rs/zerolog/log"
+)
+
+type PostPipe struct {
+	postRepo    post_repo.PostRepository
+	personaRepo persona_repo.PersonaRepository
+}
+
+func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository) *PostPipe {
+	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo}
+}
+
+type PostResponse struct {
+	ID           string           `json:"id"`
+	Author       PostAuthor       `json:"author"`
+	EventID      *string          `json:"event_id,omitempty"`
+	Body         string           `json:"body"`
+	PostType     models.PostType  `json:"post_type"`
+	MediaURL     string           `json:"media_url,omitempty"`
+	MediaType    models.MediaType `json:"media_type,omitempty"`
+	Location     string           `json:"location,omitempty"`
+	LikeCount    int              `json:"like_count"`
+	CommentCount int              `json:"comment_count"`
+	RepostCount  int              `json:"repost_count"`
+	IsRepost     bool             `json:"is_repost"`
+	RepostOf     *string          `json:"repost_of,omitempty"`
+	CreatedAt    time.Time        `json:"created_at"`
+}
+
+type PostAuthor struct {
+	Mode    models.PostingMode `json:"mode"`
+	Persona *PostPersonaAuthor `json:"persona,omitempty"`
+}
+
+type PostPersonaAuthor struct {
+	ID          string `json:"id"`
+	Handle      string `json:"handle"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url"`
+}
+
+func pipeSuccess[T any](message shared.PipeMessage, data *T) *shared.PipeRes[T] {
+	return &shared.PipeRes[T]{Success: true, Message: message, Data: data}
+}
+
+func pipeError[T any](message shared.PipeMessage) *shared.PipeRes[T] {
+	return &shared.PipeRes[T]{Success: false, Message: message}
+}
+
+func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
+	if err != nil {
+		log.Error().Err(err).Str("operation", operation).Msg("post internal error")
+	}
+	return pipeError[T](messages.Internal_Error)
+}
+
+func validPostingMode(mode models.PostingMode) bool {
+	return mode == models.PublicPostingMode || mode == models.AnonymousPostingMode
+}
+
+func postResponse(post *models.Post, persona *models.Persona) PostResponse {
+	res := PostResponse{
+		ID:           post.ID.String(),
+		Author:       PostAuthor{Mode: post.PostingMode},
+		Body:         post.Body,
+		PostType:     post.PostType,
+		MediaURL:     post.MediaURL,
+		MediaType:    post.MediaType,
+		Location:     post.Location,
+		LikeCount:    post.LikeCount,
+		CommentCount: post.CommentCount,
+		RepostCount:  post.RepostCount,
+		IsRepost:     post.IsRepost,
+		CreatedAt:    post.CreatedAt,
+	}
+	if post.EventID != nil {
+		eventID := post.EventID.String()
+		res.EventID = &eventID
+	}
+	if post.RepostOf != nil {
+		repostOf := post.RepostOf.String()
+		res.RepostOf = &repostOf
+	}
+	if post.PostingMode == models.PublicPostingMode && persona != nil {
+		res.Author.Persona = &PostPersonaAuthor{
+			ID:          persona.ID.String(),
+			Handle:      persona.Handle,
+			DisplayName: persona.DisplayName,
+			AvatarURL:   persona.AvatarURL,
+		}
+	}
+	return res
+}
+
+func postResponses(posts []*models.Post, personas map[string]*models.Persona) []PostResponse {
+	responses := make([]PostResponse, 0, len(posts))
+	for _, post := range posts {
+		var persona *models.Persona
+		if post.PersonaID != nil {
+			persona = personas[post.PersonaID.String()]
+		}
+		response := postResponse(post, persona)
+		responses = append(responses, response)
+	}
+	return responses
+}
