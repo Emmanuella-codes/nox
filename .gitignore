@@ -34,6 +34,9 @@ yarn-error.log*
 # local agent notes
 AGENTS.md
 CLAUDE.md
+
 STRUCTURE.md
 DESIGN.md
 SCREENS.md
+LANDING.md
+ENDPOINTS.md
