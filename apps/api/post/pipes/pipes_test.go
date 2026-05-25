@@ -168,8 +168,51 @@ func TestGetFeedPipeHydratesLikedState(t *testing.T) {
 	}
 }
 
+func TestGetPersonaPostsForViewerPipeHydratesLikedState(t *testing.T) {
+	personaID := uuid.New()
+	viewerPersonaID := uuid.New()
+	likedPostID := uuid.New()
+	unlikedPostID := uuid.New()
+	pipe := NewPostPipe(&postTestRepo{
+		personaPosts: []*models.Post{
+			{ID: likedPostID, PersonaID: &personaID, PostingMode: models.PublicPostingMode, Body: "liked", PostType: models.TextPostType},
+			{ID: unlikedPostID, PersonaID: &personaID, PostingMode: models.PublicPostingMode, Body: "unliked", PostType: models.TextPostType},
+		},
+	}, &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			personaID.String(): {
+				ID:          personaID,
+				UserID:      uuid.New(),
+				PersonaType: models.VisiblePersonaType,
+			},
+			viewerPersonaID.String(): {
+				ID:          viewerPersonaID,
+				UserID:      uuid.New(),
+				PersonaType: models.VisiblePersonaType,
+			},
+		},
+	}, &postTestLikeRepo{
+		likedPostIDs: map[uuid.UUID]bool{likedPostID: true},
+	})
+
+	res := pipe.GetPersonaPostsForViewerPipe(context.Background(), personaID, viewerPersonaID, 20)
+	if !res.Success {
+		t.Fatalf("expected persona posts success, got %q", res.Message)
+	}
+	if len(*res.Data) != 2 {
+		t.Fatalf("expected 2 posts, got %d", len(*res.Data))
+	}
+	if !(*res.Data)[0].IsLiked {
+		t.Fatal("expected first post to be liked")
+	}
+	if (*res.Data)[1].IsLiked {
+		t.Fatal("expected second post not to be liked")
+	}
+}
+
 type postTestRepo struct {
 	posts               map[string]*models.Post
+	personaPosts        []*models.Post
 	feedPosts           []*models.Post
 	createdAuthorUserID uuid.UUID
 	createdDTO          postdtos.CreatePostDTO
@@ -202,7 +245,7 @@ func (r *postTestRepo) FindPostByID(ctx context.Context, postID uuid.UUID) (*mod
 }
 
 func (r *postTestRepo) FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
-	return nil, nil
+	return r.personaPosts, nil
 }
 
 func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {

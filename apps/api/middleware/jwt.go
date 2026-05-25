@@ -29,6 +29,23 @@ func JWT(cfg *config.Config) fiber.Handler {
 	}
 }
 
+func OptionalJWT(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token, ok := bearerToken(c.Get(fiber.HeaderAuthorization))
+		if !ok {
+			return c.Next()
+		}
+
+		claims, err := sharedtoken.VerifyWithOptions(token, cfg.JWTAccessSecret, sharedtoken.AccessTokenType, cfg.JWTIssuer, cfg.JWTAudience)
+		if err != nil {
+			return unauthorized(c)
+		}
+
+		c.Locals(userIDLocalKey, claims.UserID)
+		return c.Next()
+	}
+}
+
 func CurrentUserID(c *fiber.Ctx) (uuid.UUID, bool) {
 	userID, ok := c.Locals(userIDLocalKey).(uuid.UUID)
 	return userID, ok

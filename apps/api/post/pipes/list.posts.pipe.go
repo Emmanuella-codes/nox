@@ -65,6 +65,18 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 	return pipeSuccess(messages.Posts_Listed, &responses)
 }
 
+func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID uuid.UUID, viewerPersonaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+	res := p.GetPersonaPostsPipe(ctx, personaID, limit)
+	if !res.Success || res.Data == nil || p.likeRepo == nil {
+		return res
+	}
+
+	if err := p.hydrateLikedState(ctx, viewerPersonaID, *res.Data); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.persona_posts_like_status")
+	}
+	return res
+}
+
 func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
@@ -85,12 +97,8 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 
 	responses := postResponses(posts, personas)
 	if p.likeRepo != nil {
-		liked, err := p.likeRepo.FindLikedPostIDs(ctx, personaID, postIDs(posts))
-		if err != nil {
+		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
 			return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
-		}
-		for i := range responses {
-			responses[i].IsLiked = liked[posts[i].ID]
 		}
 	}
 	return pipeSuccess(messages.Feed_Listed, &responses)
@@ -148,4 +156,29 @@ func (p *PostPipe) publicPostPersonas(ctx context.Context, posts []*models.Post)
 	}
 
 	return personas, nil
+}
+
+func (p *PostPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, responses []PostResponse) error {
+	if p.likeRepo == nil || len(responses) == 0 {
+		return nil
+	}
+
+	postIDs := make([]uuid.UUID, 0, len(responses))
+	for _, response := range responses {
+		postID, err := uuid.Parse(response.ID)
+		if err != nil {
+			return err
+		}
+		postIDs = append(postIDs, postID)
+	}
+
+	liked, err := p.likeRepo.FindLikedPostIDs(ctx, viewerPersonaID, postIDs)
+	if err != nil {
+		return err
+	}
+	for i := range responses {
+		postID := postIDs[i]
+		responses[i].IsLiked = liked[postID]
+	}
+	return nil
 }

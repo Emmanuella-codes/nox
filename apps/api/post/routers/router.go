@@ -37,6 +37,7 @@ func PostRoutes(controller *controllers.PostController, cfg *config.Config, pers
 		{
 			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/persona/:personaID",
+			Middlewares: []typings.FiberMiddleware{middleware.OptionalJWT(cfg)},
 			Handler:     controller.GetPersonaPosts,
 		},
 		{

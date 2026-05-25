@@ -9,7 +9,11 @@ import { PersonaCard } from "@/src/components/user/discover/persona-card";
 import { PostCard } from "@/src/components/user/feed/post-card";
 import { EventCard } from "@/src/components/user/events/event-card";
 import { searchNox } from "@/src/utils/api/user/search";
+import { getMyPersonas } from "@/src/utils/api/user/persona";
+import { likePost, unlikePost } from "@/src/utils/api/user/post";
+import { getAccessToken } from "@/src/utils/auth/session";
 import type { SearchResponse } from "@/src/types/api/search";
+import type { Post } from "@/src/types/api/post";
 
 const GENRE_FILTERS = [
   "all",
@@ -30,7 +34,24 @@ export function DiscoverScreen() {
   const [results, setResults] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("Search artists, posts, events, and genres.");
+  const [viewerPersonaID, setViewerPersonaID] = useState("");
   const searchTerm = useMemo(() => query.trim() || (genre === "all" ? "" : genre), [genre, query]);
+
+  useEffect(() => {
+    async function loadViewerPersona() {
+      const token = getAccessToken();
+      if (!token) return;
+
+      try {
+        const res = await getMyPersonas(token);
+        setViewerPersonaID(res.data?.[0]?.id ?? "");
+      } catch {
+        setViewerPersonaID("");
+      }
+    }
+
+    loadViewerPersona();
+  }, []);
 
   useEffect(() => {
     if (searchTerm.length < 2) {
@@ -45,7 +66,8 @@ export function DiscoverScreen() {
       setLoading(true);
       setMessage("");
       try {
-        const res = await searchNox(searchTerm, 10);
+        const token = viewerPersonaID ? getAccessToken() : "";
+        const res = await searchNox(searchTerm, 10, token || undefined, viewerPersonaID || undefined);
         if (!controller.signal.aborted) {
           setResults(res.data ?? null);
         }
@@ -65,7 +87,37 @@ export function DiscoverScreen() {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [searchTerm]);
+  }, [searchTerm, viewerPersonaID]);
+
+  async function handleToggleLike(post: Post) {
+    const token = getAccessToken();
+    if (!token || !viewerPersonaID || !results) return;
+
+    const previousResults = results;
+    const nextLiked = !post.is_liked;
+    setResults({
+      ...results,
+      posts: results.posts.map((item) =>
+        item.id === post.id
+          ? {
+              ...item,
+              is_liked: nextLiked,
+              like_count: Math.max(0, item.like_count + (nextLiked ? 1 : -1)),
+            }
+          : item,
+      ),
+    });
+
+    try {
+      if (nextLiked) {
+        await likePost(post.id, viewerPersonaID, token);
+      } else {
+        await unlikePost(post.id, viewerPersonaID, token);
+      }
+    } catch {
+      setResults(previousResults);
+    }
+  }
 
   const hasResults = Boolean(
     results &&
@@ -147,6 +199,8 @@ export function DiscoverScreen() {
                     <PostCard
                       key={post.id}
                       post={post}
+                      liked={post.is_liked}
+                      onLike={handleToggleLike}
                       onClick={() => router.push(`/posts/${post.id}`)}
                     />
                   ))}

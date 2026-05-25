@@ -23,8 +23,13 @@ export function getPersonaFeed(personaID: string, token: string) {
   return apiRequest<Post[]>(`/posts/persona/${personaID}/feed`, { token });
 }
 
-export function getPersonaPosts(personaID: string) {
-  return apiRequest<Post[]>(`/posts/persona/${personaID}`);
+export function getPersonaPosts(personaID: string, token?: string, viewerPersonaID?: string) {
+  const params = new URLSearchParams();
+  if (viewerPersonaID) {
+    params.set("viewer_persona_id", viewerPersonaID);
+  }
+  const query = params.toString();
+  return apiRequest<Post[]>(`/posts/persona/${personaID}${query ? `?${query}` : ""}`, { token });
 }
 
 export function likePost(postID: string, personaID: string, token: string) {

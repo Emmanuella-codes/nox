@@ -29,6 +29,10 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
 	case messages.Invalid_Query:
 		return fiber.StatusBadRequest
+	case messages.Persona_Not_Found:
+		return fiber.StatusNotFound
+	case messages.Forbidden:
+		return fiber.StatusForbidden
 	case messages.Internal_Error:
 		return fiber.StatusInternalServerError
 	default:
