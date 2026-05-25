@@ -1,5 +1,6 @@
 export interface PostAuthor {
   mode: "public" | "anonymous";
+  anonymous_label?: string;
   persona?: {
     id: string;
     handle: string;

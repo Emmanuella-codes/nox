@@ -6,17 +6,20 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	searchrepo "github.com/emmanuella-codes/nox/repositories/search"
 	searchmessages "github.com/emmanuella-codes/nox/search/messages"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 )
 
-func (p *SearchPipe) Search(ctx context.Context, query string, limit int) *shared.PipeRes[SearchResponse] {
-	return p.search(ctx, query, limit, nil)
+type SearchOptions = searchrepo.Options
+
+func (p *SearchPipe) Search(ctx context.Context, query string, options SearchOptions) *shared.PipeRes[SearchResponse] {
+	return p.search(ctx, query, options, nil)
 }
 
-func (p *SearchPipe) SearchForViewer(ctx context.Context, query string, limit int, viewerPersonaID uuid.UUID) *shared.PipeRes[SearchResponse] {
-	return p.search(ctx, query, limit, &viewerPersonaID)
+func (p *SearchPipe) SearchForViewer(ctx context.Context, query string, options SearchOptions, viewerPersonaID uuid.UUID) *shared.PipeRes[SearchResponse] {
+	return p.search(ctx, query, options, &viewerPersonaID)
 }
 
 func (p *SearchPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
@@ -37,22 +40,27 @@ func (p *SearchPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, pe
 	return persona, ""
 }
 
-func (p *SearchPipe) search(ctx context.Context, query string, limit int, viewerPersonaID *uuid.UUID) *shared.PipeRes[SearchResponse] {
+func (p *SearchPipe) search(ctx context.Context, query string, options SearchOptions, viewerPersonaID *uuid.UUID) *shared.PipeRes[SearchResponse] {
 	query = strings.TrimSpace(query)
 	if len(query) < 2 || len(query) > 80 {
 		return pipeError[SearchResponse](searchmessages.Invalid_Query)
 	}
+	options = searchrepo.NormalizeOptions(options)
 
-	results, err := p.repo.Search(ctx, query, limit)
+	results, err := p.repo.Search(ctx, query, options)
 	if err != nil {
 		return pipeInternalError[SearchResponse](err, "search.query")
 	}
 
 	response := SearchResponse{
-		Query:    query,
-		Personas: personaResponses(results.Personas),
-		Posts:    postResponses(results.Posts),
-		Events:   eventResponses(results.Events),
+		Query:      query,
+		Limit:      options.Limit,
+		Offset:     options.Offset,
+		HasMore:    results.HasMore,
+		NextOffset: nextOffset(options, results.HasMore),
+		Personas:   personaResponses(results.Personas),
+		Posts:      postResponses(results.Posts),
+		Events:     eventResponses(results.Events),
 	}
 	if viewerPersonaID != nil && p.likeRepo != nil {
 		if err := p.hydrateLikedState(ctx, *viewerPersonaID, response.Posts); err != nil {
@@ -60,6 +68,14 @@ func (p *SearchPipe) search(ctx context.Context, query string, limit int, viewer
 		}
 	}
 	return pipeSuccess(searchmessages.Search_Listed, &response)
+}
+
+func nextOffset(options SearchOptions, hasMore bool) *int {
+	if !hasMore {
+		return nil
+	}
+	next := options.Offset + options.Limit
+	return &next
 }
 
 func (p *SearchPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, posts []SearchPostResponse) error {

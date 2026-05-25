@@ -51,3 +51,15 @@ func queryLimit(ctx *fiber.Ctx, fallback int) int {
 	}
 	return limit
 }
+
+func queryOffset(ctx *fiber.Ctx) int {
+	value := ctx.Query("offset")
+	if value == "" {
+		return 0
+	}
+	offset, err := strconv.Atoi(value)
+	if err != nil {
+		return 0
+	}
+	return offset
+}

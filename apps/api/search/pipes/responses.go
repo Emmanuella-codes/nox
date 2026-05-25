@@ -8,10 +8,14 @@ import (
 )
 
 type SearchResponse struct {
-	Query    string                  `json:"query"`
-	Personas []SearchPersonaResponse `json:"personas"`
-	Posts    []SearchPostResponse    `json:"posts"`
-	Events   []SearchEventResponse   `json:"events"`
+	Query      string                  `json:"query"`
+	Limit      int                     `json:"limit"`
+	Offset     int                     `json:"offset"`
+	HasMore    bool                    `json:"has_more"`
+	NextOffset *int                    `json:"next_offset,omitempty"`
+	Personas   []SearchPersonaResponse `json:"personas"`
+	Posts      []SearchPostResponse    `json:"posts"`
+	Events     []SearchEventResponse   `json:"events"`
 }
 
 type SearchPersonaResponse struct {
@@ -49,8 +53,9 @@ type SearchPostResponse struct {
 }
 
 type SearchPostAuthor struct {
-	Mode    models.PostingMode `json:"mode"`
-	Persona *SearchPostPersona `json:"persona,omitempty"`
+	Mode           models.PostingMode `json:"mode"`
+	Persona        *SearchPostPersona `json:"persona,omitempty"`
+	AnonymousLabel string             `json:"anonymous_label,omitempty"`
 }
 
 type SearchPostPersona struct {
@@ -103,7 +108,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 		post := result.Post
 		response := SearchPostResponse{
 			ID:           post.ID.String(),
-			Author:       SearchPostAuthor{Mode: post.PostingMode},
+			Author:       postAuthor(result),
 			Body:         post.Body,
 			PostType:     post.PostType,
 			MediaURL:     post.MediaURL,
@@ -124,17 +129,26 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 			repostOf := post.RepostOf.String()
 			response.RepostOf = &repostOf
 		}
-		if post.PostingMode == models.PublicPostingMode && result.Persona != nil {
-			response.Author.Persona = &SearchPostPersona{
-				ID:          result.Persona.ID.String(),
-				Handle:      result.Persona.Handle,
-				DisplayName: result.Persona.DisplayName,
-				AvatarURL:   result.Persona.AvatarURL,
-			}
-		}
 		responses = append(responses, response)
 	}
 	return responses
+}
+
+func postAuthor(result *searchrepo.PostResult) SearchPostAuthor {
+	author := SearchPostAuthor{Mode: result.Post.PostingMode}
+	if result.Post.PostingMode == models.AnonymousPostingMode {
+		author.AnonymousLabel = "anonymous"
+		return author
+	}
+	if result.Post.PostingMode == models.PublicPostingMode && result.Persona != nil {
+		author.Persona = &SearchPostPersona{
+			ID:          result.Persona.ID.String(),
+			Handle:      result.Persona.Handle,
+			DisplayName: result.Persona.DisplayName,
+			AvatarURL:   result.Persona.AvatarURL,
+		}
+	}
+	return author
 }
 
 func eventResponses(events []*models.Event) []SearchEventResponse {

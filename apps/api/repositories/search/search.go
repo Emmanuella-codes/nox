@@ -17,14 +17,28 @@ type Results struct {
 	Personas []*models.Persona
 	Posts    []*PostResult
 	Events   []*models.Event
+	HasMore  bool
+}
+
+type Options struct {
+	Limit  int
+	Offset int
 }
 
 type Repository interface {
-	Search(ctx context.Context, query string, limit int) (*Results, error)
+	Search(ctx context.Context, query string, options Options) (*Results, error)
 }
 
 func NewSearchRepository(db *pgxpool.Pool) Repository {
 	return newPgRepository(db)
+}
+
+func NormalizeOptions(options Options) Options {
+	options.Limit = normalizeLimit(options.Limit)
+	if options.Offset < 0 {
+		options.Offset = 0
+	}
+	return options
 }
 
 func normalizeLimit(limit int) int {
@@ -43,6 +57,10 @@ func textMatchParam(query string) string {
 
 func tagMatchParam(query string) string {
 	return "%" + query + "%"
+}
+
+func prefixMatchParam(query string) string {
+	return query + "%"
 }
 
 func nullableUUID(valid bool, value uuid.UUID) *uuid.UUID {

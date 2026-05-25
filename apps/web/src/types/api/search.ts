@@ -4,6 +4,10 @@ import type { Post } from "@/src/types/api/post";
 
 export interface SearchResponse {
   query: string;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  next_offset?: number;
   personas: Persona[];
   posts: Post[];
   events: Event[];

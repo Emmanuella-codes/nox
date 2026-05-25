@@ -35,6 +35,7 @@ export function DiscoverScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("Search artists, posts, events, and genres.");
   const [viewerPersonaID, setViewerPersonaID] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
   const searchTerm = useMemo(() => query.trim() || (genre === "all" ? "" : genre), [genre, query]);
 
   useEffect(() => {
@@ -88,6 +89,34 @@ export function DiscoverScreen() {
       window.clearTimeout(timeout);
     };
   }, [searchTerm, viewerPersonaID]);
+
+  async function handleLoadMore() {
+    if (!results?.has_more || results.next_offset === undefined || loadingMore) return;
+
+    setLoadingMore(true);
+    try {
+      const token = viewerPersonaID ? getAccessToken() : "";
+      const res = await searchNox(
+        searchTerm,
+        results.limit,
+        token || undefined,
+        viewerPersonaID || undefined,
+        results.next_offset,
+      );
+      if (res.data) {
+        setResults({
+          ...res.data,
+          personas: [...results.personas, ...res.data.personas],
+          posts: [...results.posts, ...res.data.posts],
+          events: [...results.events, ...res.data.events],
+        });
+      }
+    } catch {
+      setMessage("Could not load more results.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function handleToggleLike(post: Post) {
     const token = getAccessToken();
@@ -219,6 +248,19 @@ export function DiscoverScreen() {
                   ))}
                 </div>
               </section>
+            )}
+
+            {results.has_more && (
+              <div className="px-4 py-4">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full rounded-[8px] border border-(--nox-border-strong) px-4 py-2.5 text-[13px] font-semibold text-(--nox-ink) transition hover:border-(--nox-accent) disabled:opacity-50"
+                >
+                  {loadingMore ? "Loading..." : "Load more"}
+                </button>
+              </div>
             )}
           </div>
         ) : (

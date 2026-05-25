@@ -17,24 +17,38 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
-func (r *pgRepository) Search(ctx context.Context, query string, limit int) (*Results, error) {
-	normalizedLimit := normalizeLimit(limit)
-	personas, err := r.searchPersonas(ctx, query, normalizedLimit)
+func (r *pgRepository) Search(ctx context.Context, query string, options Options) (*Results, error) {
+	normalizedOptions := NormalizeOptions(options)
+	fetchLimit := normalizedOptions.Limit + 1
+
+	personas, err := r.searchPersonas(ctx, query, fetchLimit, normalizedOptions.Offset)
 	if err != nil {
 		return nil, err
 	}
-	posts, err := r.searchPosts(ctx, query, normalizedLimit)
+	posts, err := r.searchPosts(ctx, query, fetchLimit, normalizedOptions.Offset)
 	if err != nil {
 		return nil, err
 	}
-	events, err := r.searchEvents(ctx, query, normalizedLimit)
+	events, err := r.searchEvents(ctx, query, fetchLimit, normalizedOptions.Offset)
 	if err != nil {
 		return nil, err
 	}
-	return &Results{Personas: personas, Posts: posts, Events: events}, nil
+
+	hasMore := len(personas) > normalizedOptions.Limit || len(posts) > normalizedOptions.Limit || len(events) > normalizedOptions.Limit
+	if len(personas) > normalizedOptions.Limit {
+		personas = personas[:normalizedOptions.Limit]
+	}
+	if len(posts) > normalizedOptions.Limit {
+		posts = posts[:normalizedOptions.Limit]
+	}
+	if len(events) > normalizedOptions.Limit {
+		events = events[:normalizedOptions.Limit]
+	}
+
+	return &Results{Personas: personas, Posts: posts, Events: events, HasMore: hasMore}, nil
 }
 
-func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int) ([]*models.Persona, error) {
+func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int, offset int) ([]*models.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
@@ -45,13 +59,17 @@ func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit i
 		    OR display_name ILIKE $1
 		    OR bio ILIKE $1
 		    OR EXISTS (SELECT 1 FROM unnest(COALESCE(genre_tags, ARRAY[]::text[])) tag WHERE tag ILIKE $2)
+		    OR similarity(handle, $3) > 0.25
+		    OR similarity(display_name, $3) > 0.25
 		  )
 		ORDER BY
-		  CASE WHEN handle ILIKE $3 THEN 0 ELSE 1 END,
+		  CASE WHEN lower(handle) = lower($3) THEN 0 ELSE 1 END,
+		  CASE WHEN handle ILIKE $4 THEN 0 ELSE 1 END,
+		  GREATEST(similarity(handle, $3), similarity(display_name, $3), similarity(COALESCE(bio, ''), $3)) DESC,
 		  follower_count DESC,
 		  created_at DESC
-		LIMIT $4
-	`, textMatchParam(query), tagMatchParam(query), query+"%", limit)
+		LIMIT $5 OFFSET $6
+	`, textMatchParam(query), tagMatchParam(query), query, prefixMatchParam(query), limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +101,7 @@ func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit i
 	return personas, rows.Err()
 }
 
-func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int) ([]*PostResult, error) {
+func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int, offset int) ([]*PostResult, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
 		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
@@ -100,10 +118,16 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int)
 		    p.body ILIKE $1
 		    OR p.location ILIKE $1
 		    OR EXISTS (SELECT 1 FROM unnest(COALESCE(pe.genre_tags, ARRAY[]::text[])) tag WHERE tag ILIKE $2)
+		    OR similarity(p.body, $3) > 0.18
+		    OR similarity(COALESCE(p.location, ''), $3) > 0.25
 		  )
-		ORDER BY p.created_at DESC
-		LIMIT $3
-	`, textMatchParam(query), tagMatchParam(query), limit)
+		ORDER BY
+		  CASE WHEN p.body ILIKE $4 THEN 0 ELSE 1 END,
+		  GREATEST(similarity(p.body, $3), similarity(COALESCE(p.location, ''), $3)) DESC,
+		  (p.like_count + p.comment_count + p.repost_count) DESC,
+		  p.created_at DESC
+		LIMIT $5 OFFSET $6
+	`, textMatchParam(query), tagMatchParam(query), query, prefixMatchParam(query), limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +144,7 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int)
 	return results, rows.Err()
 }
 
-func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int) ([]*models.Event, error) {
+func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int, offset int) ([]*models.Event, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, title, venue, location, event_date, description, COALESCE(cover_url, ''),
 		       COALESCE(ticket_url, ''), price_ngn, genre_tags, organizer_id, created_at
@@ -130,11 +154,17 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		   OR location ILIKE $1
 		   OR description ILIKE $1
 		   OR EXISTS (SELECT 1 FROM unnest(COALESCE(genre_tags, ARRAY[]::text[])) tag WHERE tag ILIKE $2)
+		   OR similarity(title, $3) > 0.25
+		   OR similarity(venue, $3) > 0.25
+		   OR similarity(location, $3) > 0.25
 		ORDER BY
+		  CASE WHEN lower(title) = lower($3) THEN 0 ELSE 1 END,
+		  CASE WHEN title ILIKE $4 THEN 0 ELSE 1 END,
+		  GREATEST(similarity(title, $3), similarity(venue, $3), similarity(location, $3), similarity(COALESCE(description, ''), $3)) DESC,
 		  CASE WHEN event_date >= now() THEN 0 ELSE 1 END,
 		  event_date ASC
-		LIMIT $3
-	`, textMatchParam(query), tagMatchParam(query), limit)
+		LIMIT $5 OFFSET $6
+	`, textMatchParam(query), tagMatchParam(query), query, prefixMatchParam(query), limit, offset)
 	if err != nil {
 		return nil, err
 	}

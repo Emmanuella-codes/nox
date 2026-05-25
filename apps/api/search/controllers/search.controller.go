@@ -10,6 +10,7 @@ import (
 
 func (c *SearchController) Search(ctx *fiber.Ctx) error {
 	var res *shared.PipeRes[pipes.SearchResponse]
+	options := pipes.SearchOptions{Limit: queryLimit(ctx, 10), Offset: queryOffset(ctx)}
 	viewerPersonaID := ctx.Query("viewer_persona_id")
 	if viewerPersonaID != "" {
 		userID, ok := middleware.CurrentUserID(ctx)
@@ -26,9 +27,9 @@ func (c *SearchController) Search(ctx *fiber.Ctx) error {
 		if message != "" {
 			return pipeError(ctx, pipeErrorStatus(message), message)
 		}
-		res = c.pipe.SearchForViewer(ctx.Context(), ctx.Query("q"), queryLimit(ctx, 10), persona.ID)
+		res = c.pipe.SearchForViewer(ctx.Context(), ctx.Query("q"), options, persona.ID)
 	} else {
-		res = c.pipe.Search(ctx.Context(), ctx.Query("q"), queryLimit(ctx, 10))
+		res = c.pipe.Search(ctx.Context(), ctx.Query("q"), options)
 	}
 
 	if !res.Success {

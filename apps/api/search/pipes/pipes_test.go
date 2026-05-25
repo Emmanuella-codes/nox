@@ -13,7 +13,7 @@ import (
 func TestSearchRejectsShortQuery(t *testing.T) {
 	pipe := NewSearchPipe(&searchTestRepo{}, nil, nil)
 
-	res := pipe.Search(context.Background(), "a", 10)
+	res := pipe.Search(context.Background(), "a", SearchOptions{Limit: 10})
 	if res.Message != messages.Invalid_Query {
 		t.Fatalf("expected %q, got %q", messages.Invalid_Query, res.Message)
 	}
@@ -53,7 +53,7 @@ func TestSearchReturnsGroupedResults(t *testing.T) {
 		},
 	}, nil, nil)
 
-	res := pipe.Search(context.Background(), "afro", 10)
+	res := pipe.Search(context.Background(), "afro", SearchOptions{Limit: 10})
 	if !res.Success {
 		t.Fatalf("expected success, got %q", res.Message)
 	}
@@ -62,6 +62,59 @@ func TestSearchReturnsGroupedResults(t *testing.T) {
 	}
 	if res.Data.Posts[0].Author.Persona == nil {
 		t.Fatal("expected public post persona author")
+	}
+	if res.Data.Limit != 10 || res.Data.Offset != 0 {
+		t.Fatalf("expected normalized pagination metadata, got limit=%d offset=%d", res.Data.Limit, res.Data.Offset)
+	}
+}
+
+func TestSearchReturnsPaginationMetadata(t *testing.T) {
+	nextOffset := 25
+	pipe := NewSearchPipe(&searchTestRepo{
+		results: &searchrepo.Results{HasMore: true},
+	}, nil, nil)
+
+	res := pipe.Search(context.Background(), "afro", SearchOptions{Limit: 50, Offset: nextOffset})
+	if !res.Success {
+		t.Fatalf("expected search success, got %q", res.Message)
+	}
+	if res.Data.Limit != 30 {
+		t.Fatalf("expected capped limit 30, got %d", res.Data.Limit)
+	}
+	if res.Data.Offset != nextOffset {
+		t.Fatalf("expected offset %d, got %d", nextOffset, res.Data.Offset)
+	}
+	if res.Data.NextOffset == nil || *res.Data.NextOffset != 55 {
+		t.Fatalf("expected next offset 55, got %v", res.Data.NextOffset)
+	}
+	if !res.Data.HasMore {
+		t.Fatal("expected has_more true")
+	}
+}
+
+func TestSearchAnonymousPostsExposeUnlinkableLabel(t *testing.T) {
+	pipe := NewSearchPipe(&searchTestRepo{
+		results: &searchrepo.Results{
+			Posts: []*searchrepo.PostResult{{
+				Post: &models.Post{
+					ID:          uuid.New(),
+					PostingMode: models.AnonymousPostingMode,
+					Body:        "afro anonymous",
+					PostType:    models.TextPostType,
+				},
+			}},
+		},
+	}, nil, nil)
+
+	res := pipe.Search(context.Background(), "afro", SearchOptions{Limit: 10})
+	if !res.Success {
+		t.Fatalf("expected search success, got %q", res.Message)
+	}
+	if res.Data.Posts[0].Author.AnonymousLabel != "anonymous" {
+		t.Fatalf("expected anonymous label, got %q", res.Data.Posts[0].Author.AnonymousLabel)
+	}
+	if res.Data.Posts[0].Author.Persona != nil {
+		t.Fatal("expected anonymous search result not to expose persona")
 	}
 }
 
@@ -94,7 +147,7 @@ func TestSearchForViewerHydratesLikedState(t *testing.T) {
 		likedPostIDs: map[uuid.UUID]bool{likedPostID: true},
 	}, nil)
 
-	res := pipe.SearchForViewer(context.Background(), "afro", 10, viewerPersonaID)
+	res := pipe.SearchForViewer(context.Background(), "afro", SearchOptions{Limit: 10}, viewerPersonaID)
 	if !res.Success {
 		t.Fatalf("expected search success, got %q", res.Message)
 	}
@@ -111,9 +164,11 @@ func TestSearchForViewerHydratesLikedState(t *testing.T) {
 
 type searchTestRepo struct {
 	results *searchrepo.Results
+	options searchrepo.Options
 }
 
-func (r *searchTestRepo) Search(ctx context.Context, query string, limit int) (*searchrepo.Results, error) {
+func (r *searchTestRepo) Search(ctx context.Context, query string, options searchrepo.Options) (*searchrepo.Results, error) {
+	r.options = options
 	if r.results == nil {
 		return &searchrepo.Results{}, nil
 	}
