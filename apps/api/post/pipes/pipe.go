@@ -5,19 +5,26 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/post/messages"
+	like_repo "github.com/emmanuella-codes/nox/repositories/like"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
 type PostPipe struct {
 	postRepo    post_repo.PostRepository
 	personaRepo persona_repo.PersonaRepository
+	likeRepo    like_repo.LikeRepository
 }
 
-func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository) *PostPipe {
-	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo}
+func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository, likeRepo ...like_repo.LikeRepository) *PostPipe {
+	var likes like_repo.LikeRepository
+	if len(likeRepo) > 0 {
+		likes = likeRepo[0]
+	}
+	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes}
 }
 
 type PostResponse struct {
@@ -32,6 +39,7 @@ type PostResponse struct {
 	LikeCount    int              `json:"like_count"`
 	CommentCount int              `json:"comment_count"`
 	RepostCount  int              `json:"repost_count"`
+	IsLiked      bool             `json:"is_liked"`
 	IsRepost     bool             `json:"is_repost"`
 	RepostOf     *string          `json:"repost_of,omitempty"`
 	CreatedAt    time.Time        `json:"created_at"`
@@ -113,4 +121,12 @@ func postResponses(posts []*models.Post, personas map[string]*models.Persona) []
 		responses = append(responses, response)
 	}
 	return responses
+}
+
+func postIDs(posts []*models.Post) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(posts))
+	for _, post := range posts {
+		ids = append(ids, post.ID)
+	}
+	return ids
 }

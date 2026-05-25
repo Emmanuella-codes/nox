@@ -13,8 +13,14 @@ export function getPost(postID: string) {
   return apiRequest<Post>(`/posts/${postID}`);
 }
 
-export function getPersonaFeed(personaID: string) {
-  return apiRequest<Post[]>(`/posts/persona/${personaID}/feed`);
+export function getPostForViewer(postID: string, personaID: string, token: string) {
+  return apiRequest<Post>(`/posts/${postID}/viewer?persona_id=${encodeURIComponent(personaID)}`, {
+    token,
+  });
+}
+
+export function getPersonaFeed(personaID: string, token: string) {
+  return apiRequest<Post[]>(`/posts/persona/${personaID}/feed`, { token });
 }
 
 export function getPersonaPosts(personaID: string) {

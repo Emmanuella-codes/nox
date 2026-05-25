@@ -1,11 +1,14 @@
 package controllers
 
 import (
+	"github.com/emmanuella-codes/nox/like/dtos"
 	"github.com/emmanuella-codes/nox/like/messages"
 	"github.com/emmanuella-codes/nox/like/pipes"
+	"github.com/emmanuella-codes/nox/middleware"
 	"github.com/emmanuella-codes/nox/shared"
 	sharedapi "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type LikeController struct {
@@ -14,6 +17,33 @@ type LikeController struct {
 
 func NewLikeController(pipe *pipes.LikePipe) *LikeController {
 	return &LikeController{pipe: pipe}
+}
+
+func (c *LikeController) likeAction(ctx *fiber.Ctx, like bool) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+	postID, err := uuid.Parse(ctx.Params("postID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_post_id")
+	}
+
+	var dto dtos.LikePostDTO
+	if err := parseAndValidate(ctx, &dto); err != nil {
+		return validationError(ctx, err)
+	}
+
+	var res *shared.PipeRes[any]
+	if like {
+		res = c.pipe.LikePostPipe(ctx.Context(), userID, postID, dto)
+	} else {
+		res = c.pipe.UnlikePostPipe(ctx.Context(), userID, postID, dto)
+	}
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess[any](ctx, fiber.StatusOK, res.Message, nil)
 }
 
 func parseAndValidate(ctx *fiber.Ctx, dto any) error {

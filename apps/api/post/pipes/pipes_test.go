@@ -132,8 +132,45 @@ func TestGetPostPipeHidesAnonymousIdentity(t *testing.T) {
 	}
 }
 
+func TestGetFeedPipeHydratesLikedState(t *testing.T) {
+	viewerPersonaID := uuid.New()
+	likedPostID := uuid.New()
+	unlikedPostID := uuid.New()
+	pipe := NewPostPipe(&postTestRepo{
+		feedPosts: []*models.Post{
+			{ID: likedPostID, PostingMode: models.AnonymousPostingMode, Body: "liked", PostType: models.TextPostType},
+			{ID: unlikedPostID, PostingMode: models.AnonymousPostingMode, Body: "unliked", PostType: models.TextPostType},
+		},
+	}, &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			viewerPersonaID.String(): {
+				ID:          viewerPersonaID,
+				UserID:      uuid.New(),
+				PersonaType: models.VisiblePersonaType,
+			},
+		},
+	}, &postTestLikeRepo{
+		likedPostIDs: map[uuid.UUID]bool{likedPostID: true},
+	})
+
+	res := pipe.GetFeedPipe(context.Background(), viewerPersonaID, 20)
+	if !res.Success {
+		t.Fatalf("expected feed success, got %q", res.Message)
+	}
+	if len(*res.Data) != 2 {
+		t.Fatalf("expected 2 posts, got %d", len(*res.Data))
+	}
+	if !(*res.Data)[0].IsLiked {
+		t.Fatal("expected first post to be liked")
+	}
+	if (*res.Data)[1].IsLiked {
+		t.Fatal("expected second post not to be liked")
+	}
+}
+
 type postTestRepo struct {
 	posts               map[string]*models.Post
+	feedPosts           []*models.Post
 	createdAuthorUserID uuid.UUID
 	createdDTO          postdtos.CreatePostDTO
 	deletedPostID       uuid.UUID
@@ -169,7 +206,7 @@ func (r *postTestRepo) FindPostsByPersonaID(ctx context.Context, personaID uuid.
 }
 
 func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
-	return nil, nil
+	return r.feedPosts, nil
 }
 
 func (r *postTestRepo) DeletePost(ctx context.Context, postID uuid.UUID) error {
@@ -203,4 +240,30 @@ func (r *postTestPersonaRepo) FindPersonaByHandle(ctx context.Context, handle st
 
 func (r *postTestPersonaRepo) UpdatePersona(ctx context.Context, personaID uuid.UUID, dto dtos.UpdatePersonaDTO) (*models.Persona, error) {
 	return nil, nil
+}
+
+type postTestLikeRepo struct {
+	likedPostIDs map[uuid.UUID]bool
+}
+
+func (r *postTestLikeRepo) LikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestLikeRepo) UnlikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestLikeRepo) HasPostLike(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) (bool, error) {
+	return r.likedPostIDs[postID], nil
+}
+
+func (r *postTestLikeRepo) FindLikedPostIDs(ctx context.Context, personaID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	liked := make(map[uuid.UUID]bool)
+	for _, postID := range postIDs {
+		if r.likedPostIDs[postID] {
+			liked[postID] = true
+		}
+	}
+	return liked, nil
 }

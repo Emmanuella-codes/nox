@@ -60,3 +60,40 @@ func (r *pgRepository) UnlikePost(ctx context.Context, personaID uuid.UUID, post
 
 	return tx.Commit(ctx)
 }
+
+func (r *pgRepository) HasPostLike(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM post_likes WHERE persona_id = $1 AND post_id = $2
+		)
+	`, personaID, postID).Scan(&exists)
+	return exists, err
+}
+
+func (r *pgRepository) FindLikedPostIDs(ctx context.Context, personaID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	liked := make(map[uuid.UUID]bool, len(postIDs))
+	if len(postIDs) == 0 {
+		return liked, nil
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT post_id
+		FROM post_likes
+		WHERE persona_id = $1 AND post_id = ANY($2)
+	`, personaID, postIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var postID uuid.UUID
+		if err := rows.Scan(&postID); err != nil {
+			return nil, err
+		}
+		liked[postID] = true
+	}
+
+	return liked, rows.Err()
+}

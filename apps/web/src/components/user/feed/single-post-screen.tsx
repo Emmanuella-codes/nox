@@ -6,7 +6,7 @@ import { ChevronLeft, Send, Ghost, Heart, MessageCircle, Repeat2 } from "lucide-
 import { Avatar } from "@/src/components/user/shared/avatar";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { CommentItem } from "@/src/components/user/feed/comment-item";
-import { getPost, likePost, unlikePost } from "@/src/utils/api/user/post";
+import { getPost, getPostForViewer, likePost, unlikePost } from "@/src/utils/api/user/post";
 import { createComment, getPostComments } from "@/src/utils/api/user/comment";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { getAccessToken } from "@/src/utils/auth/session";
@@ -64,16 +64,20 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
     async function load() {
       try {
         const token = getAccessToken();
+        let personaID = "";
+        if (token) {
+          const personasRes = await getMyPersonas(token);
+          personaID = personasRes.data?.[0]?.id ?? "";
+          setViewerPersonaID(personaID);
+        }
+
         const [postRes, commentsRes] = await Promise.all([
-          getPost(postId),
+          personaID ? getPostForViewer(postId, personaID, token) : getPost(postId),
           getPostComments(postId),
         ]);
         setPost(postRes.data ?? null);
+        setLiked(Boolean(postRes.data?.is_liked));
         setComments(commentsRes.data ?? []);
-        if (token) {
-          const personasRes = await getMyPersonas(token);
-          setViewerPersonaID(personasRes.data?.[0]?.id ?? "");
-        }
       } catch {
         setError("Could not load post.");
       } finally {

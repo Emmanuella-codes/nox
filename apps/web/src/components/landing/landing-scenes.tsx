@@ -29,7 +29,7 @@ export function LandingScenes() {
                 {tag}
               </span>
               <div>
-                <div className="whitespace-pre-line text-[22px] font-bold leading-[1.1]">
+                <div className="whitespace-pre-line text-[18px] md:text-[22px] font-bold leading-[1.1]">
                   {title}
                 </div>
                 <div className="mt-2 font-mono text-[10px] opacity-80">

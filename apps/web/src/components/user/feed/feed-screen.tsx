@@ -53,8 +53,10 @@ export function FeedScreen() {
           return;
         }
 
-        const feedRes = await getPersonaFeed(primaryPersona.id);
-        setPosts(feedRes.data ?? []);
+        const feedRes = await getPersonaFeed(primaryPersona.id, token);
+        const nextPosts = feedRes.data ?? [];
+        setPosts(nextPosts);
+        setLikedPostIDs(new Set(nextPosts.filter((post) => post.is_liked).map((post) => post.id)));
       } catch {
         setMessage("Could not load feed.");
       } finally {
