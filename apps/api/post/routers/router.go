@@ -23,6 +23,12 @@ func PostRoutes(controller *controllers.PostController, cfg *config.Config, pers
 			Handler:     controller.GetPost,
 		},
 		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/:postID/viewer",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.GetPostForViewer,
+		},
+		{
 			RouteMethod: api.RouteMethod("DELETE"),
 			Path:        "/:postID",
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
@@ -31,11 +37,13 @@ func PostRoutes(controller *controllers.PostController, cfg *config.Config, pers
 		{
 			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/persona/:personaID",
+			Middlewares: []typings.FiberMiddleware{middleware.OptionalJWT(cfg)},
 			Handler:     controller.GetPersonaPosts,
 		},
 		{
 			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/persona/:personaID/feed",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg), middleware.RequirePersonaOwner(personaRepo)},
 			Handler:     controller.GetFeed,
 		},
 	}

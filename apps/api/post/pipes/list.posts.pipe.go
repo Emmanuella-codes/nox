@@ -29,6 +29,20 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	return pipeSuccess(messages.Post_Fetched, &response)
 }
 
+func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[PostResponse] {
+	res := p.GetPostPipe(ctx, postID)
+	if !res.Success || res.Data == nil || p.likeRepo == nil {
+		return res
+	}
+
+	liked, err := p.likeRepo.HasPostLike(ctx, viewerPersonaID, postID)
+	if err != nil {
+		return pipeInternalError[PostResponse](err, "post.viewer_like_status")
+	}
+	res.Data.IsLiked = liked
+	return res
+}
+
 func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
@@ -51,6 +65,18 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 	return pipeSuccess(messages.Posts_Listed, &responses)
 }
 
+func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID uuid.UUID, viewerPersonaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+	res := p.GetPersonaPostsPipe(ctx, personaID, limit)
+	if !res.Success || res.Data == nil || p.likeRepo == nil {
+		return res
+	}
+
+	if err := p.hydrateLikedState(ctx, viewerPersonaID, *res.Data); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.persona_posts_like_status")
+	}
+	return res
+}
+
 func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
@@ -70,7 +96,26 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 	}
 
 	responses := postResponses(posts, personas)
+	if p.likeRepo != nil {
+		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
+			return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
+		}
+	}
 	return pipeSuccess(messages.Feed_Listed, &responses)
+}
+
+func (p *PostPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
+	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return nil, messages.Persona_Not_Found
+		}
+		return nil, messages.Internal_Error
+	}
+	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+		return nil, messages.Forbidden
+	}
+	return persona, ""
 }
 
 func (p *PostPipe) publicPostPersona(ctx context.Context, post *models.Post) (*models.Persona, *shared.PipeRes[PostResponse]) {
@@ -111,4 +156,29 @@ func (p *PostPipe) publicPostPersonas(ctx context.Context, posts []*models.Post)
 	}
 
 	return personas, nil
+}
+
+func (p *PostPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, responses []PostResponse) error {
+	if p.likeRepo == nil || len(responses) == 0 {
+		return nil
+	}
+
+	postIDs := make([]uuid.UUID, 0, len(responses))
+	for _, response := range responses {
+		postID, err := uuid.Parse(response.ID)
+		if err != nil {
+			return err
+		}
+		postIDs = append(postIDs, postID)
+	}
+
+	liked, err := p.likeRepo.FindLikedPostIDs(ctx, viewerPersonaID, postIDs)
+	if err != nil {
+		return err
+	}
+	for i := range responses {
+		postID := postIDs[i]
+		responses[i].IsLiked = liked[postID]
+	}
+	return nil
 }

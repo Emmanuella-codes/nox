@@ -6,9 +6,10 @@ import type { Persona } from "@/src/types/api/persona";
 interface PersonaCardProps {
   persona: Persona;
   onPress?: () => void;
+  showFollow?: boolean;
 }
 
-export function PersonaCard({ persona, onPress }: PersonaCardProps) {
+export function PersonaCard({ persona, onPress, showFollow = false }: PersonaCardProps) {
   return (
     <div
       className="flex items-center gap-3 px-4 py-3 transition active:bg-(--nox-surface)"
@@ -40,17 +41,19 @@ export function PersonaCard({ persona, onPress }: PersonaCardProps) {
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={(e) => e.stopPropagation()}
-        className="shrink-0 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition hover:border-(--nox-accent) hover:text-(--nox-accent)"
-        style={{
-          borderColor: "var(--nox-border-strong)",
-          color: "var(--nox-ink-mid)",
-        }}
-      >
-        follow
-      </button>
+      {showFollow && (
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition hover:border-(--nox-accent) hover:text-(--nox-accent)"
+          style={{
+            borderColor: "var(--nox-border-strong)",
+            color: "var(--nox-ink-mid)",
+          }}
+        >
+          follow
+        </button>
+      )}
     </div>
   );
 }

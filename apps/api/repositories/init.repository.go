@@ -6,6 +6,7 @@ import (
 	"github.com/emmanuella-codes/nox/repositories/like"
 	"github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/repositories/post"
+	"github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,6 +18,7 @@ type Repositories struct {
 	Comment comment.CommentRepository
 	Like    like.LikeRepository
 	Event   event.EventRepository
+	Search  search.Repository
 }
 
 func Init(pool *pgxpool.Pool) *Repositories {
@@ -27,5 +29,6 @@ func Init(pool *pgxpool.Pool) *Repositories {
 		Comment: comment.NewCommentRepository(pool),
 		Like:    like.NewLikeRepository(pool),
 		Event:   event.NewEventRepository(pool),
+		Search:  search.NewSearchRepository(pool),
 	}
 }

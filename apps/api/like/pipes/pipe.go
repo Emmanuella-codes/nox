@@ -3,7 +3,6 @@ package pipes
 import (
 	"context"
 
-	"github.com/emmanuella-codes/nox/like/dtos"
 	"github.com/emmanuella-codes/nox/like/messages"
 	"github.com/emmanuella-codes/nox/models"
 	like_repo "github.com/emmanuella-codes/nox/repositories/like"
@@ -22,26 +21,6 @@ type LikePipe struct {
 
 func NewLikePipe(likeRepo like_repo.LikeRepository, personaRepo persona_repo.PersonaRepository, postRepo post_repo.PostRepository) *LikePipe {
 	return &LikePipe{likeRepo: likeRepo, personaRepo: personaRepo, postRepo: postRepo}
-}
-
-func (p *LikePipe) LikePostPipe(ctx context.Context, userID uuid.UUID, postID uuid.UUID, dto dtos.LikePostDTO) *shared.PipeRes[any] {
-	if res := p.validatePersonaAndPost(ctx, userID, postID, dto.PersonaID); res != nil {
-		return res
-	}
-	if err := p.likeRepo.LikePost(ctx, dto.PersonaID, postID); err != nil {
-		return pipeInternalError[any](err, "like.post")
-	}
-	return pipeSuccess[any](messages.Post_Liked, nil)
-}
-
-func (p *LikePipe) UnlikePostPipe(ctx context.Context, userID uuid.UUID, postID uuid.UUID, dto dtos.LikePostDTO) *shared.PipeRes[any] {
-	if res := p.validatePersonaAndPost(ctx, userID, postID, dto.PersonaID); res != nil {
-		return res
-	}
-	if err := p.likeRepo.UnlikePost(ctx, dto.PersonaID, postID); err != nil {
-		return pipeInternalError[any](err, "unlike.post")
-	}
-	return pipeSuccess[any](messages.Post_Unliked, nil)
 }
 
 func (p *LikePipe) validatePersonaAndPost(ctx context.Context, userID uuid.UUID, postID uuid.UUID, personaID uuid.UUID) *shared.PipeRes[any] {

@@ -36,6 +36,7 @@ function extractHashtags(body: string): { segments: { text: string; isTag: boole
 export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps) {
   const isAnon = post.author.mode === "anonymous";
   const persona = post.author.persona;
+  const anonymousLabel = post.author.anonymous_label ?? "anonymous";
   const { segments } = extractHashtags(post.body);
 
   return (
@@ -72,7 +73,7 @@ export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps
                 }}
               >
                 <Ghost className="size-2.5" strokeWidth={1.8} />
-                anonymous
+                {anonymousLabel}
               </span>
             ) : (
               <>

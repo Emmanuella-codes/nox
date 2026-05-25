@@ -26,6 +26,9 @@ import (
 	postpipes "github.com/emmanuella-codes/nox/post/pipes"
 	postrouters "github.com/emmanuella-codes/nox/post/routers"
 	"github.com/emmanuella-codes/nox/repositories"
+	searchcontrollers "github.com/emmanuella-codes/nox/search/controllers"
+	searchpipes "github.com/emmanuella-codes/nox/search/pipes"
+	searchrouters "github.com/emmanuella-codes/nox/search/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/gofiber/fiber/v2"
@@ -66,10 +69,11 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 
 	authController := controllers.NewAuthController(authPipe)
 	personaController := personacontrollers.NewPersonaController(personapipes.NewPersonaPipe(repos.Persona))
-	postController := postcontrollers.NewPostController(postpipes.NewPostPipe(repos.Post, repos.Persona))
+	postController := postcontrollers.NewPostController(postpipes.NewPostPipe(repos.Post, repos.Persona, repos.Like))
 	commentController := commentcontrollers.NewCommentController(commentpipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
 	likeController := likecontrollers.NewLikeController(likepipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
 	eventController := eventcontrollers.NewEventController(eventpipes.NewEventPipe(repos.Event, repos.Persona))
+	searchController := searchcontrollers.NewSearchController(searchpipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona))
 
 	api := app.Group("/api/v1")
 
@@ -79,6 +83,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api, commentrouters.CommentRoutes(commentController, cfg))
 	shared_api.BaseRouter(api, likerouters.LikeRoutes(likeController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), eventrouters.EventRoutes(eventController, cfg))
+	shared_api.BaseRouter(api.Group("/search"), searchrouters.SearchRoutes(searchController, cfg))
 
 	go func() {
 		<-ctx.Done()

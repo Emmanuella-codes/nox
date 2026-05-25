@@ -8,7 +8,7 @@ import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { PostCard } from "@/src/components/user/feed/post-card";
 import { Avatar } from "@/src/components/user/shared/avatar";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
-import { getPersonaPosts } from "@/src/utils/api/user/post";
+import { getPersonaPosts, likePost, unlikePost } from "@/src/utils/api/user/post";
 import { getAccessToken } from "@/src/utils/auth/session";
 import type { Persona } from "@/src/types/api/persona";
 import type { Post } from "@/src/types/api/post";
@@ -44,7 +44,7 @@ export function ProfileScreen() {
           return;
         }
         if (first) {
-          const postsRes = await getPersonaPosts(first.id);
+          const postsRes = await getPersonaPosts(first.id, token, first.id);
           setPosts(postsRes.data ?? []);
         }
       } catch {
@@ -71,6 +71,35 @@ export function ProfileScreen() {
     created_at: "",
     updated_at: "",
   };
+
+  async function handleToggleLike(post: Post) {
+    const token = getAccessToken();
+    if (!token || !persona) return;
+
+    const previousPosts = posts;
+    const nextLiked = !post.is_liked;
+    setPosts((current) =>
+      current.map((item) =>
+        item.id === post.id
+          ? {
+              ...item,
+              is_liked: nextLiked,
+              like_count: Math.max(0, item.like_count + (nextLiked ? 1 : -1)),
+            }
+          : item,
+      ),
+    );
+
+    try {
+      if (nextLiked) {
+        await likePost(post.id, persona.id, token);
+      } else {
+        await unlikePost(post.id, persona.id, token);
+      }
+    } catch {
+      setPosts(previousPosts);
+    }
+  }
 
   return (
     <FeedShell>
@@ -201,6 +230,8 @@ export function ProfileScreen() {
                 <PostCard
                   key={p.id}
                   post={p}
+                  liked={p.is_liked}
+                  onLike={handleToggleLike}
                   onClick={() => router.push(`/posts/${p.id}`)}
                 />
               ))

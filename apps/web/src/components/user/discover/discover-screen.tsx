@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
+import { PersonaCard } from "@/src/components/user/discover/persona-card";
+import { PostCard } from "@/src/components/user/feed/post-card";
+import { EventCard } from "@/src/components/user/events/event-card";
+import { searchNox } from "@/src/utils/api/user/search";
+import { getMyPersonas } from "@/src/utils/api/user/persona";
+import { likePost, unlikePost } from "@/src/utils/api/user/post";
+import { getAccessToken } from "@/src/utils/auth/session";
+import type { SearchResponse } from "@/src/types/api/search";
+import type { Post } from "@/src/types/api/post";
 
 const GENRE_FILTERS = [
   "all",
@@ -18,8 +28,130 @@ const GENRE_FILTERS = [
 ];
 
 export function DiscoverScreen() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("all");
+  const [results, setResults] = useState<SearchResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("Search artists, posts, events, and genres.");
+  const [viewerPersonaID, setViewerPersonaID] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
+  const searchTerm = useMemo(() => query.trim() || (genre === "all" ? "" : genre), [genre, query]);
+
+  useEffect(() => {
+    async function loadViewerPersona() {
+      const token = getAccessToken();
+      if (!token) return;
+
+      try {
+        const res = await getMyPersonas(token);
+        setViewerPersonaID(res.data?.[0]?.id ?? "");
+      } catch {
+        setViewerPersonaID("");
+      }
+    }
+
+    loadViewerPersona();
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm.length < 2) {
+      setResults(null);
+      setLoading(false);
+      setMessage("Search artists, posts, events, and genres.");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setLoading(true);
+      setMessage("");
+      try {
+        const token = viewerPersonaID ? getAccessToken() : "";
+        const res = await searchNox(searchTerm, 10, token || undefined, viewerPersonaID || undefined);
+        if (!controller.signal.aborted) {
+          setResults(res.data ?? null);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setResults(null);
+          setMessage("Could not load search results.");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [searchTerm, viewerPersonaID]);
+
+  async function handleLoadMore() {
+    if (!results?.has_more || results.next_offset === undefined || loadingMore) return;
+
+    setLoadingMore(true);
+    try {
+      const token = viewerPersonaID ? getAccessToken() : "";
+      const res = await searchNox(
+        searchTerm,
+        results.limit,
+        token || undefined,
+        viewerPersonaID || undefined,
+        results.next_offset,
+      );
+      if (res.data) {
+        setResults({
+          ...res.data,
+          personas: [...results.personas, ...res.data.personas],
+          posts: [...results.posts, ...res.data.posts],
+          events: [...results.events, ...res.data.events],
+        });
+      }
+    } catch {
+      setMessage("Could not load more results.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function handleToggleLike(post: Post) {
+    const token = getAccessToken();
+    if (!token || !viewerPersonaID || !results) return;
+
+    const previousResults = results;
+    const nextLiked = !post.is_liked;
+    setResults({
+      ...results,
+      posts: results.posts.map((item) =>
+        item.id === post.id
+          ? {
+              ...item,
+              is_liked: nextLiked,
+              like_count: Math.max(0, item.like_count + (nextLiked ? 1 : -1)),
+            }
+          : item,
+      ),
+    });
+
+    try {
+      if (nextLiked) {
+        await likePost(post.id, viewerPersonaID, token);
+      } else {
+        await unlikePost(post.id, viewerPersonaID, token);
+      }
+    } catch {
+      setResults(previousResults);
+    }
+  }
+
+  const hasResults = Boolean(
+    results &&
+      (results.personas.length > 0 || results.posts.length > 0 || results.events.length > 0),
+  );
 
   return (
     <FeedShell>
@@ -67,15 +199,80 @@ export function DiscoverScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div>
+        {loading ? (
+          <p className="px-4 py-8 text-center text-[13px] text-(--nox-ink-soft)">
+            Searching...
+          </p>
+        ) : hasResults && results ? (
+          <div className="pb-4">
+            {results.personas.length > 0 && (
+              <section>
+                <p className="px-4 pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-(--nox-ink-soft)">
+                  artists
+                </p>
+                <div className="divide-y divide-(--nox-divider)">
+                  {results.personas.map((persona) => (
+                    <PersonaCard key={persona.id} persona={persona} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {results.posts.length > 0 && (
+              <section className="mt-4">
+                <p className="px-4 pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-(--nox-ink-soft)">
+                  posts
+                </p>
+                <div>
+                  {results.posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      liked={post.is_liked}
+                      onLike={handleToggleLike}
+                      onClick={() => router.push(`/posts/${post.id}`)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {results.events.length > 0 && (
+              <section className="mt-4">
+                <p className="px-4 pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-(--nox-ink-soft)">
+                  events
+                </p>
+                <div>
+                  {results.events.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {results.has_more && (
+              <div className="px-4 py-4">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full rounded-[8px] border border-(--nox-border-strong) px-4 py-2.5 text-[13px] font-semibold text-(--nox-ink) transition hover:border-(--nox-accent) disabled:opacity-50"
+                >
+                  {loadingMore ? "Loading..." : "Load more"}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
           <p className="px-4 pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-(--nox-ink-soft)">
-            artists
+            discover
           </p>
           <p className="px-4 py-8 text-center text-[13px] leading-6 text-(--nox-ink-soft)">
-            Discovery is opening soon. Feed and events are ready now.
-            {query || genre !== "all" ? " Your filters will stay here for this visit." : ""}
+            {message || `No results for "${searchTerm}".`}
           </p>
         </div>
+        )}
       </div>
 
       <TabBar />
