@@ -43,7 +43,7 @@ func (p *SearchPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, pe
 func (p *SearchPipe) search(ctx context.Context, query string, options SearchOptions, viewerPersonaID *uuid.UUID) *shared.PipeRes[SearchResponse] {
 	query = strings.TrimSpace(query)
 	if len(query) < 2 || len(query) > 80 {
-		return pipeError[SearchResponse](searchmessages.Invalid_Query)
+		return shared.PipeError[SearchResponse](searchmessages.Invalid_Query)
 	}
 	options = searchrepo.NormalizeOptions(options)
 
@@ -67,7 +67,7 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 			return pipeInternalError[SearchResponse](err, "search.like_status")
 		}
 	}
-	return pipeSuccess(searchmessages.Search_Listed, &response)
+	return shared.PipeSuccess(searchmessages.Search_Listed, &response)
 }
 
 func nextOffset(options SearchOptions, hasMore bool) *int {

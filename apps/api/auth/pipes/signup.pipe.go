@@ -17,34 +17,34 @@ func (p *AuthPipe) SignupPipe(ctx context.Context, dto dtos.SignupDTO) *shared.P
 	userExists, err := p.userRepo.FindUserByEmail(ctx, email)
 	if err != nil {
 		logInternalError(err, "signup.find_user_by_email")
-		return pipeInternalError[VerificationResponse]()
+		return shared.PipeError[VerificationResponse](messages.Internal_Error)
 	}
 	if userExists != nil {
-		return pipeError[VerificationResponse](messages.User_Already_Exists)
+		return shared.PipeError[VerificationResponse](messages.User_Already_Exists)
 	}
 
 	passwordHash, err := p.hashService.HashPassword(dto.Password)
 	if err != nil {
 		logInternalError(err, "signup.hash_password")
-		return pipeInternalError[VerificationResponse]()
+		return shared.PipeError[VerificationResponse](messages.Internal_Error)
 	}
 
 	fullname := strings.TrimSpace(dto.Firstname + " " + dto.Lastname)
 	createdUser, err := p.userRepo.CreateUser(ctx, fullname, email, passwordHash)
 	if err != nil {
 		if errors.Is(err, user.ErrUserAlreadyExists) {
-			return pipeError[VerificationResponse](messages.User_Already_Exists)
+			return shared.PipeError[VerificationResponse](messages.User_Already_Exists)
 		}
 		logInternalError(err, "signup.create_user")
-		return pipeInternalError[VerificationResponse]()
+		return shared.PipeError[VerificationResponse](messages.Internal_Error)
 	}
 
 	if err := p.sendVerificationOTP(ctx, createdUser); err != nil {
 		logInternalError(err, "signup.send_verification_otp")
-		return pipeInternalError[VerificationResponse]()
+		return shared.PipeError[VerificationResponse](messages.Internal_Error)
 	}
 
-	return pipeSuccess(messages.Verification_Sent, &VerificationResponse{
+	return shared.PipeSuccess(messages.Verification_Sent, &VerificationResponse{
 		User: UserResponse{
 			ID:    createdUser.ID,
 			Email: createdUser.Email,

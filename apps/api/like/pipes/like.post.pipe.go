@@ -16,5 +16,5 @@ func (p *LikePipe) LikePostPipe(ctx context.Context, userID uuid.UUID, postID uu
 	if err := p.likeRepo.LikePost(ctx, dto.PersonaID, postID); err != nil {
 		return pipeInternalError[any](err, "like.post")
 	}
-	return pipeSuccess[any](messages.Post_Liked, nil)
+	return shared.PipeSuccess[any](messages.Post_Liked, nil)
 }

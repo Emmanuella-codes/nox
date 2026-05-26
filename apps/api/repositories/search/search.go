@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/emmanuella-codes/nox/models"
-	"github.com/google/uuid"
+	// "github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,11 +25,11 @@ type Options struct {
 	Offset int
 }
 
-type Repository interface {
+type SearchRepository interface {
 	Search(ctx context.Context, query string, options Options) (*Results, error)
 }
 
-func NewSearchRepository(db *pgxpool.Pool) Repository {
+func NewSearchRepository(db *pgxpool.Pool) SearchRepository {
 	return newPgRepository(db)
 }
 
@@ -63,10 +63,10 @@ func prefixMatchParam(query string) string {
 	return query + "%"
 }
 
-func nullableUUID(valid bool, value uuid.UUID) *uuid.UUID {
-	if !valid {
-		return nil
-	}
-	v := value
-	return &v
-}
+// func nullableUUID(valid bool, value uuid.UUID) *uuid.UUID {
+// 	if !valid {
+// 		return nil
+// 	}
+// 	v := value
+// 	return &v
+// }

@@ -13,5 +13,5 @@ func (p *EventPipe) ListEventsPipe(ctx context.Context, limit int) *shared.PipeR
 	if err != nil {
 		return pipeInternalError[[]*models.Event](err, "event.list")
 	}
-	return pipeSuccess(messages.Events_Listed, &events)
+	return shared.PipeSuccess(messages.Events_Listed, &events)
 }

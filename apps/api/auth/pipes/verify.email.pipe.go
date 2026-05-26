@@ -14,47 +14,47 @@ func (p *AuthPipe) VerifyEmailPipe(ctx context.Context, dto dtos.VerifyEmailDTO)
 	foundUser, err := p.userRepo.FindUserByEmail(ctx, normalizeEmail(dto.Email))
 	if err != nil {
 		logInternalError(err, "verify_email.find_user_by_email")
-		return pipeInternalError[any]()
+		return shared.PipeError[any](messages.Internal_Error)
 	}
 	if foundUser == nil {
-		return pipeError[any](messages.Invalid_Credentials)
+		return shared.PipeError[any](messages.Invalid_Credentials)
 	}
 	if foundUser.EmailVerified {
-		return pipeError[any](messages.Email_Already_Verified)
+		return shared.PipeError[any](messages.Email_Already_Verified)
 	}
 
 	otpHash, err := p.redis.Get(ctx, emailVerificationKey(foundUser.ID.String())).Result()
 	if errors.Is(err, redis.Nil) {
-		return pipeError[any](messages.OTP_Expired)
+		return shared.PipeError[any](messages.OTP_Expired)
 	}
 	if err != nil {
 		logInternalError(err, "verify_email.get_otp")
-		return pipeInternalError[any]()
+		return shared.PipeError[any](messages.Internal_Error)
 	}
 	if !p.otpService.Compare(otpHash, dto.OTP) {
 		attempts, err := p.recordFailedVerificationAttempt(ctx, foundUser.ID.String())
 		if err != nil {
 			logInternalError(err, "verify_email.record_failed_attempt")
-			return pipeInternalError[any]()
+			return shared.PipeError[any](messages.Internal_Error)
 		}
 		if attempts >= maxEmailVerificationAttempts {
 			if err := p.deleteEmailVerification(ctx, foundUser.ID.String()); err != nil {
 				logInternalError(err, "verify_email.delete_locked_otp")
-				return pipeInternalError[any]()
+				return shared.PipeError[any](messages.Internal_Error)
 			}
-			return pipeError[any](messages.OTP_Locked)
+			return shared.PipeError[any](messages.OTP_Locked)
 		}
-		return pipeError[any](messages.Invalid_OTP)
+		return shared.PipeError[any](messages.Invalid_OTP)
 	}
 
 	if err := p.userRepo.MarkEmailVerified(ctx, foundUser.ID.String()); err != nil {
 		logInternalError(err, "verify_email.mark_verified")
-		return pipeInternalError[any]()
+		return shared.PipeError[any](messages.Internal_Error)
 	}
 	if err := p.deleteEmailVerification(ctx, foundUser.ID.String()); err != nil {
 		logInternalError(err, "verify_email.delete_otp")
-		return pipeInternalError[any]()
+		return shared.PipeError[any](messages.Internal_Error)
 	}
 
-	return pipeSuccess[any](messages.Email_Verified, nil)
+	return shared.PipeSuccess[any](messages.Email_Verified, nil)
 }

@@ -26,10 +26,10 @@ func (p *PersonaPipe) UpdatePersonaPipe(ctx context.Context, userID uuid.UUID, p
 	persona, err := p.repo.UpdatePersona(ctx, ownedPersona.ID, dto)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[models.Persona](messages.Persona_Not_Found)
+			return shared.PipeError[models.Persona](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[models.Persona](err, "persona.update")
 	}
 
-	return pipeSuccess(messages.Persona_Updated, persona)
+	return shared.PipeSuccess(messages.Persona_Updated, persona)
 }

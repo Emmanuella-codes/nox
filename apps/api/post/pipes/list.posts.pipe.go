@@ -15,7 +15,7 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	post, err := p.postRepo.FindPostByID(ctx, postID)
 	if err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[PostResponse](messages.Post_Not_Found)
+			return shared.PipeError[PostResponse](messages.Post_Not_Found)
 		}
 		return pipeInternalError[PostResponse](err, "post.get")
 	}
@@ -26,7 +26,7 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	}
 
 	response := postResponse(post, persona)
-	return pipeSuccess(messages.Post_Fetched, &response)
+	return shared.PipeSuccess(messages.Post_Fetched, &response)
 }
 
 func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[PostResponse] {
@@ -46,7 +46,7 @@ func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, v
 func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[[]PostResponse](err, "post.find_persona")
 	}
@@ -62,7 +62,7 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 	}
 
 	responses := postResponses(posts, personas)
-	return pipeSuccess(messages.Posts_Listed, &responses)
+	return shared.PipeSuccess(messages.Posts_Listed, &responses)
 }
 
 func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID uuid.UUID, viewerPersonaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
@@ -80,7 +80,7 @@ func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID u
 func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_feed")
 	}
@@ -101,7 +101,7 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 			return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
 		}
 	}
-	return pipeSuccess(messages.Feed_Listed, &responses)
+	return shared.PipeSuccess(messages.Feed_Listed, &responses)
 }
 
 func (p *PostPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
@@ -126,7 +126,7 @@ func (p *PostPipe) publicPostPersona(ctx context.Context, post *models.Post) (*m
 	persona, err := p.personaRepo.FindPersonaByID(ctx, *post.PersonaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return nil, pipeError[PostResponse](messages.Persona_Not_Found)
+			return nil, shared.PipeError[PostResponse](messages.Persona_Not_Found)
 		}
 		return nil, pipeInternalError[PostResponse](err, "post.find_public_persona")
 	}
@@ -148,7 +148,7 @@ func (p *PostPipe) publicPostPersonas(ctx context.Context, posts []*models.Post)
 		persona, err := p.personaRepo.FindPersonaByID(ctx, *post.PersonaID)
 		if err != nil {
 			if err == persona_repo.ErrPersonaNotFound {
-				return nil, pipeError[[]PostResponse](messages.Persona_Not_Found)
+				return nil, shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 			}
 			return nil, pipeInternalError[[]PostResponse](err, "post.find_public_persona")
 		}

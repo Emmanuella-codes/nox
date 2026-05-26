@@ -23,17 +23,17 @@ func (p *EventPipe) CreateEventPipe(ctx context.Context, userID uuid.UUID, dto d
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OrganizerID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[models.Event](messages.Persona_Not_Found)
+			return shared.PipeError[models.Event](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[models.Event](err, "event.find_organizer")
 	}
 	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
-		return pipeError[models.Event](messages.Forbidden)
+		return shared.PipeError[models.Event](messages.Forbidden)
 	}
 
 	event, err := p.eventRepo.CreateEvent(ctx, dto)
 	if err != nil {
 		return pipeInternalError[models.Event](err, "event.create")
 	}
-	return pipeSuccess(messages.Event_Created, event)
+	return shared.PipeSuccess(messages.Event_Created, event)
 }

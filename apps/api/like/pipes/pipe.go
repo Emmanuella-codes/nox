@@ -10,7 +10,6 @@ import (
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 )
 
 type LikePipe struct {
@@ -26,7 +25,7 @@ func NewLikePipe(likeRepo like_repo.LikeRepository, personaRepo persona_repo.Per
 func (p *LikePipe) validatePersonaAndPost(ctx context.Context, userID uuid.UUID, postID uuid.UUID, personaID uuid.UUID) *shared.PipeRes[any] {
 	if _, err := p.postRepo.FindPostByID(ctx, postID); err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[any](messages.Post_Not_Found)
+			return shared.PipeError[any](messages.Post_Not_Found)
 		}
 		return pipeInternalError[any](err, "like.find_post")
 	}
@@ -34,28 +33,17 @@ func (p *LikePipe) validatePersonaAndPost(ctx context.Context, userID uuid.UUID,
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[any](messages.Persona_Not_Found)
+			return shared.PipeError[any](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[any](err, "like.find_persona")
 	}
 	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
-		return pipeError[any](messages.Forbidden)
+		return shared.PipeError[any](messages.Forbidden)
 	}
 
 	return nil
 }
 
-func pipeSuccess[T any](message shared.PipeMessage, data *T) *shared.PipeRes[T] {
-	return &shared.PipeRes[T]{Success: true, Message: message, Data: data}
-}
-
-func pipeError[T any](message shared.PipeMessage) *shared.PipeRes[T] {
-	return &shared.PipeRes[T]{Success: false, Message: message}
-}
-
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
-	if err != nil {
-		log.Error().Err(err).Str("operation", operation).Msg("like internal error")
-	}
-	return pipeError[T](messages.Internal_Error)
+	return shared.PipeInternalError[T](err, "like", operation, messages.Internal_Error)
 }

@@ -14,12 +14,12 @@ func (p *PersonaPipe) GetPersonaPipe(ctx context.Context, personaID uuid.UUID) *
 	persona, err := p.repo.FindPersonaByID(ctx, personaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[models.Persona](messages.Persona_Not_Found)
+			return shared.PipeError[models.Persona](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[models.Persona](err, "persona.get")
 	}
 
-	return pipeSuccess(messages.Persona_Fetched, persona)
+	return shared.PipeSuccess(messages.Persona_Fetched, persona)
 }
 
 func (p *PersonaPipe) GetMyPersonasPipe(ctx context.Context, userID uuid.UUID) *shared.PipeRes[[]*models.Persona] {
@@ -28,5 +28,5 @@ func (p *PersonaPipe) GetMyPersonasPipe(ctx context.Context, userID uuid.UUID) *
 		return pipeInternalError[[]*models.Persona](err, "persona.list_by_user")
 	}
 
-	return pipeSuccess(messages.Personas_Listed, &personas)
+	return shared.PipeSuccess(messages.Personas_Listed, &personas)
 }

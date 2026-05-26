@@ -14,7 +14,7 @@ func (p *CommentPipe) DeleteCommentPipe(ctx context.Context, userID uuid.UUID, c
 	comment, err := p.commentRepo.FindCommentByID(ctx, commentID)
 	if err != nil {
 		if err == comment_repo.ErrCommentNotFound {
-			return pipeError[any](messages.Comment_Not_Found)
+			return shared.PipeError[any](messages.Comment_Not_Found)
 		}
 		return pipeInternalError[any](err, "comment.find_for_delete")
 	}
@@ -22,20 +22,20 @@ func (p *CommentPipe) DeleteCommentPipe(ctx context.Context, userID uuid.UUID, c
 	persona, err := p.personaRepo.FindPersonaByID(ctx, comment.PersonaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[any](messages.Persona_Not_Found)
+			return shared.PipeError[any](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[any](err, "comment.find_persona_for_delete")
 	}
 	if persona.UserID != userID {
-		return pipeError[any](messages.Forbidden)
+		return shared.PipeError[any](messages.Forbidden)
 	}
 
 	if err := p.commentRepo.DeleteComment(ctx, commentID); err != nil {
 		if err == comment_repo.ErrCommentNotFound {
-			return pipeError[any](messages.Comment_Not_Found)
+			return shared.PipeError[any](messages.Comment_Not_Found)
 		}
 		return pipeInternalError[any](err, "comment.delete")
 	}
 
-	return pipeSuccess[any](messages.Comment_Deleted, nil)
+	return shared.PipeSuccess[any](messages.Comment_Deleted, nil)
 }

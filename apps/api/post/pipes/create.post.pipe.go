@@ -18,25 +18,25 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 	dto.Location = strings.TrimSpace(dto.Location)
 
 	if !validPostingMode(dto.PostingMode) {
-		return pipeError[PostResponse](messages.Invalid_Posting_Mode)
+		return shared.PipeError[PostResponse](messages.Invalid_Posting_Mode)
 	}
 
 	var persona *models.Persona
 	switch dto.PostingMode {
 	case models.PublicPostingMode:
 		if dto.PersonaID == nil || *dto.PersonaID == uuid.Nil {
-			return pipeError[PostResponse](messages.Persona_Required)
+			return shared.PipeError[PostResponse](messages.Persona_Required)
 		}
 
 		foundPersona, err := p.personaRepo.FindPersonaByID(ctx, *dto.PersonaID)
 		if err != nil {
 			if err == persona_repo.ErrPersonaNotFound {
-				return pipeError[PostResponse](messages.Persona_Not_Found)
+				return shared.PipeError[PostResponse](messages.Persona_Not_Found)
 			}
 			return pipeInternalError[PostResponse](err, "post.find_persona")
 		}
 		if foundPersona.UserID != userID || foundPersona.PersonaType != models.VisiblePersonaType {
-			return pipeError[PostResponse](messages.Forbidden)
+			return shared.PipeError[PostResponse](messages.Forbidden)
 		}
 		persona = foundPersona
 	case models.AnonymousPostingMode:
@@ -49,5 +49,5 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 	}
 
 	response := postResponse(post, persona)
-	return pipeSuccess(messages.Post_Created, &response)
+	return shared.PipeSuccess(messages.Post_Created, &response)
 }
