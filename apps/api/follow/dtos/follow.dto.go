@@ -1,5 +1,7 @@
 package dtos
 
+import "github.com/google/uuid"
+
 type FollowDTO struct {
-	PersonaID string `json:"persona_id" validate:"required,uuid"`
+	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
 }

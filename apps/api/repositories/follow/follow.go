@@ -20,6 +20,7 @@ type FollowRepository interface {
 	Unfollow(ctx context.Context, followerID, followingID uuid.UUID) error
 	IsFollowing(ctx context.Context, followerID, followingID uuid.UUID) (bool, error)
 	FindFollowers(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Persona, error)
+	FindFollowing(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Persona, error)
 }
 
 func NewFollowRepository(db *pgxpool.Pool) FollowRepository {
