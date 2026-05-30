@@ -49,6 +49,7 @@ type SearchPostResponse struct {
 	IsLiked      bool             `json:"is_liked"`
 	IsRepost     bool             `json:"is_repost"`
 	RepostOf     *string          `json:"repost_of,omitempty"`
+	Hashtags     []string         `json:"hashtags"`
 	CreatedAt    time.Time        `json:"created_at"`
 }
 
@@ -119,6 +120,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 			RepostCount:  post.RepostCount,
 			IsLiked:      false,
 			IsRepost:     post.IsRepost,
+			Hashtags:     []string{},
 			CreatedAt:    post.CreatedAt,
 		}
 		if post.EventID != nil {

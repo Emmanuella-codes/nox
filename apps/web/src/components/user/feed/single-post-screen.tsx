@@ -34,13 +34,19 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function extractHashtags(body: string) {
-  const parts = body.split(/(#\w+)/g);
+function extractHashtags(body: string, onTagClick: (tag: string) => void) {
+  const parts = body.split(/(#[A-Za-z0-9_][A-Za-z0-9_-]{0,49})/g);
   return parts.map((p, i) =>
     p.startsWith("#") ? (
-      <span key={i} style={{ color: "var(--nox-accent-ink)" }}>
+      <button
+        key={i}
+        type="button"
+        className="font-medium transition hover:underline"
+        style={{ color: "var(--nox-accent-ink)" }}
+        onClick={() => onTagClick(p.slice(1).toLowerCase())}
+      >
         {p}
-      </span>
+      </button>
     ) : (
       <span key={i}>{p}</span>
     ),
@@ -208,7 +214,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
               </div>
 
               <p className="mt-3 text-[16px] leading-[1.6] text-(--nox-ink)">
-                {extractHashtags(post.body)}
+                {extractHashtags(post.body, (tag) => router.push(`/hashtags/${encodeURIComponent(tag)}`))}
               </p>
 
               <p className="mt-3 text-[11px] text-(--nox-ink-soft)">{formatTime(post.created_at)}</p>

@@ -7,6 +7,7 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/post/dtos"
 	"github.com/emmanuella-codes/nox/post/messages"
+	hashtag_repo "github.com/emmanuella-codes/nox/repositories/hashtag"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
@@ -48,6 +49,14 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 		return pipeInternalError[PostResponse](err, "post.create")
 	}
 
+	tags := hashtag_repo.ExtractTags(dto.Body)
+	if p.hashtagRepo != nil {
+		if err := p.hashtagRepo.SyncPostHashtags(ctx, post.ID, tags); err != nil {
+			return pipeInternalError[PostResponse](err, "post.sync_hashtags")
+		}
+	}
+
 	response := postResponse(post, persona)
+	response.Hashtags = tags
 	return shared.PipeSuccess(messages.Post_Created, &response)
 }

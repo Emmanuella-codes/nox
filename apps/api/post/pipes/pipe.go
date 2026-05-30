@@ -5,6 +5,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/post/messages"
+	hashtag_repo "github.com/emmanuella-codes/nox/repositories/hashtag"
 	like_repo "github.com/emmanuella-codes/nox/repositories/like"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
@@ -16,14 +17,21 @@ type PostPipe struct {
 	postRepo    post_repo.PostRepository
 	personaRepo persona_repo.PersonaRepository
 	likeRepo    like_repo.LikeRepository
+	hashtagRepo hashtag_repo.HashtagRepository
 }
 
-func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository, likeRepo ...like_repo.LikeRepository) *PostPipe {
+func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *PostPipe {
 	var likes like_repo.LikeRepository
-	if len(likeRepo) > 0 {
-		likes = likeRepo[0]
+	var hashtags hashtag_repo.HashtagRepository
+	for _, dep := range deps {
+		switch typed := dep.(type) {
+		case like_repo.LikeRepository:
+			likes = typed
+		case hashtag_repo.HashtagRepository:
+			hashtags = typed
+		}
 	}
-	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes}
+	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags}
 }
 
 type PostResponse struct {
@@ -41,6 +49,7 @@ type PostResponse struct {
 	IsLiked      bool             `json:"is_liked"`
 	IsRepost     bool             `json:"is_repost"`
 	RepostOf     *string          `json:"repost_of,omitempty"`
+	Hashtags     []string         `json:"hashtags"`
 	CreatedAt    time.Time        `json:"created_at"`
 }
 
@@ -77,6 +86,7 @@ func postResponse(post *models.Post, persona *models.Persona) PostResponse {
 		CommentCount: post.CommentCount,
 		RepostCount:  post.RepostCount,
 		IsRepost:     post.IsRepost,
+		Hashtags:     []string{},
 		CreatedAt:    post.CreatedAt,
 	}
 	if post.EventID != nil {

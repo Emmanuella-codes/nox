@@ -18,6 +18,9 @@ import (
 	follow_controllers "github.com/emmanuella-codes/nox/follow/controllers"
 	follow_pipes "github.com/emmanuella-codes/nox/follow/pipes"
 	follow_routers "github.com/emmanuella-codes/nox/follow/routers"
+	hashtag_controllers "github.com/emmanuella-codes/nox/hashtag/controllers"
+	hashtag_pipes "github.com/emmanuella-codes/nox/hashtag/pipes"
+	hashtag_routers "github.com/emmanuella-codes/nox/hashtag/routers"
 	like_controllers "github.com/emmanuella-codes/nox/like/controllers"
 	like_pipes "github.com/emmanuella-codes/nox/like/pipes"
 	like_routers "github.com/emmanuella-codes/nox/like/routers"
@@ -72,12 +75,13 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 
 	authController := controllers.NewAuthController(authPipe)
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona))
-	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like))
+	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag))
 	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
 	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
 	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
-	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona))
+	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag))
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
+	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona))
 
 	api := app.Group("/api/v1")
 
@@ -89,6 +93,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api, follow_routers.FollowRoutes(followController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
+	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 
 	go func() {
 		<-ctx.Done()

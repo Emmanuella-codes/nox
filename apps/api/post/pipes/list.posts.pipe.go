@@ -26,6 +26,13 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	}
 
 	response := postResponse(post, persona)
+	if p.hashtagRepo != nil {
+		tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, []uuid.UUID{post.ID})
+		if err != nil {
+			return pipeInternalError[PostResponse](err, "post.get_hashtags")
+		}
+		response.Hashtags = tags[post.ID]
+	}
 	return shared.PipeSuccess(messages.Post_Fetched, &response)
 }
 
@@ -62,6 +69,9 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 	}
 
 	responses := postResponses(posts, personas)
+	if err := p.hydrateHashtags(ctx, responses); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.persona_posts_hashtags")
+	}
 	return shared.PipeSuccess(messages.Posts_Listed, &responses)
 }
 
@@ -96,6 +106,9 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 	}
 
 	responses := postResponses(posts, personas)
+	if err := p.hydrateHashtags(ctx, responses); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.feed_hashtags")
+	}
 	if p.likeRepo != nil {
 		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
 			return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
@@ -179,6 +192,30 @@ func (p *PostPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.U
 	for i := range responses {
 		postID := postIDs[i]
 		responses[i].IsLiked = liked[postID]
+	}
+	return nil
+}
+
+func (p *PostPipe) hydrateHashtags(ctx context.Context, responses []PostResponse) error {
+	if p.hashtagRepo == nil || len(responses) == 0 {
+		return nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(responses))
+	for _, response := range responses {
+		postID, err := uuid.Parse(response.ID)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, postID)
+	}
+
+	tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range responses {
+		responses[i].Hashtags = tags[ids[i]]
 	}
 	return nil
 }

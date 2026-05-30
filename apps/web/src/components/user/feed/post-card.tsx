@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart, MessageCircle, Repeat2, Ghost } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Avatar } from "@/src/components/user/shared/avatar";
 import type { Post } from "@/src/types/api/post";
 
@@ -27,13 +28,14 @@ function formatCount(n: number): string {
 }
 
 function extractHashtags(body: string): { segments: { text: string; isTag: boolean }[] } {
-  const parts = body.split(/(#\w+)/g);
+  const parts = body.split(/(#[A-Za-z0-9_][A-Za-z0-9_-]{0,49})/g);
   return {
     segments: parts.map((p) => ({ text: p, isTag: p.startsWith("#") })),
   };
 }
 
 export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps) {
+  const router = useRouter();
   const isAnon = post.author.mode === "anonymous";
   const persona = post.author.persona;
   const anonymousLabel = post.author.anonymous_label ?? "anonymous";
@@ -94,9 +96,18 @@ export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps
           <p className="mt-1.5 text-[14px] leading-[1.55] text-(--nox-ink)">
             {segments.map((seg, i) =>
               seg.isTag ? (
-                <span key={i} style={{ color: "var(--nox-accent-ink)" }}>
+                <button
+                  key={i}
+                  type="button"
+                  className="font-medium transition hover:underline"
+                  style={{ color: "var(--nox-accent-ink)" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/hashtags/${encodeURIComponent(seg.text.slice(1).toLowerCase())}`);
+                  }}
+                >
                   {seg.text}
-                </span>
+                </button>
               ) : (
                 <span key={i}>{seg.text}</span>
               ),

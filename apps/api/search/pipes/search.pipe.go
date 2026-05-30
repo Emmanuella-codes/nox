@@ -67,6 +67,9 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 			return pipeInternalError[SearchResponse](err, "search.like_status")
 		}
 	}
+	if err := p.hydrateHashtags(ctx, response.Posts); err != nil {
+		return pipeInternalError[SearchResponse](err, "search.hashtags")
+	}
 	return shared.PipeSuccess(searchmessages.Search_Listed, &response)
 }
 
@@ -98,6 +101,30 @@ func (p *SearchPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid
 	}
 	for i := range posts {
 		posts[i].IsLiked = liked[postIDs[i]]
+	}
+	return nil
+}
+
+func (p *SearchPipe) hydrateHashtags(ctx context.Context, posts []SearchPostResponse) error {
+	if p.hashtagRepo == nil || len(posts) == 0 {
+		return nil
+	}
+
+	postIDs := make([]uuid.UUID, 0, len(posts))
+	for _, post := range posts {
+		postID, err := uuid.Parse(post.ID)
+		if err != nil {
+			return err
+		}
+		postIDs = append(postIDs, postID)
+	}
+
+	tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, postIDs)
+	if err != nil {
+		return err
+	}
+	for i := range posts {
+		posts[i].Hashtags = tags[postIDs[i]]
 	}
 	return nil
 }

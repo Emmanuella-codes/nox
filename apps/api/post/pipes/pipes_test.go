@@ -46,6 +46,30 @@ func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 	}
 }
 
+func TestCreatePostPipeSyncsExtractedHashtags(t *testing.T) {
+	userID := uuid.New()
+	hashtagRepo := &postTestHashtagRepo{}
+	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{}, hashtagRepo)
+
+	res := pipe.CreatePostPipe(context.Background(), userID, postdtos.CreatePostDTO{
+		PostingMode: models.AnonymousPostingMode,
+		Body:        "tonight at #Amapiano with #afro-house and #amapiano",
+		PostType:    models.TextPostType,
+	})
+	if !res.Success {
+		t.Fatalf("expected success, got %q", res.Message)
+	}
+	if len(hashtagRepo.syncedTags) != 2 {
+		t.Fatalf("expected 2 synced tags, got %v", hashtagRepo.syncedTags)
+	}
+	if hashtagRepo.syncedTags[0] != "amapiano" || hashtagRepo.syncedTags[1] != "afro-house" {
+		t.Fatalf("unexpected synced tags: %v", hashtagRepo.syncedTags)
+	}
+	if len(res.Data.Hashtags) != 2 {
+		t.Fatalf("expected response hashtags, got %v", res.Data.Hashtags)
+	}
+}
+
 func TestCreatePostPipeRequiresPersonaForPublicPost(t *testing.T) {
 	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{})
 
@@ -85,6 +109,7 @@ func TestCreatePostPipeRejectsNonOwnedPublicPersona(t *testing.T) {
 func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 	userID := uuid.New()
 	postID := uuid.New()
+	hashtagRepo := &postTestHashtagRepo{}
 	postRepo := &postTestRepo{
 		posts: map[string]*models.Post{
 			postID.String(): {
@@ -94,7 +119,7 @@ func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 			},
 		},
 	}
-	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{})
+	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{}, hashtagRepo)
 
 	res := pipe.DeletePostPipe(context.Background(), userID, postID)
 	if !res.Success {
@@ -102,6 +127,9 @@ func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 	}
 	if postRepo.deletedPostID != postID {
 		t.Fatalf("expected deleted post %s, got %s", postID, postRepo.deletedPostID)
+	}
+	if hashtagRepo.deletedPostID != postID {
+		t.Fatalf("expected hashtag cleanup for %s, got %s", postID, hashtagRepo.deletedPostID)
 	}
 }
 
@@ -129,6 +157,30 @@ func TestGetPostPipeHidesAnonymousIdentity(t *testing.T) {
 	}
 	if res.Data.Author.Persona != nil {
 		t.Fatal("expected anonymous response not to expose persona")
+	}
+}
+
+func TestGetPostPipeHydratesHashtags(t *testing.T) {
+	postID := uuid.New()
+	pipe := NewPostPipe(&postTestRepo{
+		posts: map[string]*models.Post{
+			postID.String(): {
+				ID:          postID,
+				PostingMode: models.AnonymousPostingMode,
+				Body:        "#amapiano post",
+				PostType:    models.TextPostType,
+			},
+		},
+	}, &postTestPersonaRepo{}, &postTestHashtagRepo{
+		tagsByPost: map[uuid.UUID][]string{postID: []string{"amapiano"}},
+	})
+
+	res := pipe.GetPostPipe(context.Background(), postID)
+	if !res.Success {
+		t.Fatalf("expected get success, got %q", res.Message)
+	}
+	if len(res.Data.Hashtags) != 1 || res.Data.Hashtags[0] != "amapiano" {
+		t.Fatalf("expected hydrated hashtags, got %v", res.Data.Hashtags)
 	}
 }
 
@@ -287,6 +339,46 @@ func (r *postTestPersonaRepo) UpdatePersona(ctx context.Context, personaID uuid.
 
 type postTestLikeRepo struct {
 	likedPostIDs map[uuid.UUID]bool
+}
+
+type postTestHashtagRepo struct {
+	syncedPostID  uuid.UUID
+	syncedTags    []string
+	deletedPostID uuid.UUID
+	tagsByPost    map[uuid.UUID][]string
+}
+
+func (r *postTestHashtagRepo) SyncPostHashtags(ctx context.Context, postID uuid.UUID, tags []string) error {
+	r.syncedPostID = postID
+	r.syncedTags = tags
+	return nil
+}
+
+func (r *postTestHashtagRepo) DeletePostHashtags(ctx context.Context, postID uuid.UUID) error {
+	r.deletedPostID = postID
+	return nil
+}
+
+func (r *postTestHashtagRepo) FindTagsByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
+	tags := make(map[uuid.UUID][]string)
+	for _, postID := range postIDs {
+		if r.tagsByPost != nil {
+			tags[postID] = r.tagsByPost[postID]
+		}
+	}
+	return tags, nil
+}
+
+func (r *postTestHashtagRepo) FindTrending(ctx context.Context, limit int) ([]*models.Hashtag, error) {
+	return nil, nil
+}
+
+func (r *postTestHashtagRepo) FindByTag(ctx context.Context, tag string) (*models.Hashtag, error) {
+	return nil, nil
+}
+
+func (r *postTestHashtagRepo) FindPostsByTag(ctx context.Context, tag string, limit int) ([]*models.Post, error) {
+	return nil, nil
 }
 
 func (r *postTestLikeRepo) LikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {

@@ -22,6 +22,12 @@ func (p *PostPipe) DeletePostPipe(ctx context.Context, userID uuid.UUID, postID 
 		return shared.PipeError[any](messages.Forbidden)
 	}
 
+	if p.hashtagRepo != nil {
+		if err := p.hashtagRepo.DeletePostHashtags(ctx, postID); err != nil {
+			return pipeInternalError[any](err, "post.delete_hashtags")
+		}
+	}
+
 	if err := p.postRepo.DeletePost(ctx, postID); err != nil {
 		if err == post_repo.ErrPostNotFound {
 			return shared.PipeError[any](messages.Post_Not_Found)
