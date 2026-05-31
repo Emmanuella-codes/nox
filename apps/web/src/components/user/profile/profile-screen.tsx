@@ -9,7 +9,7 @@ import { PostCard } from "@/src/components/user/feed/post-card";
 import { Avatar } from "@/src/components/user/shared/avatar";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { getPersonaPosts, likePost, unlikePost } from "@/src/utils/api/user/post";
-import { getAccessToken } from "@/src/utils/auth/session";
+import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import type { Persona } from "@/src/types/api/persona";
 import type { Post } from "@/src/types/api/post";
 
@@ -37,14 +37,17 @@ export function ProfileScreen() {
           return;
         }
         const res = await getMyPersonas(token);
-        const first = res.data?.[0] ?? null;
-        setPersona(first);
-        if (!first) {
+        const personas = res.data ?? [];
+        const activePersonaID = getActivePersonaID();
+        const selectedPersona = personas.find((item) => item.id === activePersonaID) ?? personas[0] ?? null;
+        setPersona(selectedPersona);
+        if (!selectedPersona) {
           setMessage("Create a public persona to build your profile.");
           return;
         }
-        if (first) {
-          const postsRes = await getPersonaPosts(first.id, token, first.id);
+        if (selectedPersona) {
+          setActivePersonaID(selectedPersona.id);
+          const postsRes = await getPersonaPosts(selectedPersona.id, token, selectedPersona.id);
           setPosts(postsRes.data ?? []);
         }
       } catch {

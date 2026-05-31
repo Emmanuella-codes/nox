@@ -91,7 +91,34 @@ func (r *pgRepository) IsFollowing(ctx context.Context, followerID, followingID 
 	return exists, err
 }
 
-func (r *pgRepository) FindFollowers(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Persona, error) {
+func (r *pgRepository) FindFollowingIDs(ctx context.Context, followerID uuid.UUID, followingIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	following := make(map[uuid.UUID]bool, len(followingIDs))
+	if len(followingIDs) == 0 {
+		return following, nil
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT following_id
+		FROM persona_follows
+		WHERE follower_id = $1 AND following_id = ANY($2)
+	`, followerID, followingIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var followingID uuid.UUID
+		if err := rows.Scan(&followingID); err != nil {
+			return nil, err
+		}
+		following[followingID] = true
+	}
+	return following, rows.Err()
+}
+
+func (r *pgRepository) FindFollowers(ctx context.Context, personaID uuid.UUID, options ListOptions) ([]*models.Persona, error) {
+	options = NormalizeListOptions(options)
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.user_id, p.handle, p.display_name, p.bio, p.avatar_url, p.cover_url, p.persona_type,
 		       p.genre_tags, p.follower_count, p.following_count, p.post_count, p.created_at, p.updated_at
@@ -100,7 +127,8 @@ func (r *pgRepository) FindFollowers(ctx context.Context, personaID uuid.UUID, l
 		WHERE pf.following_id = $1 AND p.persona_type = 'visible'
 		ORDER BY pf.created_at DESC
 		LIMIT $2
-	`, personaID, normalizeLimit(limit))
+		OFFSET $3
+	`, personaID, options.Limit+1, options.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +137,8 @@ func (r *pgRepository) FindFollowers(ctx context.Context, personaID uuid.UUID, l
 	return scanPersonas(rows)
 }
 
-func (r *pgRepository) FindFollowing(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Persona, error) {
+func (r *pgRepository) FindFollowing(ctx context.Context, personaID uuid.UUID, options ListOptions) ([]*models.Persona, error) {
+	options = NormalizeListOptions(options)
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.user_id, p.handle, p.display_name, p.bio, p.avatar_url, p.cover_url, p.persona_type,
 		       p.genre_tags, p.follower_count, p.following_count, p.post_count, p.created_at, p.updated_at
@@ -118,7 +147,8 @@ func (r *pgRepository) FindFollowing(ctx context.Context, personaID uuid.UUID, l
 		WHERE pf.follower_id = $1 AND p.persona_type = 'visible'
 		ORDER BY pf.created_at DESC
 		LIMIT $2
-	`, personaID, normalizeLimit(limit))
+		OFFSET $3
+	`, personaID, options.Limit+1, options.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -171,14 +201,4 @@ func scanPersona(scanner personaScanner) (*models.Persona, error) {
 		return nil, err
 	}
 	return &persona, nil
-}
-
-func normalizeLimit(limit int) int {
-	if limit <= 0 {
-		return 20
-	}
-	if limit > 50 {
-		return 50
-	}
-	return limit
 }

@@ -67,6 +67,11 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 			return pipeInternalError[SearchResponse](err, "search.like_status")
 		}
 	}
+	if viewerPersonaID != nil && p.followRepo != nil {
+		if err := p.hydrateFollowingState(ctx, *viewerPersonaID, response.Personas); err != nil {
+			return pipeInternalError[SearchResponse](err, "search.follow_status")
+		}
+	}
 	if err := p.hydrateHashtags(ctx, response.Posts); err != nil {
 		return pipeInternalError[SearchResponse](err, "search.hashtags")
 	}
@@ -125,6 +130,30 @@ func (p *SearchPipe) hydrateHashtags(ctx context.Context, posts []SearchPostResp
 	}
 	for i := range posts {
 		posts[i].Hashtags = tags[postIDs[i]]
+	}
+	return nil
+}
+
+func (p *SearchPipe) hydrateFollowingState(ctx context.Context, viewerPersonaID uuid.UUID, personas []SearchPersonaResponse) error {
+	if len(personas) == 0 {
+		return nil
+	}
+
+	personaIDs := make([]uuid.UUID, 0, len(personas))
+	for _, persona := range personas {
+		personaID, err := uuid.Parse(persona.ID)
+		if err != nil {
+			return err
+		}
+		personaIDs = append(personaIDs, personaID)
+	}
+
+	following, err := p.followRepo.FindFollowingIDs(ctx, viewerPersonaID, personaIDs)
+	if err != nil {
+		return err
+	}
+	for i := range personas {
+		personas[i].IsFollowing = following[personaIDs[i]]
 	}
 	return nil
 }

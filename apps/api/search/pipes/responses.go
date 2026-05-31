@@ -29,6 +29,7 @@ type SearchPersonaResponse struct {
 	GenreTags      []string  `json:"genre_tags"`
 	FollowerCount  int       `json:"follower_count"`
 	FollowingCount int       `json:"following_count"`
+	IsFollowing    bool      `json:"is_following"`
 	PostCount      int       `json:"post_count"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -95,6 +96,7 @@ func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 			GenreTags:      persona.GenreTags,
 			FollowerCount:  persona.FollowerCount,
 			FollowingCount: persona.FollowingCount,
+			IsFollowing:    false,
 			PostCount:      persona.PostCount,
 			CreatedAt:      persona.CreatedAt,
 			UpdatedAt:      persona.UpdatedAt,

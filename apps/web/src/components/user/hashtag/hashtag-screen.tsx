@@ -9,7 +9,7 @@ import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { getHashtag, getHashtagPosts } from "@/src/utils/api/user/hashtag";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { likePost, unlikePost } from "@/src/utils/api/user/post";
-import { getAccessToken } from "@/src/utils/auth/session";
+import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import type { HashtagDetail } from "@/src/types/api/hashtag";
 import type { Post } from "@/src/types/api/post";
 
@@ -35,7 +35,13 @@ export function HashtagScreen({ tag }: HashtagScreenProps) {
         if (token) {
           try {
             const personasRes = await getMyPersonas(token);
-            setViewerPersonaID(personasRes.data?.[0]?.id ?? "");
+            const personas = personasRes.data ?? [];
+            const activePersonaID = getActivePersonaID();
+            const selectedPersona = personas.find((persona) => persona.id === activePersonaID) ?? personas[0];
+            if (selectedPersona) {
+              setActivePersonaID(selectedPersona.id);
+            }
+            setViewerPersonaID(selectedPersona?.id ?? "");
           } catch {
             setViewerPersonaID("");
           }

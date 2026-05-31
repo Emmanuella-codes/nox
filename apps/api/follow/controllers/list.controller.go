@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -11,7 +12,10 @@ func (c *FollowController) GetFollowers(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.FollowersPipe(ctx.Context(), personaID, queryLimit(ctx, 20))
+	res := c.pipe.FollowersPipe(ctx.Context(), personaID, follow_repo.ListOptions{
+		Limit:  queryLimit(ctx, 20),
+		Offset: queryOffset(ctx),
+	})
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
@@ -25,7 +29,10 @@ func (c *FollowController) GetFollowing(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.FollowingPipe(ctx.Context(), personaID, queryLimit(ctx, 20))
+	res := c.pipe.FollowingPipe(ctx.Context(), personaID, follow_repo.ListOptions{
+		Limit:  queryLimit(ctx, 20),
+		Offset: queryOffset(ctx),
+	})
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

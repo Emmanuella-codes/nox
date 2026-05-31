@@ -10,10 +10,12 @@ import { PostCard } from "@/src/components/user/feed/post-card";
 import { EventCard } from "@/src/components/user/events/event-card";
 import { searchNox } from "@/src/utils/api/user/search";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
+import { followPersona, unfollowPersona } from "@/src/utils/api/user/follow";
 import { likePost, unlikePost } from "@/src/utils/api/user/post";
-import { getAccessToken } from "@/src/utils/auth/session";
+import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import type { SearchResponse } from "@/src/types/api/search";
 import type { Post } from "@/src/types/api/post";
+import type { Persona } from "@/src/types/api/persona";
 
 const GENRE_FILTERS = [
   "all",
@@ -45,7 +47,13 @@ export function DiscoverScreen() {
 
       try {
         const res = await getMyPersonas(token);
-        setViewerPersonaID(res.data?.[0]?.id ?? "");
+        const personas = res.data ?? [];
+        const activePersonaID = getActivePersonaID();
+        const selectedPersona = personas.find((persona) => persona.id === activePersonaID) ?? personas[0];
+        if (selectedPersona) {
+          setActivePersonaID(selectedPersona.id);
+        }
+        setViewerPersonaID(selectedPersona?.id ?? "");
       } catch {
         setViewerPersonaID("");
       }
@@ -148,6 +156,36 @@ export function DiscoverScreen() {
     }
   }
 
+  async function handleToggleFollow(persona: Persona) {
+    const token = getAccessToken();
+    if (!token || !viewerPersonaID || !results || persona.id === viewerPersonaID) return;
+
+    const previousResults = results;
+    const nextFollowing = !persona.is_following;
+    setResults({
+      ...results,
+      personas: results.personas.map((item) =>
+        item.id === persona.id
+          ? {
+              ...item,
+              is_following: nextFollowing,
+              follower_count: Math.max(0, item.follower_count + (nextFollowing ? 1 : -1)),
+            }
+          : item,
+      ),
+    });
+
+    try {
+      if (nextFollowing) {
+        await followPersona(persona.id, viewerPersonaID, token);
+      } else {
+        await unfollowPersona(persona.id, viewerPersonaID, token);
+      }
+    } catch {
+      setResults(previousResults);
+    }
+  }
+
   const hasResults = Boolean(
     results &&
       (results.personas.length > 0 || results.posts.length > 0 || results.events.length > 0),
@@ -212,7 +250,13 @@ export function DiscoverScreen() {
                 </p>
                 <div className="divide-y divide-(--nox-divider)">
                   {results.personas.map((persona) => (
-                    <PersonaCard key={persona.id} persona={persona} />
+                    <PersonaCard
+                      key={persona.id}
+                      persona={persona}
+                      showFollow={Boolean(viewerPersonaID && persona.id !== viewerPersonaID)}
+                      isFollowing={Boolean(persona.is_following)}
+                      onFollow={handleToggleFollow}
+                    />
                   ))}
                 </div>
               </section>

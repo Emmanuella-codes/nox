@@ -10,7 +10,7 @@ import { ComposeBar } from "@/src/components/user/feed/compose-bar";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { getPersonaFeed, likePost, unlikePost } from "@/src/utils/api/user/post";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
-import { getAccessToken } from "@/src/utils/auth/session";
+import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import type { Post } from "@/src/types/api/post";
 
 export function FeedScreen() {
@@ -35,12 +35,15 @@ export function FeedScreen() {
         }
 
         const personasRes = await getMyPersonas(token);
-        const primaryPersona = personasRes.data?.[0];
-        if (!primaryPersona) {
+        const personas = personasRes.data ?? [];
+        const activePersonaID = getActivePersonaID();
+        const selectedPersona = personas.find((persona) => persona.id === activePersonaID) ?? personas[0];
+        if (!selectedPersona) {
           setMessage("Create a public persona to load the feed.");
           return;
         }
-        setViewerPersonaID(primaryPersona.id);
+        setActivePersonaID(selectedPersona.id);
+        setViewerPersonaID(selectedPersona.id);
 
         if (tab === "events") {
           router.push("/events");
@@ -53,7 +56,7 @@ export function FeedScreen() {
           return;
         }
 
-        const feedRes = await getPersonaFeed(primaryPersona.id, token);
+        const feedRes = await getPersonaFeed(selectedPersona.id, token);
         const nextPosts = feedRes.data ?? [];
         setPosts(nextPosts);
         setLikedPostIDs(new Set(nextPosts.filter((post) => post.is_liked).map((post) => post.id)));

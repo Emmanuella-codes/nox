@@ -9,7 +9,7 @@ import { CommentItem } from "@/src/components/user/feed/comment-item";
 import { getPost, getPostForViewer, likePost, unlikePost } from "@/src/utils/api/user/post";
 import { createComment, getPostComments } from "@/src/utils/api/user/comment";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
-import { getAccessToken } from "@/src/utils/auth/session";
+import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import { ApiRequestError } from "@/src/utils/api/api";
 import type { Post } from "@/src/types/api/post";
 import type { Comment } from "@/src/types/api/comment";
@@ -73,7 +73,13 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
         let personaID = "";
         if (token) {
           const personasRes = await getMyPersonas(token);
-          personaID = personasRes.data?.[0]?.id ?? "";
+          const personas = personasRes.data ?? [];
+          const activePersonaID = getActivePersonaID();
+          const selectedPersona = personas.find((persona) => persona.id === activePersonaID) ?? personas[0];
+          if (selectedPersona) {
+            setActivePersonaID(selectedPersona.id);
+          }
+          personaID = selectedPersona?.id ?? "";
           setViewerPersonaID(personaID);
         }
 

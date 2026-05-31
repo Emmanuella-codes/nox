@@ -79,7 +79,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
 	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
 	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
-	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag))
+	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow))
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona))
 

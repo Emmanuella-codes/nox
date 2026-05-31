@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/emmanuella-codes/nox/models"
+	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	searchrepo "github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/search/messages"
 	"github.com/google/uuid"
@@ -162,6 +163,33 @@ func TestSearchForViewerHydratesLikedState(t *testing.T) {
 	}
 }
 
+func TestSearchForViewerHydratesFollowingState(t *testing.T) {
+	viewerPersonaID := uuid.New()
+	followedPersonaID := uuid.New()
+	unfollowedPersonaID := uuid.New()
+	pipe := NewSearchPipe(&searchTestRepo{
+		results: &searchrepo.Results{
+			Personas: []*models.Persona{
+				{ID: followedPersonaID, Handle: "followed", PersonaType: models.VisiblePersonaType},
+				{ID: unfollowedPersonaID, Handle: "open", PersonaType: models.VisiblePersonaType},
+			},
+		},
+	}, nil, nil, &searchTestFollowRepo{
+		followingIDs: map[uuid.UUID]bool{followedPersonaID: true},
+	})
+
+	res := pipe.SearchForViewer(context.Background(), "afro", SearchOptions{Limit: 10}, viewerPersonaID)
+	if !res.Success {
+		t.Fatalf("expected search success, got %q", res.Message)
+	}
+	if !res.Data.Personas[0].IsFollowing {
+		t.Fatal("expected first persona to be followed")
+	}
+	if res.Data.Personas[1].IsFollowing {
+		t.Fatal("expected second persona not to be followed")
+	}
+}
+
 type searchTestRepo struct {
 	results *searchrepo.Results
 	options searchrepo.Options
@@ -199,4 +227,38 @@ func (r *searchTestLikeRepo) FindLikedPostIDs(ctx context.Context, personaID uui
 		}
 	}
 	return liked, nil
+}
+
+type searchTestFollowRepo struct {
+	followingIDs map[uuid.UUID]bool
+}
+
+func (r *searchTestFollowRepo) Follow(ctx context.Context, followerID, followingID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestFollowRepo) Unfollow(ctx context.Context, followerID, followingID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestFollowRepo) IsFollowing(ctx context.Context, followerID, followingID uuid.UUID) (bool, error) {
+	return r.followingIDs[followingID], nil
+}
+
+func (r *searchTestFollowRepo) FindFollowingIDs(ctx context.Context, followerID uuid.UUID, followingIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	following := make(map[uuid.UUID]bool)
+	for _, followingID := range followingIDs {
+		if r.followingIDs[followingID] {
+			following[followingID] = true
+		}
+	}
+	return following, nil
+}
+
+func (r *searchTestFollowRepo) FindFollowers(ctx context.Context, personaID uuid.UUID, options follow_repo.ListOptions) ([]*models.Persona, error) {
+	return nil, nil
+}
+
+func (r *searchTestFollowRepo) FindFollowing(ctx context.Context, personaID uuid.UUID, options follow_repo.ListOptions) ([]*models.Persona, error) {
+	return nil, nil
 }

@@ -20,6 +20,14 @@ type FollowStatusResponse struct {
 	IsFollowing bool `json:"is_following"`
 }
 
+type FollowListResponse struct {
+	Limit      int               `json:"limit"`
+	Offset     int               `json:"offset"`
+	HasMore    bool              `json:"has_more"`
+	NextOffset *int              `json:"next_offset,omitempty"`
+	Personas   []*models.Persona `json:"personas"`
+}
+
 func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository) *FollowPipe {
 	return &FollowPipe{followRepo: followRepo, personaRepo: personaRepo}
 }
@@ -87,4 +95,27 @@ func (p *FollowPipe) mapFollowError(err error, operation string) *shared.PipeRes
 
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "follow", operation, messages.Internal_Error)
+}
+
+func followListResponse(personas []*models.Persona, options follow_repo.ListOptions) FollowListResponse {
+	hasMore := len(personas) > options.Limit
+	if hasMore {
+		personas = personas[:options.Limit]
+	}
+
+	return FollowListResponse{
+		Limit:      options.Limit,
+		Offset:     options.Offset,
+		HasMore:    hasMore,
+		NextOffset: nextOffset(options, hasMore),
+		Personas:   personas,
+	}
+}
+
+func nextOffset(options follow_repo.ListOptions, hasMore bool) *int {
+	if !hasMore {
+		return nil
+	}
+	next := options.Offset + options.Limit
+	return &next
 }
