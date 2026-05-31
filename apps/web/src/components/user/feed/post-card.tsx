@@ -78,14 +78,21 @@ export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps
                 {anonymousLabel}
               </span>
             ) : (
-              <>
-                <span className="text-[13px] font-semibold text-(--nox-ink) truncate">
+              <button
+                type="button"
+                className="flex min-w-0 items-center gap-2 text-left"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (persona?.id) router.push(`/personas/${persona.id}`);
+                }}
+              >
+                <span className="truncate text-[13px] font-semibold text-(--nox-ink)">
                   {persona?.display_name}
                 </span>
-                <span className="text-[11px] text-(--nox-ink-soft) shrink-0">
+                <span className="shrink-0 text-[11px] text-(--nox-ink-soft)">
                   @{persona?.handle}
                 </span>
-              </>
+              </button>
             )}
             <span className="ml-auto shrink-0 text-[11px] text-(--nox-ink-soft)">
               {formatTime(post.created_at)}

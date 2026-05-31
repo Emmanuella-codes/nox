@@ -28,12 +28,22 @@ export function getFollowStatus(targetPersonaID: string, viewerPersonaID: string
   });
 }
 
-export function getFollowers(personaID: string, limit = 20, offset = 0) {
-  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  return apiRequest<FollowListResponse>(`/personas/${personaID}/followers?${params.toString()}`);
+export function getFollowers(personaID: string, limit = 20, offset = 0, viewerPersonaID?: string, token?: string) {
+	const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+	if (viewerPersonaID) {
+		params.set("viewer_persona_id", viewerPersonaID);
+	}
+	return apiRequest<FollowListResponse>(`/personas/${personaID}/followers?${params.toString()}`, {
+		token,
+	});
 }
 
-export function getFollowing(personaID: string, limit = 20, offset = 0) {
-  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-  return apiRequest<FollowListResponse>(`/personas/${personaID}/following?${params.toString()}`);
+export function getFollowing(personaID: string, limit = 20, offset = 0, viewerPersonaID?: string, token?: string) {
+	const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+	if (viewerPersonaID) {
+		params.set("viewer_persona_id", viewerPersonaID);
+	}
+	return apiRequest<FollowListResponse>(`/personas/${personaID}/following?${params.toString()}`, {
+		token,
+	});
 }

@@ -124,6 +124,41 @@ func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, l
 	return posts, nil
 }
 
+func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
+		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
+		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
+		FROM persona_follows pf
+		INNER JOIN posts p ON p.persona_id = pf.following_id
+		INNER JOIN personas pe ON pe.id = p.persona_id
+		WHERE pf.follower_id = $1
+		  AND p.posting_mode = 'public'
+		  AND pe.persona_type = 'visible'
+		ORDER BY p.created_at DESC
+		LIMIT $2
+	`, personaID, normalizeLimit(limit))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*models.Post
+	for rows.Next() {
+		post, err := scanPost(rows)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
 func (r *pgRepository) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	commandTag, err := r.db.Exec(ctx, `DELETE FROM posts WHERE id = $1`, postID)
 	if err != nil {

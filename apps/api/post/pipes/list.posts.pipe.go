@@ -117,6 +117,36 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 	return shared.PipeSuccess(messages.Feed_Listed, &responses)
 }
 
+func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_following_feed")
+	}
+
+	posts, err := p.postRepo.FindFollowingFeedPosts(ctx, personaID, limit)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.following_feed")
+	}
+
+	personas, pipeErr := p.publicPostPersonas(ctx, posts)
+	if pipeErr != nil {
+		return pipeErr
+	}
+
+	responses := postResponses(posts, personas)
+	if err := p.hydrateHashtags(ctx, responses); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.following_feed_hashtags")
+	}
+	if p.likeRepo != nil {
+		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
+			return pipeInternalError[[]PostResponse](err, "post.following_feed_like_status")
+		}
+	}
+	return shared.PipeSuccess(messages.Feed_Listed, &responses)
+}
+
 func (p *PostPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {

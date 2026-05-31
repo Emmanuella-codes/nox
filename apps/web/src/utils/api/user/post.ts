@@ -23,6 +23,10 @@ export function getPersonaFeed(personaID: string, token: string) {
   return apiRequest<Post[]>(`/posts/persona/${personaID}/feed`, { token });
 }
 
+export function getFollowingFeed(personaID: string, token: string) {
+  return apiRequest<Post[]>(`/posts/persona/${personaID}/following-feed`, { token });
+}
+
 export function getPersonaPosts(personaID: string, token?: string, viewerPersonaID?: string) {
   const params = new URLSearchParams();
   if (viewerPersonaID) {

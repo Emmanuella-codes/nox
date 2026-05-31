@@ -100,7 +100,7 @@ func TestFollowersPipeListsVisibleFollowers(t *testing.T) {
 	if !res.Success {
 		t.Fatalf("expected success, got %q", res.Message)
 	}
-	if len(res.Data.Personas) != 1 || res.Data.Personas[0].ID != followerID {
+	if len(res.Data.Personas) != 1 || res.Data.Personas[0].ID != followerID.String() {
 		t.Fatalf("expected follower %s, got %+v", followerID, res.Data)
 	}
 }
@@ -134,17 +134,50 @@ func TestFollowersPipeReturnsPaginationMetadata(t *testing.T) {
 	if res.Data.NextOffset == nil || *res.Data.NextOffset != 6 {
 		t.Fatalf("expected next offset 6, got %v", res.Data.NextOffset)
 	}
-	if len(res.Data.Personas) != 1 || res.Data.Personas[0].ID != firstFollowerID {
+	if len(res.Data.Personas) != 1 || res.Data.Personas[0].ID != firstFollowerID.String() {
 		t.Fatalf("expected first follower only, got %+v", res.Data.Personas)
 	}
 }
 
+func TestFollowersForViewerPipeHydratesFollowingState(t *testing.T) {
+	userID := uuid.New()
+	targetID := uuid.New()
+	viewerID := uuid.New()
+	followedID := uuid.New()
+	pipe := NewFollowPipe(&followTestRepo{
+		followers:    []*models.Persona{{ID: followedID, PersonaType: models.VisiblePersonaType}},
+		followingIDs: map[uuid.UUID]bool{followedID: true},
+	}, &followTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			targetID.String(): {
+				ID:          targetID,
+				UserID:      uuid.New(),
+				PersonaType: models.VisiblePersonaType,
+			},
+			viewerID.String(): {
+				ID:          viewerID,
+				UserID:      userID,
+				PersonaType: models.VisiblePersonaType,
+			},
+		},
+	})
+
+	res := pipe.FollowersForViewerPipe(context.Background(), userID, targetID, viewerID, follow_repo.ListOptions{Limit: 20})
+	if !res.Success {
+		t.Fatalf("expected success, got %q", res.Message)
+	}
+	if len(res.Data.Personas) != 1 || !res.Data.Personas[0].IsFollowing {
+		t.Fatalf("expected hydrated follow state, got %+v", res.Data.Personas)
+	}
+}
+
 type followTestRepo struct {
-	followErr   error
-	unfollowErr error
-	followers   []*models.Persona
-	following   []*models.Persona
-	isFollowing bool
+	followErr    error
+	unfollowErr  error
+	followers    []*models.Persona
+	following    []*models.Persona
+	isFollowing  bool
+	followingIDs map[uuid.UUID]bool
 }
 
 func (r *followTestRepo) Follow(ctx context.Context, followerID, followingID uuid.UUID) error {
@@ -162,7 +195,7 @@ func (r *followTestRepo) IsFollowing(ctx context.Context, followerID, followingI
 func (r *followTestRepo) FindFollowingIDs(ctx context.Context, followerID uuid.UUID, followingIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	following := make(map[uuid.UUID]bool)
 	for _, followingID := range followingIDs {
-		following[followingID] = r.isFollowing
+		following[followingID] = r.isFollowing || r.followingIDs[followingID]
 	}
 	return following, nil
 }

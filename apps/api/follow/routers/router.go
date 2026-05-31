@@ -31,11 +31,13 @@ func FollowRoutes(controller *controllers.FollowController, cfg *config.Config) 
 		{
 			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/personas/:personaID/followers",
+			Middlewares: []typings.FiberMiddleware{middleware.OptionalJWT(cfg)},
 			Handler:     controller.GetFollowers,
 		},
 		{
 			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/personas/:personaID/following",
+			Middlewares: []typings.FiberMiddleware{middleware.OptionalJWT(cfg)},
 			Handler:     controller.GetFollowing,
 		},
 	}

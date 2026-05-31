@@ -17,6 +17,7 @@ type PostRepository interface {
 	FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error)
 	FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
 	FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
+	FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
 	DeletePost(ctx context.Context, postID uuid.UUID) error
 }
 

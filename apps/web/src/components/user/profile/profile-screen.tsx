@@ -174,15 +174,24 @@ export function ProfileScreen() {
 
           {/* Stats */}
           <div className="mt-4 flex gap-5 border-b border-(--nox-divider) pb-4">
+            <div>
+              <p className="text-[16px] font-bold text-(--nox-ink)">{formatCount(display.post_count)}</p>
+              <p className="font-mono text-[10px] text-(--nox-ink-soft)">posts</p>
+            </div>
             {[
-              { label: "posts", value: display.post_count },
-              { label: "followers", value: display.follower_count },
-              { label: "following", value: display.following_count },
-            ].map(({ label, value }) => (
-              <div key={label}>
+              { label: "followers", value: display.follower_count, href: `/personas/${display.id}/followers` },
+              { label: "following", value: display.following_count, href: `/personas/${display.id}/following` },
+            ].map(({ label, value, href }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => persona && router.push(href)}
+                disabled={!persona}
+                className="text-left transition hover:opacity-70 disabled:pointer-events-none"
+              >
                 <p className="text-[16px] font-bold text-(--nox-ink)">{formatCount(value)}</p>
                 <p className="font-mono text-[10px] text-(--nox-ink-soft)">{label}</p>
-              </div>
+              </button>
             ))}
           </div>
 

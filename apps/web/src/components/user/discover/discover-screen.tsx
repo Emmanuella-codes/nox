@@ -253,6 +253,7 @@ export function DiscoverScreen() {
                     <PersonaCard
                       key={persona.id}
                       persona={persona}
+                      onPress={() => router.push(`/personas/${persona.id}`)}
                       showFollow={Boolean(viewerPersonaID && persona.id !== viewerPersonaID)}
                       isFollowing={Boolean(persona.is_following)}
                       onFollow={handleToggleFollow}

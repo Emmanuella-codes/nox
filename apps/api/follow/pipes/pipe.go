@@ -2,6 +2,7 @@ package pipes
 
 import (
 	"context"
+	"time"
 
 	"github.com/emmanuella-codes/nox/follow/messages"
 	"github.com/emmanuella-codes/nox/models"
@@ -21,11 +22,28 @@ type FollowStatusResponse struct {
 }
 
 type FollowListResponse struct {
-	Limit      int               `json:"limit"`
-	Offset     int               `json:"offset"`
-	HasMore    bool              `json:"has_more"`
-	NextOffset *int              `json:"next_offset,omitempty"`
-	Personas   []*models.Persona `json:"personas"`
+	Limit      int                     `json:"limit"`
+	Offset     int                     `json:"offset"`
+	HasMore    bool                    `json:"has_more"`
+	NextOffset *int                    `json:"next_offset,omitempty"`
+	Personas   []FollowPersonaResponse `json:"personas"`
+}
+
+type FollowPersonaResponse struct {
+	ID             string             `json:"id"`
+	Handle         string             `json:"handle"`
+	DisplayName    string             `json:"display_name"`
+	Bio            string             `json:"bio"`
+	AvatarURL      string             `json:"avatar_url"`
+	CoverURL       string             `json:"cover_url"`
+	PersonaType    models.PersonaType `json:"persona_type"`
+	GenreTags      []string           `json:"genre_tags"`
+	FollowerCount  int                `json:"follower_count"`
+	FollowingCount int                `json:"following_count"`
+	IsFollowing    bool               `json:"is_following"`
+	PostCount      int                `json:"post_count"`
+	CreatedAt      time.Time          `json:"created_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
 func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository) *FollowPipe {
@@ -97,7 +115,7 @@ func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "follow", operation, messages.Internal_Error)
 }
 
-func followListResponse(personas []*models.Persona, options follow_repo.ListOptions) FollowListResponse {
+func followListResponse(personas []*models.Persona, options follow_repo.ListOptions, following map[uuid.UUID]bool) FollowListResponse {
 	hasMore := len(personas) > options.Limit
 	if hasMore {
 		personas = personas[:options.Limit]
@@ -108,7 +126,7 @@ func followListResponse(personas []*models.Persona, options follow_repo.ListOpti
 		Offset:     options.Offset,
 		HasMore:    hasMore,
 		NextOffset: nextOffset(options, hasMore),
-		Personas:   personas,
+		Personas:   followPersonaResponses(personas, following),
 	}
 }
 
@@ -118,4 +136,35 @@ func nextOffset(options follow_repo.ListOptions, hasMore bool) *int {
 	}
 	next := options.Offset + options.Limit
 	return &next
+}
+
+func followPersonaResponses(personas []*models.Persona, following map[uuid.UUID]bool) []FollowPersonaResponse {
+	responses := make([]FollowPersonaResponse, 0, len(personas))
+	for _, persona := range personas {
+		responses = append(responses, FollowPersonaResponse{
+			ID:             persona.ID.String(),
+			Handle:         persona.Handle,
+			DisplayName:    persona.DisplayName,
+			Bio:            persona.Bio,
+			AvatarURL:      persona.AvatarURL,
+			CoverURL:       persona.CoverURL,
+			PersonaType:    persona.PersonaType,
+			GenreTags:      persona.GenreTags,
+			FollowerCount:  persona.FollowerCount,
+			FollowingCount: persona.FollowingCount,
+			IsFollowing:    following[persona.ID],
+			PostCount:      persona.PostCount,
+			CreatedAt:      persona.CreatedAt,
+			UpdatedAt:      persona.UpdatedAt,
+		})
+	}
+	return responses
+}
+
+func personaIDs(personas []*models.Persona) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(personas))
+	for _, persona := range personas {
+		ids = append(ids, persona.ID)
+	}
+	return ids
 }

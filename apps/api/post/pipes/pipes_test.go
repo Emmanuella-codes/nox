@@ -266,6 +266,7 @@ type postTestRepo struct {
 	posts               map[string]*models.Post
 	personaPosts        []*models.Post
 	feedPosts           []*models.Post
+	followingFeedPosts  []*models.Post
 	createdAuthorUserID uuid.UUID
 	createdDTO          postdtos.CreatePostDTO
 	deletedPostID       uuid.UUID
@@ -302,6 +303,10 @@ func (r *postTestRepo) FindPostsByPersonaID(ctx context.Context, personaID uuid.
 
 func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
 	return r.feedPosts, nil
+}
+
+func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+	return r.followingFeedPosts, nil
 }
 
 func (r *postTestRepo) DeletePost(ctx context.Context, postID uuid.UUID) error {
