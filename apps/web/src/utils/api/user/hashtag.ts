@@ -9,9 +9,17 @@ export function getHashtag(tag: string) {
   return apiRequest<HashtagDetail>(`/hashtags/${encodeURIComponent(tag)}`);
 }
 
-export function getHashtagPosts(tag: string, limit = 20) {
-  const params = new URLSearchParams({ limit: String(limit) });
+export function getHashtagPosts(
+  tag: string,
+  limit = 20,
+  offset = 0,
+  viewerPersonaID?: string,
+  token?: string,
+) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (viewerPersonaID) params.set("viewer_persona_id", viewerPersonaID);
   return apiRequest<HashtagPostsResponse>(
     `/hashtags/${encodeURIComponent(tag)}/posts?${params.toString()}`,
+    { token },
   );
 }

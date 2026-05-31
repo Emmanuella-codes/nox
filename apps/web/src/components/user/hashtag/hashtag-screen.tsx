@@ -7,9 +7,9 @@ import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { PostCard } from "@/src/components/user/feed/post-card";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { getHashtag, getHashtagPosts } from "@/src/utils/api/user/hashtag";
-import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { likePost, unlikePost } from "@/src/utils/api/user/post";
-import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
+import { useActivePersona } from "@/src/hooks/use-active-persona";
+import { getAccessToken } from "@/src/utils/auth/session";
 import type { HashtagDetail } from "@/src/types/api/hashtag";
 import type { Post } from "@/src/types/api/post";
 
@@ -20,77 +20,84 @@ interface HashtagScreenProps {
 export function HashtagScreen({ tag }: HashtagScreenProps) {
   const router = useRouter();
   const normalizedTag = tag.replace(/^#/, "").toLowerCase();
+  const { activeID: viewerPersonaID, loading: personaLoading } = useActivePersona();
+
   const [detail, setDetail] = useState<HashtagDetail | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [viewerPersonaID, setViewerPersonaID] = useState("");
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setMessage("");
-      try {
-        const token = getAccessToken();
-        if (token) {
-          try {
-            const personasRes = await getMyPersonas(token);
-            const personas = personasRes.data ?? [];
-            const activePersonaID = getActivePersonaID();
-            const selectedPersona = personas.find((persona) => persona.id === activePersonaID) ?? personas[0];
-            if (selectedPersona) {
-              setActivePersonaID(selectedPersona.id);
-            }
-            setViewerPersonaID(selectedPersona?.id ?? "");
-          } catch {
-            setViewerPersonaID("");
-          }
-        }
+    if (personaLoading) return;
 
-        const [detailRes, postsRes] = await Promise.all([
-          getHashtag(normalizedTag),
-          getHashtagPosts(normalizedTag, 30),
-        ]);
+    setLoading(true);
+    setMessage("");
+
+    const token = viewerPersonaID ? getAccessToken() || undefined : undefined;
+
+    Promise.all([
+      getHashtag(normalizedTag),
+      getHashtagPosts(normalizedTag, 30, 0, viewerPersonaID || undefined, token),
+    ])
+      .then(([detailRes, postsRes]) => {
         setDetail(detailRes.data ?? null);
-        setPosts(postsRes.data?.posts ?? []);
-      } catch {
-        setMessage("Could not load this hashtag.");
-      } finally {
-        setLoading(false);
-      }
-    }
+        const data = postsRes.data;
+        if (data) {
+          setPosts(data.posts);
+          setHasMore(data.has_more);
+          setNextOffset(data.next_offset ?? 0);
+        }
+      })
+      .catch(() => setMessage("Could not load this hashtag."))
+      .finally(() => setLoading(false));
+  }, [normalizedTag, viewerPersonaID, personaLoading]);
 
-    load();
-  }, [normalizedTag]);
+  async function handleLoadMore() {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    const token = viewerPersonaID ? getAccessToken() || undefined : undefined;
+    try {
+      const res = await getHashtagPosts(normalizedTag, 30, nextOffset, viewerPersonaID || undefined, token);
+      const data = res.data;
+      if (data) {
+        setPosts((prev) => [...prev, ...data.posts]);
+        setHasMore(data.has_more);
+        setNextOffset(data.next_offset ?? 0);
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingMore(false); }
+  }
 
   async function handleToggleLike(post: Post) {
     const token = getAccessToken();
     if (!token || !viewerPersonaID) return;
 
-    const previousPosts = posts;
     const nextLiked = !post.is_liked;
     setPosts((current) =>
-      current.map((item) =>
-        item.id === post.id
-          ? {
-              ...item,
-              is_liked: nextLiked,
-              like_count: Math.max(0, item.like_count + (nextLiked ? 1 : -1)),
-            }
-          : item,
+      current.map((p) =>
+        p.id === post.id
+          ? { ...p, is_liked: nextLiked, like_count: Math.max(0, p.like_count + (nextLiked ? 1 : -1)) }
+          : p,
       ),
     );
-
     try {
-      if (nextLiked) {
-        await likePost(post.id, viewerPersonaID, token);
-      } else {
-        await unlikePost(post.id, viewerPersonaID, token);
-      }
+      if (nextLiked) await likePost(post.id, viewerPersonaID, token);
+      else await unlikePost(post.id, viewerPersonaID, token);
     } catch {
-      setPosts(previousPosts);
+      setPosts((current) =>
+        current.map((p) =>
+          p.id === post.id
+            ? { ...p, is_liked: !nextLiked, like_count: Math.max(0, p.like_count + (nextLiked ? -1 : 1)) }
+            : p,
+        ),
+      );
     }
   }
+
+  const postCount = detail?.post_count ?? posts.length;
 
   return (
     <FeedShell>
@@ -111,7 +118,7 @@ export function HashtagScreen({ tag }: HashtagScreenProps) {
               #{normalizedTag}
             </h1>
             <p className="text-[12px] text-(--nox-ink-soft)">
-              {detail?.post_count ?? posts.length} post{(detail?.post_count ?? posts.length) === 1 ? "" : "s"}
+              {postCount} post{postCount === 1 ? "" : "s"}
             </p>
           </div>
         </div>
@@ -133,6 +140,18 @@ export function HashtagScreen({ tag }: HashtagScreenProps) {
                 onClick={() => router.push(`/posts/${post.id}`)}
               />
             ))}
+            {hasMore && (
+              <div className="px-4 pt-4">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full rounded-[8px] border border-(--nox-border-strong) px-4 py-2.5 text-[13px] font-semibold text-(--nox-ink) transition hover:border-(--nox-accent) disabled:opacity-50"
+                >
+                  {loadingMore ? "Loading..." : "Load more"}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <p className="px-4 py-8 text-center text-[13px] text-(--nox-ink-soft)">

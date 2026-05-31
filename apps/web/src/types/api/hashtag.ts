@@ -14,5 +14,9 @@ export interface HashtagDetail {
 
 export interface HashtagPostsResponse {
   tag: string;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  next_offset?: number;
   posts: Post[];
 }
