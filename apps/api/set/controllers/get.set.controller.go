@@ -11,7 +11,12 @@ func (c *SetController) GetSet(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_set_id")
 	}
 
-	res := c.pipe.GetSetPipe(ctx.Context(), setID)
+	viewerPersonaID, err := optionalViewerPersonaID(ctx)
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+
+	res := c.pipe.GetSetPipe(ctx.Context(), setID, viewerPersonaID)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

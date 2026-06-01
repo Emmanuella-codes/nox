@@ -23,3 +23,14 @@ type Set struct {
 	Persona         *Persona    `json:"persona,omitempty"`
 	MediaAsset      *MediaAsset `json:"media_asset,omitempty"`
 }
+
+type SetComment struct {
+	ID        uuid.UUID `json:"id"`
+	PersonaID uuid.UUID `json:"persona_id"`
+	SetID     uuid.UUID `json:"set_id"`
+	Body      string    `json:"body"`
+	ParentID  uuid.UUID `json:"parent_id,omitempty"`
+	LikeCount int       `json:"like_count"`
+	CreatedAt time.Time `json:"created_at"`
+	Persona   *Persona  `json:"persona,omitempty"`
+}

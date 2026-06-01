@@ -2,6 +2,7 @@ package pipes
 
 import (
 	"context"
+	"strings"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/set/messages"
@@ -9,28 +10,29 @@ import (
 	"github.com/google/uuid"
 )
 
-type SetListResponse struct {
-	Limit      int           `json:"limit"`
-	Offset     int           `json:"offset"`
-	HasMore    bool          `json:"has_more"`
-	NextOffset *int          `json:"next_offset,omitempty"`
-	Sets       []*models.Set `json:"sets"`
-}
-
-func (p *SetPipe) ListSetsPipe(ctx context.Context, limit int, offset int) *shared.PipeRes[SetListResponse] {
+func (p *SetPipe) ListSetsPipe(ctx context.Context, limit int, offset int, genreTag string, sort string, viewerPersonaID *uuid.UUID) *shared.PipeRes[SetListResponse] {
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
-	sets, err := p.setRepo.FindSets(ctx, limit+1, offset)
+	genreTag = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(genreTag, "#")))
+	if genreTag != "" && !genreTagPattern.MatchString(genreTag) {
+		return shared.PipeError[SetListResponse](messages.Invalid_Set)
+	}
+	sort = strings.TrimSpace(sort)
+	sets, err := p.setRepo.FindSetsWithFilters(ctx, genreTag, sort, limit+1, offset)
 	if err != nil {
 		return pipeInternalError[SetListResponse](err, "set.list")
 	}
 	if err := p.hydrateSets(ctx, trimForHydration(limit, sets)); err != nil {
 		return pipeInternalError[SetListResponse](err, "set.hydrate_list")
 	}
-	return shared.PipeSuccess(messages.Sets_Listed, listResponse(limit, offset, sets))
+	response, err := p.listResponse(ctx, limit, offset, sets, viewerPersonaID)
+	if err != nil {
+		return pipeInternalError[SetListResponse](err, "set.viewer_list")
+	}
+	return shared.PipeSuccess(messages.Sets_Listed, response)
 }
 
-func (p *SetPipe) ListPersonaSetsPipe(ctx context.Context, personaID uuid.UUID, limit int, offset int) *shared.PipeRes[SetListResponse] {
+func (p *SetPipe) ListPersonaSetsPipe(ctx context.Context, personaID uuid.UUID, limit int, offset int, viewerPersonaID *uuid.UUID) *shared.PipeRes[SetListResponse] {
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
 	sets, err := p.setRepo.FindSetsByPersonaID(ctx, personaID, limit+1, offset)
@@ -40,7 +42,11 @@ func (p *SetPipe) ListPersonaSetsPipe(ctx context.Context, personaID uuid.UUID, 
 	if err := p.hydrateSets(ctx, trimForHydration(limit, sets)); err != nil {
 		return pipeInternalError[SetListResponse](err, "set.hydrate_persona_list")
 	}
-	return shared.PipeSuccess(messages.Sets_Listed, listResponse(limit, offset, sets))
+	response, err := p.listResponse(ctx, limit, offset, sets, viewerPersonaID)
+	if err != nil {
+		return pipeInternalError[SetListResponse](err, "set.viewer_persona_list")
+	}
+	return shared.PipeSuccess(messages.Sets_Listed, response)
 }
 
 func trimForHydration(limit int, sets []*models.Set) []*models.Set {
@@ -50,18 +56,34 @@ func trimForHydration(limit int, sets []*models.Set) []*models.Set {
 	return sets
 }
 
-func listResponse(limit int, offset int, sets []*models.Set) *SetListResponse {
+func (p *SetPipe) listResponse(ctx context.Context, limit int, offset int, sets []*models.Set, viewerPersonaID *uuid.UUID) (*SetListResponse, error) {
 	hasMore := len(sets) > limit
 	if hasMore {
 		sets = sets[:limit]
+	}
+	liked := map[uuid.UUID]bool{}
+	if viewerPersonaID != nil {
+		setIDs := make([]uuid.UUID, 0, len(sets))
+		for _, set := range sets {
+			setIDs = append(setIDs, set.ID)
+		}
+		var err error
+		liked, err = p.setRepo.FindLikedSetIDs(ctx, *viewerPersonaID, setIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	responses := make([]SetResponse, 0, len(sets))
+	for _, set := range sets {
+		responses = append(responses, setResponse(set, liked[set.ID]))
 	}
 	return &SetListResponse{
 		Limit:      limit,
 		Offset:     offset,
 		HasMore:    hasMore,
 		NextOffset: nextOffset(limit, offset, hasMore),
-		Sets:       sets,
-	}
+		Sets:       responses,
+	}, nil
 }
 
 func normalizeLimit(limit int) int {

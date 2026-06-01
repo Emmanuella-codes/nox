@@ -6,7 +6,12 @@ import (
 )
 
 func (c *SetController) ListSets(ctx *fiber.Ctx) error {
-	res := c.pipe.ListSetsPipe(ctx.Context(), queryLimit(ctx, 20), queryOffset(ctx))
+	viewerPersonaID, err := optionalViewerPersonaID(ctx)
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+
+	res := c.pipe.ListSetsPipe(ctx.Context(), queryLimit(ctx, 20), queryOffset(ctx), ctx.Query("genre"), ctx.Query("sort"), viewerPersonaID)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
@@ -19,7 +24,12 @@ func (c *SetController) ListPersonaSets(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.ListPersonaSetsPipe(ctx.Context(), personaID, queryLimit(ctx, 20), queryOffset(ctx))
+	viewerPersonaID, err := optionalViewerPersonaID(ctx)
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+
+	res := c.pipe.ListPersonaSetsPipe(ctx.Context(), personaID, queryLimit(ctx, 20), queryOffset(ctx), viewerPersonaID)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

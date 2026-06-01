@@ -9,11 +9,17 @@ import (
 )
 
 func SetRoutes(controller *controllers.SetController, cfg *config.Config) []api.RouterSchema {
+	auth := []typings.FiberMiddleware{middleware.JWT(cfg)}
 	return []api.RouterSchema{
 		{RouteMethod: api.RouteMethod("GET"), Path: "/", Handler: controller.ListSets},
 		{RouteMethod: api.RouteMethod("GET"), Path: "/:setID", Handler: controller.GetSet},
 		{RouteMethod: api.RouteMethod("GET"), Path: "/persona/:personaID", Handler: controller.ListPersonaSets},
-		{RouteMethod: api.RouteMethod("POST"), Path: "/", Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)}, Handler: controller.CreateSet},
-		{RouteMethod: api.RouteMethod("DELETE"), Path: "/:setID", Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)}, Handler: controller.DeleteSet},
+		{RouteMethod: api.RouteMethod("GET"), Path: "/:setID/comments", Handler: controller.ListSetComments},
+		{RouteMethod: api.RouteMethod("POST"), Path: "/", Middlewares: auth, Handler: controller.CreateSet},
+		{RouteMethod: api.RouteMethod("DELETE"), Path: "/:setID", Middlewares: auth, Handler: controller.DeleteSet},
+		{RouteMethod: api.RouteMethod("POST"), Path: "/:setID/likes", Middlewares: auth, Handler: controller.LikeSet},
+		{RouteMethod: api.RouteMethod("DELETE"), Path: "/:setID/likes", Middlewares: auth, Handler: controller.UnlikeSet},
+		{RouteMethod: api.RouteMethod("POST"), Path: "/:setID/plays", Handler: controller.RecordSetPlay},
+		{RouteMethod: api.RouteMethod("POST"), Path: "/:setID/comments", Middlewares: auth, Handler: controller.CreateSetComment},
 	}
 }

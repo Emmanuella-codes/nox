@@ -6,6 +6,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	set_repo "github.com/emmanuella-codes/nox/repositories/set"
 	"github.com/emmanuella-codes/nox/set/dtos"
 	"github.com/emmanuella-codes/nox/set/messages"
 	"github.com/emmanuella-codes/nox/shared"
@@ -16,9 +17,11 @@ import (
 func (p *SetPipe) CreateSetPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreateSetDTO) *shared.PipeRes[models.Set] {
 	dto.Title = strings.TrimSpace(dto.Title)
 	dto.Description = strings.TrimSpace(dto.Description)
-	if dto.Title == "" {
+	genreTags, ok := normalizeGenreTags(dto.GenreTags)
+	if dto.Title == "" || !ok {
 		return shared.PipeError[models.Set](messages.Invalid_Set)
 	}
+	dto.GenreTags = genreTags
 
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.PersonaID)
 	if err != nil {
@@ -44,6 +47,9 @@ func (p *SetPipe) CreateSetPipe(ctx context.Context, userID uuid.UUID, dto dtos.
 
 	set, err := p.setRepo.CreateSet(ctx, userID, asset.DurationSeconds, dto)
 	if err != nil {
+		if err == set_repo.ErrSetMediaInUse {
+			return shared.PipeError[models.Set](messages.Media_In_Use)
+		}
 		return pipeInternalError[models.Set](err, "set.create")
 	}
 	if err := p.hydrateSet(ctx, set); err != nil {

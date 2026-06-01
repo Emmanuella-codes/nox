@@ -2,6 +2,9 @@ package pipes
 
 import (
 	"context"
+	"regexp"
+	"sort"
+	"strings"
 
 	"github.com/emmanuella-codes/nox/models"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
@@ -9,7 +12,10 @@ import (
 	set_repo "github.com/emmanuella-codes/nox/repositories/set"
 	"github.com/emmanuella-codes/nox/set/messages"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/google/uuid"
 )
+
+var genreTagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 
 type SetPipe struct {
 	setRepo     set_repo.SetRepository
@@ -36,6 +42,28 @@ func validSetMedia(asset *models.MediaAsset) bool {
 		asset.DurationSeconds <= 900
 }
 
+func normalizeGenreTags(tags []string) ([]string, bool) {
+	seen := map[string]bool{}
+	normalized := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		tag = strings.TrimPrefix(tag, "#")
+		tag = strings.ReplaceAll(tag, " ", "-")
+		if tag == "" {
+			continue
+		}
+		if !genreTagPattern.MatchString(tag) {
+			return nil, false
+		}
+		if !seen[tag] {
+			seen[tag] = true
+			normalized = append(normalized, tag)
+		}
+	}
+	sort.Strings(normalized)
+	return normalized, len(normalized) > 0 && len(normalized) <= 10
+}
+
 func (p *SetPipe) hydrateSet(ctx context.Context, set *models.Set) error {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, set.PersonaID)
 	if err != nil {
@@ -57,4 +85,28 @@ func (p *SetPipe) hydrateSets(ctx context.Context, sets []*models.Set) error {
 		}
 	}
 	return nil
+}
+
+func (p *SetPipe) hydrateSetComments(ctx context.Context, comments []*models.SetComment) error {
+	for _, comment := range comments {
+		persona, err := p.personaRepo.FindPersonaByID(ctx, comment.PersonaID)
+		if err != nil {
+			return err
+		}
+		comment.Persona = persona
+	}
+	return nil
+}
+
+func (p *SetPipe) setResponse(ctx context.Context, set *models.Set, viewerPersonaID *uuid.UUID) (*SetResponse, error) {
+	liked := false
+	if viewerPersonaID != nil {
+		current, err := p.setRepo.HasSetLike(ctx, *viewerPersonaID, set.ID)
+		if err != nil {
+			return nil, err
+		}
+		liked = current
+	}
+	response := setResponse(set, liked)
+	return &response, nil
 }

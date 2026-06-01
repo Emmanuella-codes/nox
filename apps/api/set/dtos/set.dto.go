@@ -9,3 +9,13 @@ type CreateSetDTO struct {
 	Description  string    `json:"description"`
 	GenreTags    []string  `json:"genre_tags" validate:"required"`
 }
+
+type SetPersonaActionDTO struct {
+	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
+}
+
+type CreateSetCommentDTO struct {
+	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
+	Body      string    `json:"body" validate:"required"`
+	ParentID  uuid.UUID `json:"parent_id"`
+}

@@ -11,3 +11,21 @@ type CreateMediaAssetDTO struct {
 	DurationSeconds int       `json:"duration_seconds" validate:"required,min=1,max=900"`
 	SizeBytes       int64     `json:"size_bytes" validate:"required,min=1"`
 }
+
+type InitiateSetVideoUploadDTO struct {
+	OwnerPersonaID uuid.UUID `json:"owner_persona_id" validate:"required"`
+	MimeType       string    `json:"mime_type" validate:"required"`
+	SizeBytes      int64     `json:"size_bytes" validate:"required,min=1"`
+}
+
+type CompleteMediaProcessingDTO struct {
+	PlaybackURL     string `json:"playback_url" validate:"required"`
+	ThumbnailURL    string `json:"thumbnail_url"`
+	MimeType        string `json:"mime_type" validate:"required"`
+	DurationSeconds int    `json:"duration_seconds" validate:"required,min=1,max=900"`
+	SizeBytes       int64  `json:"size_bytes" validate:"required,min=1"`
+}
+
+type FailMediaProcessingDTO struct {
+	Reason string `json:"reason"`
+}

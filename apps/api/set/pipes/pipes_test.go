@@ -3,6 +3,7 @@ package pipes
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/emmanuella-codes/nox/media/dtos"
 	"github.com/emmanuella-codes/nox/models"
@@ -129,12 +130,44 @@ func (r *setTestRepo) FindSets(ctx context.Context, limit int, offset int) ([]*m
 	return nil, nil
 }
 
+func (r *setTestRepo) FindSetsWithFilters(ctx context.Context, genreTag string, sort string, limit int, offset int) ([]*models.Set, error) {
+	return nil, nil
+}
+
 func (r *setTestRepo) FindSetsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int, offset int) ([]*models.Set, error) {
 	return nil, nil
 }
 
 func (r *setTestRepo) DeleteSet(ctx context.Context, setID uuid.UUID) error {
 	return nil
+}
+
+func (r *setTestRepo) LikeSet(ctx context.Context, personaID uuid.UUID, setID uuid.UUID) error {
+	return nil
+}
+
+func (r *setTestRepo) UnlikeSet(ctx context.Context, personaID uuid.UUID, setID uuid.UUID) error {
+	return nil
+}
+
+func (r *setTestRepo) HasSetLike(ctx context.Context, personaID uuid.UUID, setID uuid.UUID) (bool, error) {
+	return false, nil
+}
+
+func (r *setTestRepo) FindLikedSetIDs(ctx context.Context, personaID uuid.UUID, setIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *setTestRepo) IncrementPlayCount(ctx context.Context, setID uuid.UUID) error {
+	return nil
+}
+
+func (r *setTestRepo) CreateSetComment(ctx context.Context, personaID uuid.UUID, setID uuid.UUID, body string, parentID uuid.UUID) (*models.SetComment, error) {
+	return nil, nil
+}
+
+func (r *setTestRepo) FindSetComments(ctx context.Context, setID uuid.UUID, limit int, offset int) ([]*models.SetComment, error) {
+	return nil, nil
 }
 
 type setTestMediaRepo struct {
@@ -145,8 +178,24 @@ func (r *setTestMediaRepo) CreateMediaAsset(ctx context.Context, ownerUserID uui
 	return nil, nil
 }
 
+func (r *setTestMediaRepo) CreatePendingMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateSetVideoUploadDTO) (*models.MediaAsset, error) {
+	return nil, nil
+}
+
 func (r *setTestMediaRepo) FindMediaAssetByID(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
 	return r.assets[mediaAssetID], nil
+}
+
+func (r *setTestMediaRepo) MarkMediaAssetReady(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) (*models.MediaAsset, error) {
+	return nil, nil
+}
+
+func (r *setTestMediaRepo) MarkMediaAssetFailed(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
+	return nil, nil
+}
+
+func (r *setTestMediaRepo) DeleteOrphanedMediaAssets(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	return 0, nil
 }
 
 type setTestPersonaRepo struct {

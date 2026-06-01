@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/media/messages"
 	"github.com/emmanuella-codes/nox/media/pipes"
 	"github.com/emmanuella-codes/nox/shared"
@@ -9,11 +10,12 @@ import (
 )
 
 type MediaController struct {
-	pipe *pipes.MediaPipe
+	pipe   *pipes.MediaPipe
+	config *config.Config
 }
 
-func NewMediaController(pipe *pipes.MediaPipe) *MediaController {
-	return &MediaController{pipe: pipe}
+func NewMediaController(pipe *pipes.MediaPipe, cfg *config.Config) *MediaController {
+	return &MediaController{pipe: pipe, config: cfg}
 }
 
 func parseAndValidate(ctx *fiber.Ctx, dto any) error {
@@ -43,7 +45,7 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
 	case messages.Invalid_Payload, messages.Invalid_Media:
 		return fiber.StatusBadRequest
-	case messages.Persona_Not_Found:
+	case messages.Persona_Not_Found, messages.Media_Not_Found:
 		return fiber.StatusNotFound
 	case messages.Forbidden:
 		return fiber.StatusForbidden
@@ -52,4 +54,11 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 	default:
 		return fiber.StatusBadRequest
 	}
+}
+
+func (c *MediaController) validProcessingSecret(ctx *fiber.Ctx) bool {
+	if c.config == nil || c.config.MediaProcessingSecret == "" {
+		return false
+	}
+	return ctx.Get("X-Media-Processing-Secret") == c.config.MediaProcessingSecret
 }

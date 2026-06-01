@@ -2,12 +2,10 @@ package set
 
 import (
 	"context"
-	"errors"
 
 	"github.com/emmanuella-codes/nox/models"
 	setdtos "github.com/emmanuella-codes/nox/set/dtos"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -29,6 +27,9 @@ func (r *pgRepository) CreateSet(ctx context.Context, authorUserID uuid.UUID, du
 
 	set, err := scanSet(row)
 	if err != nil {
+		if isUniqueViolation(err, "sets_media_asset_id_key") {
+			return nil, ErrSetMediaInUse
+		}
 		return nil, mapSetError(err)
 	}
 	return set, nil
@@ -50,13 +51,27 @@ func (r *pgRepository) FindSetByID(ctx context.Context, setID uuid.UUID) (*model
 }
 
 func (r *pgRepository) FindSets(ctx context.Context, limit int, offset int) ([]*models.Set, error) {
+	return r.FindSetsWithFilters(ctx, "", "newest", limit, offset)
+}
+
+func (r *pgRepository) FindSetsWithFilters(ctx context.Context, genreTag string, sort string, limit int, offset int) ([]*models.Set, error) {
+	orderBy := "created_at DESC"
+	switch sort {
+	case "most_played":
+		orderBy = "play_count DESC, created_at DESC"
+	case "most_liked":
+		orderBy = "like_count DESC, created_at DESC"
+	case "most_discussed":
+		orderBy = "comment_count DESC, created_at DESC"
+	}
 	rows, err := r.db.Query(ctx, `
 		SELECT id, author_user_id, persona_id, media_asset_id, title, description, genre_tags,
 		       duration_seconds, like_count, comment_count, play_count, created_at, updated_at
 		FROM sets
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`, normalizeLimit(limit), normalizeOffset(offset))
+		WHERE ($1 = '' OR $1 = ANY(genre_tags))
+		ORDER BY `+orderBy+`
+		LIMIT $2 OFFSET $3
+	`, genreTag, normalizeLimit(limit), normalizeOffset(offset))
 	if err != nil {
 		return nil, err
 	}
@@ -89,73 +104,4 @@ func (r *pgRepository) DeleteSet(ctx context.Context, setID uuid.UUID) error {
 		return ErrSetNotFound
 	}
 	return nil
-}
-
-type setScanner interface {
-	Scan(dest ...any) error
-}
-
-type setRows interface {
-	setScanner
-	Next() bool
-	Err() error
-}
-
-func scanSets(rows setRows) ([]*models.Set, error) {
-	var sets []*models.Set
-	for rows.Next() {
-		set, err := scanSet(rows)
-		if err != nil {
-			return nil, err
-		}
-		sets = append(sets, set)
-	}
-	return sets, rows.Err()
-}
-
-func scanSet(scanner setScanner) (*models.Set, error) {
-	var set models.Set
-	err := scanner.Scan(
-		&set.ID,
-		&set.AuthorUserID,
-		&set.PersonaID,
-		&set.MediaAssetID,
-		&set.Title,
-		&set.Description,
-		&set.GenreTags,
-		&set.DurationSeconds,
-		&set.LikeCount,
-		&set.CommentCount,
-		&set.PlayCount,
-		&set.CreatedAt,
-		&set.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &set, nil
-}
-
-func mapSetError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrSetNotFound
-	}
-	return err
-}
-
-func normalizeLimit(limit int) int {
-	if limit <= 0 {
-		return 20
-	}
-	if limit > 50 {
-		return 50
-	}
-	return limit
-}
-
-func normalizeOffset(offset int) int {
-	if offset < 0 {
-		return 0
-	}
-	return offset
 }

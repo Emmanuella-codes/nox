@@ -8,6 +8,7 @@ import (
 	"github.com/emmanuella-codes/nox/shared"
 	sharedapi "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type SetController struct {
@@ -43,9 +44,9 @@ func pipeError(ctx *fiber.Ctx, status int, message shared.PipeMessage) error {
 
 func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
-	case messages.Invalid_Payload, messages.Invalid_Set:
+	case messages.Invalid_Payload, messages.Invalid_Set, messages.Media_In_Use:
 		return fiber.StatusBadRequest
-	case messages.Persona_Not_Found, messages.Media_Not_Found, messages.Set_Not_Found:
+	case messages.Persona_Not_Found, messages.Media_Not_Found, messages.Set_Not_Found, messages.Comment_Not_Found:
 		return fiber.StatusNotFound
 	case messages.Forbidden:
 		return fiber.StatusForbidden
@@ -70,4 +71,16 @@ func queryOffset(ctx *fiber.Ctx) int {
 		return 0
 	}
 	return offset
+}
+
+func optionalViewerPersonaID(ctx *fiber.Ctx) (*uuid.UUID, error) {
+	value := ctx.Query("viewer_persona_id")
+	if value == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
 }

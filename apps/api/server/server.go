@@ -97,7 +97,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow))
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like))
-	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona))
+	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 
