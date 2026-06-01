@@ -6,8 +6,10 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/post/dtos"
+	hashtag_repo "github.com/emmanuella-codes/nox/repositories/hashtag"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,13 +21,43 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
+type execQuerier interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 func (r *pgRepository) CreatePost(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error) {
+	return createPost(ctx, r.db, authorUserID, dto)
+}
+
+func (r *pgRepository) CreatePostWithHashtags(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO, tags []string) (*models.Post, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	post, err := createPost(ctx, tx, authorUserID, dto)
+	if err != nil {
+		return nil, err
+	}
+	if err := syncPostHashtags(ctx, tx, post.ID, tags); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return post, nil
+}
+
+func createPost(ctx context.Context, db execQuerier, authorUserID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error) {
 	var eventID *uuid.UUID
 	if dto.EventID != uuid.Nil {
 		eventID = &dto.EventID
 	}
 
-	row := r.db.QueryRow(ctx, `
+	row := db.QueryRow(ctx, `
 		INSERT INTO posts (
 			author_user_id, persona_id, posting_mode, event_id, body, post_type, media_url, media_type, location
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -124,6 +156,41 @@ func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, l
 	return posts, nil
 }
 
+func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
+		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
+		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
+		FROM persona_follows pf
+		INNER JOIN posts p ON p.persona_id = pf.following_id
+		INNER JOIN personas pe ON pe.id = p.persona_id
+		WHERE pf.follower_id = $1
+		  AND p.posting_mode = 'public'
+		  AND pe.persona_type = 'visible'
+		ORDER BY p.created_at DESC
+		LIMIT $2
+	`, personaID, normalizeLimit(limit))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*models.Post
+	for rows.Next() {
+		post, err := scanPost(rows)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+
 func (r *pgRepository) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	commandTag, err := r.db.Exec(ctx, `DELETE FROM posts WHERE id = $1`, postID)
 	if err != nil {
@@ -131,6 +198,103 @@ func (r *pgRepository) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	}
 	if commandTag.RowsAffected() == 0 {
 		return ErrPostNotFound
+	}
+	return nil
+}
+
+func (r *pgRepository) DeletePostWithHashtags(ctx context.Context, postID uuid.UUID) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := deletePostHashtags(ctx, tx, postID); err != nil {
+		return err
+	}
+
+	commandTag, err := tx.Exec(ctx, `DELETE FROM posts WHERE id = $1`, postID)
+	if err != nil {
+		return err
+	}
+	if commandTag.RowsAffected() == 0 {
+		return ErrPostNotFound
+	}
+
+	return tx.Commit(ctx)
+}
+
+func syncPostHashtags(ctx context.Context, db execQuerier, postID uuid.UUID, tags []string) error {
+	if err := deletePostHashtags(ctx, db, postID); err != nil {
+		return err
+	}
+
+	for _, tag := range tags {
+		normalized := hashtag_repo.NormalizeTag(tag)
+		if normalized == "" {
+			continue
+		}
+
+		var hashtagID uuid.UUID
+		if err := db.QueryRow(ctx, `
+			INSERT INTO hashtags (tag, post_count)
+			VALUES ($1, 0)
+			ON CONFLICT (tag) DO UPDATE SET tag = EXCLUDED.tag
+			RETURNING id
+		`, normalized).Scan(&hashtagID); err != nil {
+			return err
+		}
+
+		commandTag, err := db.Exec(ctx, `
+			INSERT INTO post_hashtags (post_id, hashtag_id)
+			VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+		`, postID, hashtagID)
+		if err != nil {
+			return err
+		}
+		if commandTag.RowsAffected() > 0 {
+			if _, err := db.Exec(ctx, `UPDATE hashtags SET post_count = post_count + 1 WHERE id = $1`, hashtagID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func deletePostHashtags(ctx context.Context, db execQuerier, postID uuid.UUID) error {
+	rows, err := db.Query(ctx, `
+		SELECT hashtag_id
+		FROM post_hashtags
+		WHERE post_id = $1
+	`, postID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var hashtagIDs []uuid.UUID
+	for rows.Next() {
+		var hashtagID uuid.UUID
+		if err := rows.Scan(&hashtagID); err != nil {
+			return err
+		}
+		hashtagIDs = append(hashtagIDs, hashtagID)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(hashtagIDs) == 0 {
+		return nil
+	}
+
+	if _, err := db.Exec(ctx, `DELETE FROM post_hashtags WHERE post_id = $1`, postID); err != nil {
+		return err
+	}
+	for _, hashtagID := range hashtagIDs {
+		if _, err := db.Exec(ctx, `UPDATE hashtags SET post_count = GREATEST(post_count - 1, 0) WHERE id = $1`, hashtagID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

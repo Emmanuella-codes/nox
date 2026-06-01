@@ -13,7 +13,7 @@ import (
 func (p *CommentPipe) ListCommentsPipe(ctx context.Context, postID uuid.UUID, limit int) *shared.PipeRes[[]*models.Comment] {
 	if _, err := p.postRepo.FindPostByID(ctx, postID); err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[[]*models.Comment](messages.Post_Not_Found)
+			return shared.PipeError[[]*models.Comment](messages.Post_Not_Found)
 		}
 		return pipeInternalError[[]*models.Comment](err, "comment.find_post")
 	}
@@ -23,5 +23,5 @@ func (p *CommentPipe) ListCommentsPipe(ctx context.Context, postID uuid.UUID, li
 		return pipeInternalError[[]*models.Comment](err, "comment.list")
 	}
 
-	return pipeSuccess(messages.Comments_Listed, &comments)
+	return shared.PipeSuccess(messages.Comments_Listed, &comments)
 }

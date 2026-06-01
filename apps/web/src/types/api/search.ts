@@ -1,4 +1,5 @@
 import type { Event } from "@/src/types/api/event";
+import type { Hashtag } from "@/src/types/api/hashtag";
 import type { Persona } from "@/src/types/api/persona";
 import type { Post } from "@/src/types/api/post";
 
@@ -11,4 +12,5 @@ export interface SearchResponse {
   personas: Persona[];
   posts: Post[];
   events: Event[];
+  hashtags?: Hashtag[];
 }

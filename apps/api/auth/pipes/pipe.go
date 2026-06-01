@@ -4,12 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/emmanuella-codes/nox/auth/messages"
 	"github.com/emmanuella-codes/nox/auth/services"
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/repositories/user"
-	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
@@ -117,25 +115,6 @@ func authResponse(user *models.User, tokens *services.TokenPair) *AuthResponse {
 		},
 		Tokens: *tokens,
 	}
-}
-
-func pipeSuccess[T any](message shared.PipeMessage, data *T) *shared.PipeRes[T] {
-	return &shared.PipeRes[T]{
-		Success: true,
-		Message: message,
-		Data:    data,
-	}
-}
-
-func pipeError[T any](message shared.PipeMessage) *shared.PipeRes[T] {
-	return &shared.PipeRes[T]{
-		Success: false,
-		Message: message,
-	}
-}
-
-func pipeInternalError[T any]() *shared.PipeRes[T] {
-	return pipeError[T](messages.Internal_Error)
 }
 
 func (p *AuthPipe) sendVerificationOTP(ctx context.Context, user *models.User) error {

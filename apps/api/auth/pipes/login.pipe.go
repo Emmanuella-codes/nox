@@ -12,24 +12,24 @@ func (p *AuthPipe) LoginPipe(ctx context.Context, dto dtos.LoginDTO) *shared.Pip
 	foundUser, err := p.userRepo.FindUserByEmail(ctx, normalizeEmail(dto.Email))
 	if err != nil {
 		logInternalError(err, "login.find_user_by_email")
-		return pipeInternalError[AuthResponse]()
+		return shared.PipeError[AuthResponse](messages.Internal_Error)
 	}
 	if foundUser == nil {
 		p.hashService.CompareDummyPassword(dto.Password)
-		return pipeError[AuthResponse](messages.Invalid_Credentials)
+		return shared.PipeError[AuthResponse](messages.Invalid_Credentials)
 	}
 	if !p.hashService.ComparePassword(foundUser.Password, dto.Password) {
-		return pipeError[AuthResponse](messages.Invalid_Credentials)
+		return shared.PipeError[AuthResponse](messages.Invalid_Credentials)
 	}
 	if !foundUser.EmailVerified {
-		return pipeError[AuthResponse](messages.Email_Not_Verified)
+		return shared.PipeError[AuthResponse](messages.Email_Not_Verified)
 	}
 
 	tokens, err := p.issueTokenPair(ctx, foundUser.ID)
 	if err != nil {
 		logInternalError(err, "login.issue_token_pair")
-		return pipeInternalError[AuthResponse]()
+		return shared.PipeError[AuthResponse](messages.Internal_Error)
 	}
 
-	return pipeSuccess(messages.User_Logged_In, authResponse(foundUser, tokens))
+	return shared.PipeSuccess(messages.User_Logged_In, authResponse(foundUser, tokens))
 }

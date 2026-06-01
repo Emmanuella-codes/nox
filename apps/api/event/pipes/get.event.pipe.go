@@ -14,9 +14,9 @@ func (p *EventPipe) GetEventPipe(ctx context.Context, eventID uuid.UUID) *shared
 	event, err := p.eventRepo.FindEventByID(ctx, eventID)
 	if err != nil {
 		if err == event_repo.ErrEventNotFound {
-			return pipeError[models.Event](messages.Event_Not_Found)
+			return shared.PipeError[models.Event](messages.Event_Not_Found)
 		}
 		return pipeInternalError[models.Event](err, "event.get")
 	}
-	return pipeSuccess(messages.Event_Fetched, event)
+	return shared.PipeSuccess(messages.Event_Fetched, event)
 }

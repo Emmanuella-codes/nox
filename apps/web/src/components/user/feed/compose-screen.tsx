@@ -6,7 +6,7 @@ import { Ghost, User, Image as ImageIcon, Music, MapPin, X, Tag } from "lucide-r
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { createPost } from "@/src/utils/api/user/post";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
-import { getAccessToken } from "@/src/utils/auth/session";
+import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import { ApiRequestError } from "@/src/utils/api/api";
 import type { Persona } from "@/src/types/api/persona";
 
@@ -30,8 +30,13 @@ export function ComposeScreen() {
       try {
         const res = await getMyPersonas(token);
         const visiblePersonas = res.data ?? [];
+        const activePersonaID = getActivePersonaID();
+        const selectedPersona = visiblePersonas.find((persona) => persona.id === activePersonaID) ?? visiblePersonas[0];
         setPersonas(visiblePersonas);
-        setPersonaID(visiblePersonas[0]?.id ?? "");
+        if (selectedPersona) {
+          setActivePersonaID(selectedPersona.id);
+        }
+        setPersonaID(selectedPersona?.id ?? "");
       } catch {
         setPersonas([]);
       }

@@ -7,9 +7,17 @@ interface PersonaCardProps {
   persona: Persona;
   onPress?: () => void;
   showFollow?: boolean;
+  isFollowing?: boolean;
+  onFollow?: (persona: Persona) => void;
 }
 
-export function PersonaCard({ persona, onPress, showFollow = false }: PersonaCardProps) {
+export function PersonaCard({
+  persona,
+  onPress,
+  showFollow = false,
+  isFollowing = false,
+  onFollow,
+}: PersonaCardProps) {
   return (
     <div
       className="flex items-center gap-3 px-4 py-3 transition active:bg-(--nox-surface)"
@@ -44,14 +52,17 @@ export function PersonaCard({ persona, onPress, showFollow = false }: PersonaCar
       {showFollow && (
         <button
           type="button"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onFollow?.(persona);
+          }}
           className="shrink-0 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition hover:border-(--nox-accent) hover:text-(--nox-accent)"
           style={{
-            borderColor: "var(--nox-border-strong)",
-            color: "var(--nox-ink-mid)",
+            borderColor: isFollowing ? "var(--nox-accent-line)" : "var(--nox-border-strong)",
+            color: isFollowing ? "var(--nox-accent-ink)" : "var(--nox-ink-mid)",
           }}
         >
-          follow
+          {isFollowing ? "following" : "follow"}
         </button>
       )}
     </div>

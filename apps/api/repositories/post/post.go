@@ -14,10 +14,13 @@ var ErrPostNotFound = errors.New("post not found")
 
 type PostRepository interface {
 	CreatePost(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO) (*models.Post, error)
+	CreatePostWithHashtags(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO, tags []string) (*models.Post, error)
 	FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error)
 	FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
 	FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
+	FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
 	DeletePost(ctx context.Context, postID uuid.UUID) error
+	DeletePostWithHashtags(ctx context.Context, postID uuid.UUID) error
 }
 
 func NewPostRepository(db *pgxpool.Pool) PostRepository {

@@ -12,3 +12,7 @@ export function createPersona(payload: CreatePersonaRequest, token: string) {
 export function getMyPersonas(token: string) {
   return apiRequest<Persona[]>("/personas/me", { token });
 }
+
+export function getPersona(personaID: string) {
+  return apiRequest<Persona>(`/personas/${personaID}`);
+}

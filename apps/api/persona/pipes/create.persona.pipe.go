@@ -19,25 +19,25 @@ func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, d
 	dto.CoverURL = strings.TrimSpace(dto.CoverURL)
 
 	if !validPersonaType(dto.PersonaType) {
-		return pipeError[models.Persona](messages.Invalid_Persona_Type)
+		return shared.PipeError[models.Persona](messages.Invalid_Persona_Type)
 	}
 
 	dto.Handle = strings.ToLower(strings.TrimSpace(dto.Handle))
 	if dto.Handle == "" {
-		return pipeError[models.Persona](messages.Handle_Required)
+		return shared.PipeError[models.Persona](messages.Handle_Required)
 	}
 
 	persona, err := p.repo.CreatePersona(ctx, userID, dto)
 	if err != nil {
 		switch err {
 		case persona_repo.ErrHandleAlreadyTaken:
-			return pipeError[models.Persona](messages.Handle_Already_Taken)
+			return shared.PipeError[models.Persona](messages.Handle_Already_Taken)
 		case persona_repo.ErrGhostPersonaAlreadyUsed:
-			return pipeError[models.Persona](messages.Ghost_Persona_Already_Set)
+			return shared.PipeError[models.Persona](messages.Ghost_Persona_Already_Set)
 		default:
 			return pipeInternalError[models.Persona](err, "persona.create")
 		}
 	}
 
-	return pipeSuccess(messages.Persona_Created, persona)
+	return shared.PipeSuccess(messages.Persona_Created, persona)
 }

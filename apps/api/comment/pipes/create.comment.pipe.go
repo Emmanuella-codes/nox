@@ -17,7 +17,7 @@ func (p *CommentPipe) CreateCommentPipe(ctx context.Context, userID uuid.UUID, p
 	dto.Body = strings.TrimSpace(dto.Body)
 	if _, err := p.postRepo.FindPostByID(ctx, postID); err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[models.Comment](messages.Post_Not_Found)
+			return shared.PipeError[models.Comment](messages.Post_Not_Found)
 		}
 		return pipeInternalError[models.Comment](err, "comment.find_post")
 	}
@@ -25,12 +25,12 @@ func (p *CommentPipe) CreateCommentPipe(ctx context.Context, userID uuid.UUID, p
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.PersonaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[models.Comment](messages.Persona_Not_Found)
+			return shared.PipeError[models.Comment](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[models.Comment](err, "comment.find_persona")
 	}
 	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
-		return pipeError[models.Comment](messages.Forbidden)
+		return shared.PipeError[models.Comment](messages.Forbidden)
 	}
 
 	comment, err := p.commentRepo.CreateComment(ctx, postID, dto)
@@ -38,5 +38,5 @@ func (p *CommentPipe) CreateCommentPipe(ctx context.Context, userID uuid.UUID, p
 		return pipeInternalError[models.Comment](err, "comment.create")
 	}
 
-	return pipeSuccess(messages.Comment_Created, comment)
+	return shared.PipeSuccess(messages.Comment_Created, comment)
 }

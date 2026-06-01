@@ -15,7 +15,7 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	post, err := p.postRepo.FindPostByID(ctx, postID)
 	if err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[PostResponse](messages.Post_Not_Found)
+			return shared.PipeError[PostResponse](messages.Post_Not_Found)
 		}
 		return pipeInternalError[PostResponse](err, "post.get")
 	}
@@ -26,7 +26,14 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	}
 
 	response := postResponse(post, persona)
-	return pipeSuccess(messages.Post_Fetched, &response)
+	if p.hashtagRepo != nil {
+		tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, []uuid.UUID{post.ID})
+		if err != nil {
+			return pipeInternalError[PostResponse](err, "post.get_hashtags")
+		}
+		response.Hashtags = tags[post.ID]
+	}
+	return shared.PipeSuccess(messages.Post_Fetched, &response)
 }
 
 func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[PostResponse] {
@@ -46,7 +53,7 @@ func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, v
 func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[[]PostResponse](err, "post.find_persona")
 	}
@@ -62,7 +69,10 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 	}
 
 	responses := postResponses(posts, personas)
-	return pipeSuccess(messages.Posts_Listed, &responses)
+	if err := p.hydrateHashtags(ctx, responses); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.persona_posts_hashtags")
+	}
+	return shared.PipeSuccess(messages.Posts_Listed, &responses)
 }
 
 func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID uuid.UUID, viewerPersonaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
@@ -80,7 +90,7 @@ func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID u
 func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return pipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_feed")
 	}
@@ -96,12 +106,45 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 	}
 
 	responses := postResponses(posts, personas)
+	if err := p.hydrateHashtags(ctx, responses); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.feed_hashtags")
+	}
 	if p.likeRepo != nil {
 		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
 			return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
 		}
 	}
-	return pipeSuccess(messages.Feed_Listed, &responses)
+	return shared.PipeSuccess(messages.Feed_Listed, &responses)
+}
+
+func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_following_feed")
+	}
+
+	posts, err := p.postRepo.FindFollowingFeedPosts(ctx, personaID, limit)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.following_feed")
+	}
+
+	personas, pipeErr := p.publicPostPersonas(ctx, posts)
+	if pipeErr != nil {
+		return pipeErr
+	}
+
+	responses := postResponses(posts, personas)
+	if err := p.hydrateHashtags(ctx, responses); err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.following_feed_hashtags")
+	}
+	if p.likeRepo != nil {
+		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
+			return pipeInternalError[[]PostResponse](err, "post.following_feed_like_status")
+		}
+	}
+	return shared.PipeSuccess(messages.Feed_Listed, &responses)
 }
 
 func (p *PostPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
@@ -126,7 +169,7 @@ func (p *PostPipe) publicPostPersona(ctx context.Context, post *models.Post) (*m
 	persona, err := p.personaRepo.FindPersonaByID(ctx, *post.PersonaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return nil, pipeError[PostResponse](messages.Persona_Not_Found)
+			return nil, shared.PipeError[PostResponse](messages.Persona_Not_Found)
 		}
 		return nil, pipeInternalError[PostResponse](err, "post.find_public_persona")
 	}
@@ -148,7 +191,7 @@ func (p *PostPipe) publicPostPersonas(ctx context.Context, posts []*models.Post)
 		persona, err := p.personaRepo.FindPersonaByID(ctx, *post.PersonaID)
 		if err != nil {
 			if err == persona_repo.ErrPersonaNotFound {
-				return nil, pipeError[[]PostResponse](messages.Persona_Not_Found)
+				return nil, shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 			}
 			return nil, pipeInternalError[[]PostResponse](err, "post.find_public_persona")
 		}
@@ -179,6 +222,30 @@ func (p *PostPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.U
 	for i := range responses {
 		postID := postIDs[i]
 		responses[i].IsLiked = liked[postID]
+	}
+	return nil
+}
+
+func (p *PostPipe) hydrateHashtags(ctx context.Context, responses []PostResponse) error {
+	if p.hashtagRepo == nil || len(responses) == 0 {
+		return nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(responses))
+	for _, response := range responses {
+		postID, err := uuid.Parse(response.ID)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, postID)
+	}
+
+	tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range responses {
+		responses[i].Hashtags = tags[ids[i]]
 	}
 	return nil
 }

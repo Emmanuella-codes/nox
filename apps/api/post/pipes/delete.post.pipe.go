@@ -13,21 +13,21 @@ func (p *PostPipe) DeletePostPipe(ctx context.Context, userID uuid.UUID, postID 
 	post, err := p.postRepo.FindPostByID(ctx, postID)
 	if err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[any](messages.Post_Not_Found)
+			return shared.PipeError[any](messages.Post_Not_Found)
 		}
 		return pipeInternalError[any](err, "post.find_for_delete")
 	}
 
 	if post.AuthorUserID != userID {
-		return pipeError[any](messages.Forbidden)
+		return shared.PipeError[any](messages.Forbidden)
 	}
 
-	if err := p.postRepo.DeletePost(ctx, postID); err != nil {
+	if err := p.postRepo.DeletePostWithHashtags(ctx, postID); err != nil {
 		if err == post_repo.ErrPostNotFound {
-			return pipeError[any](messages.Post_Not_Found)
+			return shared.PipeError[any](messages.Post_Not_Found)
 		}
 		return pipeInternalError[any](err, "post.delete")
 	}
 
-	return pipeSuccess[any](messages.Post_Deleted, nil)
+	return shared.PipeSuccess[any](messages.Post_Deleted, nil)
 }

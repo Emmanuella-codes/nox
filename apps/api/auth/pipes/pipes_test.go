@@ -12,7 +12,7 @@ import (
 	"github.com/emmanuella-codes/nox/auth/services"
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/models"
-	userrepo "github.com/emmanuella-codes/nox/repositories/user"
+	user_repo "github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -64,7 +64,7 @@ func TestSignupPipeReturnsAlreadyExistsWhenEmailExists(t *testing.T) {
 
 func TestSignupPipeMapsUniqueConstraintRaceToAlreadyExists(t *testing.T) {
 	repo := newPipeTestUserRepo()
-	repo.createErr = userrepo.ErrUserAlreadyExists
+	repo.createErr = user_repo.ErrUserAlreadyExists
 	pipe, _ := newPipeTestAuthPipe(t, repo, &pipeTestMailProvider{})
 
 	res := pipe.SignupPipe(context.Background(), signupTestDTO("ada@example.com"))

@@ -1,11 +1,16 @@
 package models
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Hashtag struct {
 	ID        uuid.UUID `json:"id"`
 	Tag       string    `json:"tag"`
 	PostCount int       `json:"post_count"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type PostHashtag struct {

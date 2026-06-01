@@ -16,5 +16,5 @@ func (p *LikePipe) UnlikePostPipe(ctx context.Context, userID uuid.UUID, postID 
 	if err := p.likeRepo.UnlikePost(ctx, dto.PersonaID, postID); err != nil {
 		return pipeInternalError[any](err, "unlike.post")
 	}
-	return pipeSuccess[any](messages.Post_Unliked, nil)
+	return shared.PipeSuccess[any](messages.Post_Unliked, nil)
 }

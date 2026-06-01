@@ -46,5 +46,11 @@ func PostRoutes(controller *controllers.PostController, cfg *config.Config, pers
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg), middleware.RequirePersonaOwner(personaRepo)},
 			Handler:     controller.GetFeed,
 		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/persona/:personaID/following-feed",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg), middleware.RequirePersonaOwner(personaRepo)},
+			Handler:     controller.GetFollowingFeed,
+		},
 	}
 }

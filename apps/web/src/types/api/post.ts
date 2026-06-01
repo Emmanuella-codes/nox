@@ -24,6 +24,7 @@ export interface Post {
   is_liked: boolean;
   is_repost: boolean;
   repost_of?: string;
+  hashtags: string[];
   created_at: string;
 }
 

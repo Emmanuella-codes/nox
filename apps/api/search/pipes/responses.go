@@ -16,6 +16,7 @@ type SearchResponse struct {
 	Personas   []SearchPersonaResponse `json:"personas"`
 	Posts      []SearchPostResponse    `json:"posts"`
 	Events     []SearchEventResponse   `json:"events"`
+	Hashtags   []SearchHashtagResponse `json:"hashtags"`
 }
 
 type SearchPersonaResponse struct {
@@ -29,6 +30,7 @@ type SearchPersonaResponse struct {
 	GenreTags      []string  `json:"genre_tags"`
 	FollowerCount  int       `json:"follower_count"`
 	FollowingCount int       `json:"following_count"`
+	IsFollowing    bool      `json:"is_following"`
 	PostCount      int       `json:"post_count"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -49,6 +51,7 @@ type SearchPostResponse struct {
 	IsLiked      bool             `json:"is_liked"`
 	IsRepost     bool             `json:"is_repost"`
 	RepostOf     *string          `json:"repost_of,omitempty"`
+	Hashtags     []string         `json:"hashtags"`
 	CreatedAt    time.Time        `json:"created_at"`
 }
 
@@ -80,6 +83,13 @@ type SearchEventResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type SearchHashtagResponse struct {
+	ID        string    `json:"id"`
+	Tag       string    `json:"tag"`
+	PostCount int       `json:"post_count"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 	responses := make([]SearchPersonaResponse, 0, len(personas))
 	for _, persona := range personas {
@@ -94,6 +104,7 @@ func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 			GenreTags:      persona.GenreTags,
 			FollowerCount:  persona.FollowerCount,
 			FollowingCount: persona.FollowingCount,
+			IsFollowing:    false,
 			PostCount:      persona.PostCount,
 			CreatedAt:      persona.CreatedAt,
 			UpdatedAt:      persona.UpdatedAt,
@@ -119,6 +130,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 			RepostCount:  post.RepostCount,
 			IsLiked:      false,
 			IsRepost:     post.IsRepost,
+			Hashtags:     []string{},
 			CreatedAt:    post.CreatedAt,
 		}
 		if post.EventID != nil {
@@ -167,6 +179,19 @@ func eventResponses(events []*models.Event) []SearchEventResponse {
 			GenreTags:   event.GenreTags,
 			OrganizerID: event.OrganizerID.String(),
 			CreatedAt:   event.CreatedAt,
+		})
+	}
+	return responses
+}
+
+func hashtagResponses(hashtags []*models.Hashtag) []SearchHashtagResponse {
+	responses := make([]SearchHashtagResponse, 0, len(hashtags))
+	for _, hashtag := range hashtags {
+		responses = append(responses, SearchHashtagResponse{
+			ID:        hashtag.ID.String(),
+			Tag:       hashtag.Tag,
+			PostCount: hashtag.PostCount,
+			CreatedAt: hashtag.CreatedAt,
 		})
 	}
 	return responses
