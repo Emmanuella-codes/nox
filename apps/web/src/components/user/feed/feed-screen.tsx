@@ -38,9 +38,7 @@ export function FeedScreen() {
       }
 
       if (tab === "sets") {
-        setPosts([]);
-        setMessage("Set archive coming soon.");
-        setLoading(false);
+        router.push("/sets");
         return;
       }
 

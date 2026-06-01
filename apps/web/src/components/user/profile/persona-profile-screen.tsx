@@ -164,13 +164,24 @@ export function PersonaProfileScreen({ personaID }: PersonaProfileScreenProps) {
             )}
 
             {isOwnProfile && (
-              <button
-                type="button"
-                onClick={() => router.push("/settings")}
-                className="mb-1 rounded-[10px] border border-(--nox-border-strong) px-4 py-1.5 text-[13px] font-semibold text-(--nox-ink) transition hover:border-(--nox-accent)"
-              >
-                edit profile
-              </button>
+              <div className="mb-1 flex gap-2">
+                {persona?.category === "dj" ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/sets/create")}
+                    className="rounded-[8px] border border-(--nox-accent-line) px-3 py-1.5 text-[12px] font-semibold text-(--nox-accent-ink) transition hover:border-(--nox-accent)"
+                  >
+                    new set
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => router.push("/settings")}
+                  className="rounded-[8px] border border-(--nox-border-strong) px-3 py-1.5 text-[12px] font-semibold text-(--nox-ink) transition hover:border-(--nox-accent)"
+                >
+                  edit
+                </button>
+              </div>
             )}
           </div>
 
@@ -184,6 +195,9 @@ export function PersonaProfileScreen({ personaID }: PersonaProfileScreenProps) {
               <div className="mt-3">
                 <h1 className="text-[20px] font-bold tracking-[-0.03em] text-(--nox-ink)">{persona.display_name}</h1>
                 <p className="text-[13px] text-(--nox-ink-soft)">@{persona.handle}</p>
+                <p className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-(--nox-accent-ink)">
+                  {persona.category}
+                </p>
               </div>
 
               {persona.bio && (
