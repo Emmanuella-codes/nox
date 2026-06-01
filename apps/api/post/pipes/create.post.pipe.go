@@ -44,16 +44,10 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 		dto.PersonaID = nil
 	}
 
-	post, err := p.postRepo.CreatePost(ctx, userID, dto)
+	tags := hashtag_repo.ExtractTags(dto.Body)
+	post, err := p.postRepo.CreatePostWithHashtags(ctx, userID, dto, tags)
 	if err != nil {
 		return pipeInternalError[PostResponse](err, "post.create")
-	}
-
-	tags := hashtag_repo.ExtractTags(dto.Body)
-	if p.hashtagRepo != nil {
-		if err := p.hashtagRepo.SyncPostHashtags(ctx, post.ID, tags); err != nil {
-			return pipeInternalError[PostResponse](err, "post.sync_hashtags")
-		}
 	}
 
 	response := postResponse(post, persona)

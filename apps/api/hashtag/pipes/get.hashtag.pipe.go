@@ -23,9 +23,10 @@ func (p *HashtagPipe) GetHashtagPipe(ctx context.Context, tag string) *shared.Pi
 	if err != nil {
 		return pipeInternalError[HashtagDetailResponse](err, "hashtag.get")
 	}
-	response := HashtagDetailResponse{Tag: normalized}
-	if hashtag != nil {
-		response.PostCount = hashtag.PostCount
+	if hashtag == nil {
+		return shared.PipeError[HashtagDetailResponse](messages.Hashtag_Not_Found)
 	}
+	response := HashtagDetailResponse{Tag: normalized}
+	response.PostCount = hashtag.PostCount
 	return shared.PipeSuccess(messages.Hashtag_Fetched, &response)
 }

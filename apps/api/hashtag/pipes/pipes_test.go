@@ -53,6 +53,15 @@ func TestGetHashtagPipeRejectsInvalidTag(t *testing.T) {
 	}
 }
 
+func TestGetHashtagPipeReturnsNotFoundForUnknownTag(t *testing.T) {
+	pipe := NewHashtagPipe(&hashtagTestRepo{})
+
+	res := pipe.GetHashtagPipe(context.Background(), "missing")
+	if res.Message != messages.Hashtag_Not_Found {
+		t.Fatalf("expected %q, got %q", messages.Hashtag_Not_Found, res.Message)
+	}
+}
+
 func TestPostsByTagPipeReturnsPostResponses(t *testing.T) {
 	personaID := uuid.New()
 	postID := uuid.New()

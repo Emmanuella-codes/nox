@@ -48,8 +48,8 @@ func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 
 func TestCreatePostPipeSyncsExtractedHashtags(t *testing.T) {
 	userID := uuid.New()
-	hashtagRepo := &postTestHashtagRepo{}
-	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{}, hashtagRepo)
+	postRepo := &postTestRepo{}
+	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{}, &postTestHashtagRepo{})
 
 	res := pipe.CreatePostPipe(context.Background(), userID, postdtos.CreatePostDTO{
 		PostingMode: models.AnonymousPostingMode,
@@ -59,11 +59,11 @@ func TestCreatePostPipeSyncsExtractedHashtags(t *testing.T) {
 	if !res.Success {
 		t.Fatalf("expected success, got %q", res.Message)
 	}
-	if len(hashtagRepo.syncedTags) != 2 {
-		t.Fatalf("expected 2 synced tags, got %v", hashtagRepo.syncedTags)
+	if len(postRepo.createdTags) != 2 {
+		t.Fatalf("expected 2 synced tags, got %v", postRepo.createdTags)
 	}
-	if hashtagRepo.syncedTags[0] != "amapiano" || hashtagRepo.syncedTags[1] != "afro-house" {
-		t.Fatalf("unexpected synced tags: %v", hashtagRepo.syncedTags)
+	if postRepo.createdTags[0] != "amapiano" || postRepo.createdTags[1] != "afro-house" {
+		t.Fatalf("unexpected synced tags: %v", postRepo.createdTags)
 	}
 	if len(res.Data.Hashtags) != 2 {
 		t.Fatalf("expected response hashtags, got %v", res.Data.Hashtags)
@@ -109,7 +109,6 @@ func TestCreatePostPipeRejectsNonOwnedPublicPersona(t *testing.T) {
 func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 	userID := uuid.New()
 	postID := uuid.New()
-	hashtagRepo := &postTestHashtagRepo{}
 	postRepo := &postTestRepo{
 		posts: map[string]*models.Post{
 			postID.String(): {
@@ -119,7 +118,7 @@ func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 			},
 		},
 	}
-	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{}, hashtagRepo)
+	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{}, &postTestHashtagRepo{})
 
 	res := pipe.DeletePostPipe(context.Background(), userID, postID)
 	if !res.Success {
@@ -128,8 +127,8 @@ func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 	if postRepo.deletedPostID != postID {
 		t.Fatalf("expected deleted post %s, got %s", postID, postRepo.deletedPostID)
 	}
-	if hashtagRepo.deletedPostID != postID {
-		t.Fatalf("expected hashtag cleanup for %s, got %s", postID, hashtagRepo.deletedPostID)
+	if !postRepo.deletedWithHashtags {
+		t.Fatal("expected atomic hashtag cleanup delete path")
 	}
 }
 
@@ -269,7 +268,9 @@ type postTestRepo struct {
 	followingFeedPosts  []*models.Post
 	createdAuthorUserID uuid.UUID
 	createdDTO          postdtos.CreatePostDTO
+	createdTags         []string
 	deletedPostID       uuid.UUID
+	deletedWithHashtags bool
 }
 
 func (r *postTestRepo) CreatePost(ctx context.Context, authorUserID uuid.UUID, dto postdtos.CreatePostDTO) (*models.Post, error) {
@@ -287,6 +288,11 @@ func (r *postTestRepo) CreatePost(ctx context.Context, authorUserID uuid.UUID, d
 		MediaType:    dto.MediaType,
 		Location:     dto.Location,
 	}, nil
+}
+
+func (r *postTestRepo) CreatePostWithHashtags(ctx context.Context, authorUserID uuid.UUID, dto postdtos.CreatePostDTO, tags []string) (*models.Post, error) {
+	r.createdTags = tags
+	return r.CreatePost(ctx, authorUserID, dto)
 }
 
 func (r *postTestRepo) FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error) {
@@ -312,6 +318,11 @@ func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uui
 func (r *postTestRepo) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	r.deletedPostID = postID
 	return nil
+}
+
+func (r *postTestRepo) DeletePostWithHashtags(ctx context.Context, postID uuid.UUID) error {
+	r.deletedWithHashtags = true
+	return r.DeletePost(ctx, postID)
 }
 
 type postTestPersonaRepo struct {

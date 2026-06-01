@@ -4,6 +4,7 @@ import "github.com/emmanuella-codes/nox/shared"
 
 const (
 	Invalid_Tag       shared.PipeMessage = "invalid_hashtag"
+	Hashtag_Not_Found shared.PipeMessage = "hashtag_not_found"
 	Persona_Not_Found shared.PipeMessage = "persona_not_found"
 	Forbidden         shared.PipeMessage = "forbidden"
 	Internal_Error    shared.PipeMessage = "internal_error"
