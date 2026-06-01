@@ -38,6 +38,7 @@ import (
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
@@ -51,6 +52,11 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	})
 
 	app.Use(middleware.Logger())
+
+	app.Use(cors.New(cors.Config{
+		AllowMethods: "GET,POST,PUT,PATCH,OPTIONS,DELETE",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
 
 	mailProvider := mail.NewBrevoProvider(mail.BrevoConfig{
 		APIKey:      cfg.BrevoAPIKey,
