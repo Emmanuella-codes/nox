@@ -23,11 +23,11 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 func (r *pgRepository) CreatePersona(ctx context.Context, userID uuid.UUID, dto dtos.CreatePersonaDTO) (*models.Persona, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO personas (
-			user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
+			user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		          follower_count, following_count, post_count, created_at, updated_at
-	`, userID, dto.Handle, dto.DisplayName, dto.Bio, dto.AvatarURL, dto.CoverURL, dto.PersonaType, dto.GenreTags)
+	`, userID, dto.Handle, dto.DisplayName, dto.Bio, dto.AvatarURL, dto.CoverURL, dto.PersonaType, dto.Category, dto.GenreTags)
 
 	persona, err := scanPersona(row)
 	if err != nil {
@@ -39,7 +39,7 @@ func (r *pgRepository) CreatePersona(ctx context.Context, userID uuid.UUID, dto 
 
 func (r *pgRepository) FindPersonaByID(ctx context.Context, personaID uuid.UUID) (*models.Persona, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
+		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
 		WHERE id = $1
@@ -55,7 +55,7 @@ func (r *pgRepository) FindPersonaByID(ctx context.Context, personaID uuid.UUID)
 
 func (r *pgRepository) FindPersonasByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Persona, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
+		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
 		WHERE user_id = $1
@@ -84,7 +84,7 @@ func (r *pgRepository) FindPersonasByUserID(ctx context.Context, userID uuid.UUI
 
 func (r *pgRepository) FindPersonaByHandle(ctx context.Context, handle string) (*models.Persona, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
+		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
 		WHERE handle = $1
@@ -105,12 +105,13 @@ func (r *pgRepository) UpdatePersona(ctx context.Context, personaID uuid.UUID, d
 		    bio = $3,
 		    avatar_url = $4,
 		    cover_url = $5,
-		    genre_tags = $6,
+		    category = $6,
+		    genre_tags = $7,
 		    updated_at = now()
 		WHERE id = $1
-		RETURNING id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
+		RETURNING id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		          follower_count, following_count, post_count, created_at, updated_at
-	`, personaID, dto.DisplayName, dto.Bio, dto.AvatarURL, dto.CoverURL, dto.GenreTags)
+	`, personaID, dto.DisplayName, dto.Bio, dto.AvatarURL, dto.CoverURL, dto.Category, dto.GenreTags)
 
 	persona, err := scanPersona(row)
 	if err != nil {
@@ -135,6 +136,7 @@ func scanPersona(scanner personaScanner) (*models.Persona, error) {
 		&persona.AvatarURL,
 		&persona.CoverURL,
 		&persona.PersonaType,
+		&persona.Category,
 		&persona.GenreTags,
 		&persona.FollowerCount,
 		&persona.FollowingCount,

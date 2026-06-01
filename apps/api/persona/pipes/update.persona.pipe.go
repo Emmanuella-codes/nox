@@ -22,6 +22,12 @@ func (p *PersonaPipe) UpdatePersonaPipe(ctx context.Context, userID uuid.UUID, p
 	dto.Bio = strings.TrimSpace(dto.Bio)
 	dto.AvatarURL = strings.TrimSpace(dto.AvatarURL)
 	dto.CoverURL = strings.TrimSpace(dto.CoverURL)
+	if dto.Category == "" {
+		dto.Category = ownedPersona.Category
+	}
+	if !validPersonaCategory(dto.Category) {
+		return shared.PipeError[models.Persona](messages.Invalid_Persona_Type)
+	}
 
 	persona, err := p.repo.UpdatePersona(ctx, ownedPersona.ID, dto)
 	if err != nil {

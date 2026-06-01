@@ -24,6 +24,9 @@ import (
 	like_controllers "github.com/emmanuella-codes/nox/like/controllers"
 	like_pipes "github.com/emmanuella-codes/nox/like/pipes"
 	like_routers "github.com/emmanuella-codes/nox/like/routers"
+	media_controllers "github.com/emmanuella-codes/nox/media/controllers"
+	media_pipes "github.com/emmanuella-codes/nox/media/pipes"
+	media_routers "github.com/emmanuella-codes/nox/media/routers"
 	"github.com/emmanuella-codes/nox/middleware"
 	persona_controllers "github.com/emmanuella-codes/nox/persona/controllers"
 	persona_pipes "github.com/emmanuella-codes/nox/persona/pipes"
@@ -35,6 +38,9 @@ import (
 	search_controllers "github.com/emmanuella-codes/nox/search/controllers"
 	search_pipes "github.com/emmanuella-codes/nox/search/pipes"
 	search_routers "github.com/emmanuella-codes/nox/search/routers"
+	set_controllers "github.com/emmanuella-codes/nox/set/controllers"
+	set_pipes "github.com/emmanuella-codes/nox/set/pipes"
+	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/gofiber/fiber/v2"
@@ -88,6 +94,8 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow))
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like))
+	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona))
+	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 
 	api := app.Group("/api/v1")
 
@@ -100,6 +108,8 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
+	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))
+	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
 
 	go func() {
 		<-ctx.Done()

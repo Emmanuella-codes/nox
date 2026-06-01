@@ -6,6 +6,7 @@ export interface Persona {
   avatar_url: string;
   cover_url: string;
   persona_type: "visible";
+  category: "fan" | "dj" | "organizer" | "creator";
   genre_tags: string[];
   follower_count: number;
   following_count: number;
@@ -34,5 +35,6 @@ export interface CreatePersonaRequest {
   avatar_url: string;
   cover_url: string;
   persona_type: "visible";
+  category: "socialite" | "dj" | "organizer" | "creator";
   genre_tags: string[];
 }

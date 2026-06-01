@@ -120,7 +120,7 @@ func (r *pgRepository) FindFollowingIDs(ctx context.Context, followerID uuid.UUI
 func (r *pgRepository) FindFollowers(ctx context.Context, personaID uuid.UUID, options ListOptions) ([]*models.Persona, error) {
 	options = NormalizeListOptions(options)
 	rows, err := r.db.Query(ctx, `
-		SELECT p.id, p.user_id, p.handle, p.display_name, p.bio, p.avatar_url, p.cover_url, p.persona_type,
+		SELECT p.id, p.user_id, p.handle, p.display_name, p.bio, p.avatar_url, p.cover_url, p.persona_type, p.category,
 		       p.genre_tags, p.follower_count, p.following_count, p.post_count, p.created_at, p.updated_at
 		FROM persona_follows pf
 		INNER JOIN personas p ON p.id = pf.follower_id
@@ -140,7 +140,7 @@ func (r *pgRepository) FindFollowers(ctx context.Context, personaID uuid.UUID, o
 func (r *pgRepository) FindFollowing(ctx context.Context, personaID uuid.UUID, options ListOptions) ([]*models.Persona, error) {
 	options = NormalizeListOptions(options)
 	rows, err := r.db.Query(ctx, `
-		SELECT p.id, p.user_id, p.handle, p.display_name, p.bio, p.avatar_url, p.cover_url, p.persona_type,
+		SELECT p.id, p.user_id, p.handle, p.display_name, p.bio, p.avatar_url, p.cover_url, p.persona_type, p.category,
 		       p.genre_tags, p.follower_count, p.following_count, p.post_count, p.created_at, p.updated_at
 		FROM persona_follows pf
 		INNER JOIN personas p ON p.id = pf.following_id
@@ -190,6 +190,7 @@ func scanPersona(scanner personaScanner) (*models.Persona, error) {
 		&persona.AvatarURL,
 		&persona.CoverURL,
 		&persona.PersonaType,
+		&persona.Category,
 		&persona.GenreTags,
 		&persona.FollowerCount,
 		&persona.FollowingCount,

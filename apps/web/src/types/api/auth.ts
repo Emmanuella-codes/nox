@@ -15,6 +15,7 @@ export interface SignupRequest {
   lastname: string;
   email: string;
   password: string;
+  category?: "fan" | "dj" | "organizer" | "creator";
 }
 
 export interface AuthUser {

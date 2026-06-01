@@ -26,6 +26,15 @@ func validPersonaType(personaType models.PersonaType) bool {
 	return personaType == models.VisiblePersonaType
 }
 
+func validPersonaCategory(category models.PersonaCategory) bool {
+	switch category {
+	case models.FanPersonaCategory, models.DJPersonaCategory, models.OrganizerPersonaCategory, models.CreatorPersonaCategory:
+		return true
+	default:
+		return false
+	}
+}
+
 func (p *PersonaPipe) ensureOwnedPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[models.Persona]) {
 	persona, err := p.repo.FindPersonaByID(ctx, personaID)
 	if err != nil {

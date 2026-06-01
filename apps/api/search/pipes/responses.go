@@ -27,6 +27,7 @@ type SearchPersonaResponse struct {
 	AvatarURL      string    `json:"avatar_url"`
 	CoverURL       string    `json:"cover_url"`
 	PersonaType    string    `json:"persona_type"`
+	Category       string    `json:"category"`
 	GenreTags      []string  `json:"genre_tags"`
 	FollowerCount  int       `json:"follower_count"`
 	FollowingCount int       `json:"following_count"`
@@ -101,6 +102,7 @@ func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 			AvatarURL:      persona.AvatarURL,
 			CoverURL:       persona.CoverURL,
 			PersonaType:    string(persona.PersonaType),
+			Category:       string(persona.Category),
 			GenreTags:      persona.GenreTags,
 			FollowerCount:  persona.FollowerCount,
 			FollowingCount: persona.FollowingCount,

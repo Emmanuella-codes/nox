@@ -30,20 +30,21 @@ type FollowListResponse struct {
 }
 
 type FollowPersonaResponse struct {
-	ID             string             `json:"id"`
-	Handle         string             `json:"handle"`
-	DisplayName    string             `json:"display_name"`
-	Bio            string             `json:"bio"`
-	AvatarURL      string             `json:"avatar_url"`
-	CoverURL       string             `json:"cover_url"`
-	PersonaType    models.PersonaType `json:"persona_type"`
-	GenreTags      []string           `json:"genre_tags"`
-	FollowerCount  int                `json:"follower_count"`
-	FollowingCount int                `json:"following_count"`
-	IsFollowing    bool               `json:"is_following"`
-	PostCount      int                `json:"post_count"`
-	CreatedAt      time.Time          `json:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at"`
+	ID             string                 `json:"id"`
+	Handle         string                 `json:"handle"`
+	DisplayName    string                 `json:"display_name"`
+	Bio            string                 `json:"bio"`
+	AvatarURL      string                 `json:"avatar_url"`
+	CoverURL       string                 `json:"cover_url"`
+	PersonaType    models.PersonaType     `json:"persona_type"`
+	Category       models.PersonaCategory `json:"category"`
+	GenreTags      []string               `json:"genre_tags"`
+	FollowerCount  int                    `json:"follower_count"`
+	FollowingCount int                    `json:"following_count"`
+	IsFollowing    bool                   `json:"is_following"`
+	PostCount      int                    `json:"post_count"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
 }
 
 func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository) *FollowPipe {
@@ -149,6 +150,7 @@ func followPersonaResponses(personas []*models.Persona, following map[uuid.UUID]
 			AvatarURL:      persona.AvatarURL,
 			CoverURL:       persona.CoverURL,
 			PersonaType:    persona.PersonaType,
+			Category:       persona.Category,
 			GenreTags:      persona.GenreTags,
 			FollowerCount:  persona.FollowerCount,
 			FollowingCount: persona.FollowingCount,

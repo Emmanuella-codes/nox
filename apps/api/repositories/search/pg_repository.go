@@ -57,7 +57,7 @@ func (r *pgRepository) Search(ctx context.Context, query string, options Options
 
 func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int, offset int) ([]*models.Persona, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, genre_tags,
+		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
 		WHERE persona_type = 'visible'
@@ -94,6 +94,7 @@ func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit i
 			&persona.AvatarURL,
 			&persona.CoverURL,
 			&persona.PersonaType,
+			&persona.Category,
 			&persona.GenreTags,
 			&persona.FollowerCount,
 			&persona.FollowingCount,
@@ -115,7 +116,7 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int,
 		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at,
 		       pe.id, pe.user_id, COALESCE(pe.handle, ''), COALESCE(pe.display_name, ''),
 		       COALESCE(pe.bio, ''), COALESCE(pe.avatar_url, ''), COALESCE(pe.cover_url, ''),
-		       COALESCE(pe.persona_type, ''), COALESCE(pe.genre_tags, ARRAY[]::text[]),
+		       COALESCE(pe.persona_type, ''), COALESCE(pe.category, 'fan'), COALESCE(pe.genre_tags, ARRAY[]::text[]),
 		       COALESCE(pe.follower_count, 0), COALESCE(pe.following_count, 0), COALESCE(pe.post_count, 0),
 		       COALESCE(pe.created_at, now()), COALESCE(pe.updated_at, now())
 		FROM posts p
@@ -275,6 +276,7 @@ func scanPostResult(scanner postResultScanner) (*PostResult, error) {
 		&persona.AvatarURL,
 		&persona.CoverURL,
 		&persona.PersonaType,
+		&persona.Category,
 		&persona.GenreTags,
 		&persona.FollowerCount,
 		&persona.FollowingCount,
