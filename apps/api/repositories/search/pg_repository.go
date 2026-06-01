@@ -33,8 +33,12 @@ func (r *pgRepository) Search(ctx context.Context, query string, options Options
 	if err != nil {
 		return nil, err
 	}
+	hashtags, err := r.searchHashtags(ctx, query, fetchLimit, normalizedOptions.Offset)
+	if err != nil {
+		return nil, err
+	}
 
-	hasMore := len(personas) > normalizedOptions.Limit || len(posts) > normalizedOptions.Limit || len(events) > normalizedOptions.Limit
+	hasMore := len(personas) > normalizedOptions.Limit || len(posts) > normalizedOptions.Limit || len(events) > normalizedOptions.Limit || len(hashtags) > normalizedOptions.Limit
 	if len(personas) > normalizedOptions.Limit {
 		personas = personas[:normalizedOptions.Limit]
 	}
@@ -44,8 +48,11 @@ func (r *pgRepository) Search(ctx context.Context, query string, options Options
 	if len(events) > normalizedOptions.Limit {
 		events = events[:normalizedOptions.Limit]
 	}
+	if len(hashtags) > normalizedOptions.Limit {
+		hashtags = hashtags[:normalizedOptions.Limit]
+	}
 
-	return &Results{Personas: personas, Posts: posts, Events: events, HasMore: hasMore}, nil
+	return &Results{Personas: personas, Posts: posts, Events: events, Hashtags: hashtags, HasMore: hasMore}, nil
 }
 
 func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int, offset int) ([]*models.Persona, error) {
@@ -192,6 +199,40 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		events = append(events, &event)
 	}
 	return events, rows.Err()
+}
+
+func (r *pgRepository) searchHashtags(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error) {
+	normalizedQuery := normalizeHashtagQuery(query)
+	rows, err := r.db.Query(ctx, `
+		SELECT id, tag, post_count, created_at
+		FROM hashtags
+		WHERE post_count > 0
+		  AND (
+		    tag ILIKE $1
+		    OR similarity(tag, $2) > 0.25
+		  )
+		ORDER BY
+		  CASE WHEN lower(tag) = lower($2) THEN 0 ELSE 1 END,
+		  CASE WHEN tag ILIKE $3 THEN 0 ELSE 1 END,
+		  similarity(tag, $2) DESC,
+		  post_count DESC,
+		  tag ASC
+		LIMIT $4 OFFSET $5
+	`, tagMatchParam(normalizedQuery), normalizedQuery, prefixMatchParam(normalizedQuery), limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var hashtags []*models.Hashtag
+	for rows.Next() {
+		var hashtag models.Hashtag
+		if err := rows.Scan(&hashtag.ID, &hashtag.Tag, &hashtag.PostCount, &hashtag.CreatedAt); err != nil {
+			return nil, err
+		}
+		hashtags = append(hashtags, &hashtag)
+	}
+	return hashtags, rows.Err()
 }
 
 type postResultScanner interface {

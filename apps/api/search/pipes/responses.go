@@ -16,6 +16,7 @@ type SearchResponse struct {
 	Personas   []SearchPersonaResponse `json:"personas"`
 	Posts      []SearchPostResponse    `json:"posts"`
 	Events     []SearchEventResponse   `json:"events"`
+	Hashtags   []SearchHashtagResponse `json:"hashtags"`
 }
 
 type SearchPersonaResponse struct {
@@ -80,6 +81,13 @@ type SearchEventResponse struct {
 	GenreTags   []string  `json:"genre_tags"`
 	OrganizerID string    `json:"organizer_id"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+type SearchHashtagResponse struct {
+	ID        string    `json:"id"`
+	Tag       string    `json:"tag"`
+	PostCount int       `json:"post_count"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
@@ -171,6 +179,19 @@ func eventResponses(events []*models.Event) []SearchEventResponse {
 			GenreTags:   event.GenreTags,
 			OrganizerID: event.OrganizerID.String(),
 			CreatedAt:   event.CreatedAt,
+		})
+	}
+	return responses
+}
+
+func hashtagResponses(hashtags []*models.Hashtag) []SearchHashtagResponse {
+	responses := make([]SearchHashtagResponse, 0, len(hashtags))
+	for _, hashtag := range hashtags {
+		responses = append(responses, SearchHashtagResponse{
+			ID:        hashtag.ID.String(),
+			Tag:       hashtag.Tag,
+			PostCount: hashtag.PostCount,
+			CreatedAt: hashtag.CreatedAt,
 		})
 	}
 	return responses

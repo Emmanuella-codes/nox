@@ -16,7 +16,8 @@ type HashtagRepository interface {
 	FindTagsByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]string, error)
 	FindTrending(ctx context.Context, limit int) ([]*models.Hashtag, error)
 	FindByTag(ctx context.Context, tag string) (*models.Hashtag, error)
-	FindPostsByTag(ctx context.Context, tag string, limit int) ([]*models.Post, error)
+	FindPostsByTag(ctx context.Context, tag string, limit int, offset int) ([]*models.Post, error)
+	Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error)
 }
 
 func NewHashtagRepository(db *pgxpool.Pool) HashtagRepository {

@@ -7,6 +7,7 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 	post_pipes "github.com/emmanuella-codes/nox/post/pipes"
 	hashtag_repo "github.com/emmanuella-codes/nox/repositories/hashtag"
+	like_repo "github.com/emmanuella-codes/nox/repositories/like"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
@@ -15,14 +16,21 @@ import (
 type HashtagPipe struct {
 	repo        hashtag_repo.HashtagRepository
 	personaRepo persona_repo.PersonaRepository
+	likeRepo    like_repo.LikeRepository
 }
 
-func NewHashtagPipe(repo hashtag_repo.HashtagRepository, personaRepo ...persona_repo.PersonaRepository) *HashtagPipe {
+func NewHashtagPipe(repo hashtag_repo.HashtagRepository, deps ...any) *HashtagPipe {
 	var personas persona_repo.PersonaRepository
-	if len(personaRepo) > 0 {
-		personas = personaRepo[0]
+	var likes like_repo.LikeRepository
+	for _, dep := range deps {
+		switch typed := dep.(type) {
+		case persona_repo.PersonaRepository:
+			personas = typed
+		case like_repo.LikeRepository:
+			likes = typed
+		}
 	}
-	return &HashtagPipe{repo: repo, personaRepo: personas}
+	return &HashtagPipe{repo: repo, personaRepo: personas, likeRepo: likes}
 }
 
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
@@ -60,6 +68,48 @@ func (p *HashtagPipe) postResponses(ctx context.Context, posts []*models.Post) (
 		responses = append(responses, response)
 	}
 	return responses, nil
+}
+
+func (p *HashtagPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, responses []post_pipes.PostResponse) error {
+	if p.likeRepo == nil || len(responses) == 0 {
+		return nil
+	}
+
+	postIDs := make([]uuid.UUID, 0, len(responses))
+	for _, response := range responses {
+		postID, err := uuid.Parse(response.ID)
+		if err != nil {
+			return err
+		}
+		postIDs = append(postIDs, postID)
+	}
+
+	liked, err := p.likeRepo.FindLikedPostIDs(ctx, viewerPersonaID, postIDs)
+	if err != nil {
+		return err
+	}
+	for i := range responses {
+		responses[i].IsLiked = liked[postIDs[i]]
+	}
+	return nil
+}
+
+func (p *HashtagPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
+	if p.personaRepo == nil {
+		return nil, messages.Internal_Error
+	}
+
+	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return nil, messages.Persona_Not_Found
+		}
+		return nil, messages.Internal_Error
+	}
+	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+		return nil, messages.Forbidden
+	}
+	return persona, ""
 }
 
 func postResponse(post *models.Post, personas map[string]*models.Persona) post_pipes.PostResponse {

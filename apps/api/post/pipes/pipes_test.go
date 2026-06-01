@@ -382,7 +382,11 @@ func (r *postTestHashtagRepo) FindByTag(ctx context.Context, tag string) (*model
 	return nil, nil
 }
 
-func (r *postTestHashtagRepo) FindPostsByTag(ctx context.Context, tag string, limit int) ([]*models.Post, error) {
+func (r *postTestHashtagRepo) FindPostsByTag(ctx context.Context, tag string, limit int, offset int) ([]*models.Post, error) {
+	return nil, nil
+}
+
+func (r *postTestHashtagRepo) Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error) {
 	return nil, nil
 }
 

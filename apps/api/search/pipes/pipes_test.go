@@ -51,6 +51,11 @@ func TestSearchReturnsGroupedResults(t *testing.T) {
 				ID:    eventID,
 				Title: "Afro house night",
 			}},
+			Hashtags: []*models.Hashtag{{
+				ID:        uuid.New(),
+				Tag:       "afrohouse",
+				PostCount: 2,
+			}},
 		},
 	}, nil, nil)
 
@@ -58,7 +63,7 @@ func TestSearchReturnsGroupedResults(t *testing.T) {
 	if !res.Success {
 		t.Fatalf("expected success, got %q", res.Message)
 	}
-	if len(res.Data.Personas) != 1 || len(res.Data.Posts) != 1 || len(res.Data.Events) != 1 {
+	if len(res.Data.Personas) != 1 || len(res.Data.Posts) != 1 || len(res.Data.Events) != 1 || len(res.Data.Hashtags) != 1 {
 		t.Fatalf("expected grouped results, got %+v", res.Data)
 	}
 	if res.Data.Posts[0].Author.Persona == nil {

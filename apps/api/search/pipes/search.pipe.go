@@ -61,6 +61,7 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 		Personas:   personaResponses(results.Personas),
 		Posts:      postResponses(results.Posts),
 		Events:     eventResponses(results.Events),
+		Hashtags:   hashtagResponses(results.Hashtags),
 	}
 	if viewerPersonaID != nil && p.likeRepo != nil {
 		if err := p.hydrateLikedState(ctx, *viewerPersonaID, response.Posts); err != nil {

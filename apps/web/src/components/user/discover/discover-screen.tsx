@@ -213,6 +213,8 @@ export function DiscoverScreen() {
                 </button>
               </div>
             )}
+
+            <TrendingHashtags />
           </div>
         ) : (
           <TrendingHashtags />

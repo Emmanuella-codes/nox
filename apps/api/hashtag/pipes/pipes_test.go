@@ -83,7 +83,7 @@ func TestPostsByTagPipeReturnsPostResponses(t *testing.T) {
 	}
 	pipe := NewHashtagPipe(repo, personas)
 
-	res := pipe.PostsByTagPipe(context.Background(), "#Amapiano", 10)
+	res := pipe.PostsByTagPipe(context.Background(), "#Amapiano", 10, 0)
 	if !res.Success {
 		t.Fatalf("expected success, got %q", res.Message)
 	}
@@ -96,6 +96,58 @@ func TestPostsByTagPipeReturnsPostResponses(t *testing.T) {
 	}
 	if len(post.Hashtags) != 1 || post.Hashtags[0] != "amapiano" {
 		t.Fatalf("expected post hashtags, got %v", post.Hashtags)
+	}
+}
+
+func TestPostsByTagPipeReturnsPaginationMetadata(t *testing.T) {
+	posts := []*models.Post{
+		{ID: uuid.New(), PostingMode: models.AnonymousPostingMode, Body: "one", PostType: models.TextPostType},
+		{ID: uuid.New(), PostingMode: models.AnonymousPostingMode, Body: "two", PostType: models.TextPostType},
+	}
+	repo := &hashtagTestRepo{
+		postsByTag: map[string][]*models.Post{"amapiano": posts},
+	}
+	pipe := NewHashtagPipe(repo)
+
+	res := pipe.PostsByTagPipe(context.Background(), "amapiano", 1, 4)
+	if !res.Success {
+		t.Fatalf("expected success, got %q", res.Message)
+	}
+	if len(res.Data.Posts) != 1 {
+		t.Fatalf("expected one returned post, got %d", len(res.Data.Posts))
+	}
+	if res.Data.Limit != 1 || res.Data.Offset != 4 || !res.Data.HasMore {
+		t.Fatalf("unexpected pagination metadata: %+v", res.Data)
+	}
+	if res.Data.NextOffset == nil || *res.Data.NextOffset != 5 {
+		t.Fatalf("expected next offset 5, got %v", res.Data.NextOffset)
+	}
+}
+
+func TestPostsByTagForViewerPipeHydratesLikedState(t *testing.T) {
+	viewerPersonaID := uuid.New()
+	likedPostID := uuid.New()
+	unlikedPostID := uuid.New()
+	repo := &hashtagTestRepo{
+		postsByTag: map[string][]*models.Post{
+			"amapiano": {
+				{ID: likedPostID, PostingMode: models.AnonymousPostingMode, Body: "liked", PostType: models.TextPostType},
+				{ID: unlikedPostID, PostingMode: models.AnonymousPostingMode, Body: "open", PostType: models.TextPostType},
+			},
+		},
+	}
+	likes := &hashtagTestLikeRepo{likedPostIDs: map[uuid.UUID]bool{likedPostID: true}}
+	pipe := NewHashtagPipe(repo, likes)
+
+	res := pipe.PostsByTagForViewerPipe(context.Background(), "amapiano", 10, 0, viewerPersonaID)
+	if !res.Success {
+		t.Fatalf("expected success, got %q", res.Message)
+	}
+	if !res.Data.Posts[0].IsLiked {
+		t.Fatal("expected first post to be liked")
+	}
+	if res.Data.Posts[1].IsLiked {
+		t.Fatal("expected second post not to be liked")
 	}
 }
 
@@ -133,11 +185,15 @@ func (r *hashtagTestRepo) FindByTag(ctx context.Context, tag string) (*models.Ha
 	return r.byTag[tag], nil
 }
 
-func (r *hashtagTestRepo) FindPostsByTag(ctx context.Context, tag string, limit int) ([]*models.Post, error) {
+func (r *hashtagTestRepo) FindPostsByTag(ctx context.Context, tag string, limit int, offset int) ([]*models.Post, error) {
 	if r.postsByTag == nil {
 		return nil, nil
 	}
 	return r.postsByTag[tag], nil
+}
+
+func (r *hashtagTestRepo) Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error) {
+	return nil, nil
 }
 
 type hashtagTestPersonaRepo struct {
@@ -166,4 +222,30 @@ func (r *hashtagTestPersonaRepo) FindPersonaByHandle(ctx context.Context, handle
 
 func (r *hashtagTestPersonaRepo) UpdatePersona(ctx context.Context, personaID uuid.UUID, dto personadtos.UpdatePersonaDTO) (*models.Persona, error) {
 	return nil, nil
+}
+
+type hashtagTestLikeRepo struct {
+	likedPostIDs map[uuid.UUID]bool
+}
+
+func (r *hashtagTestLikeRepo) LikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {
+	return nil
+}
+
+func (r *hashtagTestLikeRepo) UnlikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {
+	return nil
+}
+
+func (r *hashtagTestLikeRepo) HasPostLike(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) (bool, error) {
+	return r.likedPostIDs[postID], nil
+}
+
+func (r *hashtagTestLikeRepo) FindLikedPostIDs(ctx context.Context, personaID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
+	liked := make(map[uuid.UUID]bool)
+	for _, postID := range postIDs {
+		if r.likedPostIDs[postID] {
+			liked[postID] = true
+		}
+	}
+	return liked, nil
 }

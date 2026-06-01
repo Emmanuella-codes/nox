@@ -153,7 +153,7 @@ func (r *pgRepository) FindByTag(ctx context.Context, tag string) (*models.Hasht
 	return hashtag, err
 }
 
-func (r *pgRepository) FindPostsByTag(ctx context.Context, tag string, limit int) ([]*models.Post, error) {
+func (r *pgRepository) FindPostsByTag(ctx context.Context, tag string, limit int, offset int) ([]*models.Post, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
 		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
@@ -165,8 +165,8 @@ func (r *pgRepository) FindPostsByTag(ctx context.Context, tag string, limit int
 		WHERE h.tag = $1
 		  AND (p.posting_mode = 'anonymous' OR pe.persona_type = 'visible')
 		ORDER BY p.created_at DESC
-		LIMIT $2
-	`, NormalizeTag(tag), normalizeLimit(limit))
+		LIMIT $2 OFFSET $3
+	`, NormalizeTag(tag), normalizeLimit(limit), normalizeOffset(offset))
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +181,39 @@ func (r *pgRepository) FindPostsByTag(ctx context.Context, tag string, limit int
 		posts = append(posts, post)
 	}
 	return posts, rows.Err()
+}
+
+func (r *pgRepository) Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, tag, post_count, created_at
+		FROM hashtags
+		WHERE post_count > 0
+		  AND (
+		    tag ILIKE $1
+		    OR similarity(tag, $2) > 0.25
+		  )
+		ORDER BY
+		  CASE WHEN lower(tag) = lower($2) THEN 0 ELSE 1 END,
+		  CASE WHEN tag ILIKE $3 THEN 0 ELSE 1 END,
+		  similarity(tag, $2) DESC,
+		  post_count DESC,
+		  tag ASC
+		LIMIT $4 OFFSET $5
+	`, textMatchParam(query), NormalizeTag(query), prefixMatchParam(NormalizeTag(query)), normalizeLimit(limit), normalizeOffset(offset))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var hashtags []*models.Hashtag
+	for rows.Next() {
+		hashtag, err := scanHashtag(rows)
+		if err != nil {
+			return nil, err
+		}
+		hashtags = append(hashtags, hashtag)
+	}
+	return hashtags, rows.Err()
 }
 
 func deletePostHashtags(ctx context.Context, tx execQuerier, postID uuid.UUID) error {
@@ -275,4 +308,19 @@ func normalizeLimit(limit int) int {
 		return 100
 	}
 	return limit
+}
+
+func normalizeOffset(offset int) int {
+	if offset < 0 {
+		return 0
+	}
+	return offset
+}
+
+func textMatchParam(query string) string {
+	return "%" + NormalizeTag(query) + "%"
+}
+
+func prefixMatchParam(query string) string {
+	return NormalizeTag(query) + "%"
 }

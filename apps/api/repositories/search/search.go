@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"strings"
 
 	"github.com/emmanuella-codes/nox/models"
 	// "github.com/google/uuid"
@@ -17,6 +18,7 @@ type Results struct {
 	Personas []*models.Persona
 	Posts    []*PostResult
 	Events   []*models.Event
+	Hashtags []*models.Hashtag
 	HasMore  bool
 }
 
@@ -61,6 +63,12 @@ func tagMatchParam(query string) string {
 
 func prefixMatchParam(query string) string {
 	return query + "%"
+}
+
+func normalizeHashtagQuery(query string) string {
+	query = strings.TrimLeft(strings.TrimSpace(query), "#")
+	query = strings.Trim(query, "-_")
+	return strings.ToLower(query)
 }
 
 // func nullableUUID(valid bool, value uuid.UUID) *uuid.UUID {
