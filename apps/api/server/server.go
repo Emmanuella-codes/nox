@@ -43,6 +43,9 @@ import (
 	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
+	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
+	story_routers "github.com/emmanuella-codes/nox/story/routers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/redis/go-redis/v9"
@@ -96,6 +99,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like))
 	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
+	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 
 	api := app.Group("/api/v1")
 
@@ -110,6 +114,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))
 	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
+	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 
 	go func() {
 		<-ctx.Done()

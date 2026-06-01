@@ -11,6 +11,7 @@ import (
 	"github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/repositories/set"
+	"github.com/emmanuella-codes/nox/repositories/story"
 	"github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -24,6 +25,7 @@ type Repositories struct {
 	Event   event.EventRepository
 	Media   media.MediaRepository
 	Set     set.SetRepository
+	Story   story.StoryRepository
 	Search  search.SearchRepository
 	Follow  follow.FollowRepository
 	Hashtag hashtag.HashtagRepository
@@ -39,6 +41,7 @@ func Init(pool *pgxpool.Pool) *Repositories {
 		Event:   event.NewEventRepository(pool),
 		Media:   media.NewMediaRepository(pool),
 		Set:     set.NewSetRepository(pool),
+		Story:   story.NewStoryRepository(pool),
 		Search:  search.NewSearchRepository(pool),
 		Follow:  follow.NewFollowRepository(pool),
 		Hashtag: hashtag.NewHashtagRepository(pool),
