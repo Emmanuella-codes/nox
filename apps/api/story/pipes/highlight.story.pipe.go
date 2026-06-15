@@ -53,18 +53,47 @@ func (p *StoryPipe) AddEventHighlightStoryPipe(ctx context.Context, userID uuid.
 	return shared.PipeSuccess(messages.Event_Highlight_Story_Added, response)
 }
 
-func (p *StoryPipe) ListEventHighlightStoriesPipe(ctx context.Context, eventID uuid.UUID) *shared.PipeRes[[]EventHighlightStoryResponse] {
+func (p *StoryPipe) ListEventHighlightStoriesPipe(ctx context.Context, eventID uuid.UUID, limit int, offset int, viewerUserID *uuid.UUID, viewerPersonaID *uuid.UUID) *shared.PipeRes[[]EventHighlightStoryResponse] {
+	viewer, message := p.viewerPersona(ctx, viewerUserID, viewerPersonaID)
+	if message != "" {
+		return shared.PipeError[[]EventHighlightStoryResponse](message)
+	}
+	if viewer != nil {
+		viewerPersonaID = &viewer.ID
+	}
 	highlights, err := p.storyRepo.FindEventHighlightStories(ctx, eventID)
 	if err != nil {
 		return pipeInternalError[[]EventHighlightStoryResponse](err, "story.list_highlights")
 	}
 	responses := make([]EventHighlightStoryResponse, 0, len(highlights))
 	for _, highlight := range highlights {
+		story, err := p.storyRepo.FindStoryByID(ctx, highlight.StoryID)
+		if err != nil {
+			return pipeInternalError[[]EventHighlightStoryResponse](err, "story.highlight_story")
+		}
+		allowed, err := p.canView(ctx, story, viewerPersonaID)
+		if err != nil {
+			return pipeInternalError[[]EventHighlightStoryResponse](err, "story.highlight_view")
+		}
+		if !allowed {
+			continue
+		}
 		response, err := p.eventHighlightResponse(ctx, highlight)
 		if err != nil {
 			return pipeInternalError[[]EventHighlightStoryResponse](err, "story.highlight_response")
 		}
 		responses = append(responses, *response)
+	}
+	limit = normalizeLimit(limit)
+	offset = normalizeOffset(offset)
+	if offset >= len(responses) {
+		responses = []EventHighlightStoryResponse{}
+	} else {
+		end := offset + limit
+		if end > len(responses) {
+			end = len(responses)
+		}
+		responses = responses[offset:end]
 	}
 	return shared.PipeSuccess(messages.Event_Highlight_Stories_Listed, &responses)
 }
@@ -94,6 +123,41 @@ func (p *StoryPipe) RemoveEventHighlightStoryPipe(ctx context.Context, userID uu
 		return pipeInternalError[any](err, "story.remove_highlight")
 	}
 	return shared.PipeSuccess[any](messages.Event_Highlight_Story_Removed, nil)
+}
+
+func (p *StoryPipe) ReorderEventHighlightStoryPipe(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, storyID uuid.UUID, dto dtos.ReorderEventHighlightStoryDTO) *shared.PipeRes[EventHighlightStoryResponse] {
+	if dto.Position < 1 {
+		return shared.PipeError[EventHighlightStoryResponse](messages.Invalid_Story)
+	}
+	event, err := p.eventRepo.FindEventByID(ctx, eventID)
+	if err != nil {
+		if err == event_repo.ErrEventNotFound {
+			return shared.PipeError[EventHighlightStoryResponse](messages.Event_Not_Found)
+		}
+		return pipeInternalError[EventHighlightStoryResponse](err, "story.reorder_highlight_event")
+	}
+	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.PersonaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[EventHighlightStoryResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[EventHighlightStoryResponse](err, "story.reorder_highlight_persona")
+	}
+	if persona.UserID != userID || event.OrganizerID != persona.ID {
+		return shared.PipeError[EventHighlightStoryResponse](messages.Forbidden)
+	}
+	highlight, err := p.storyRepo.ReorderEventHighlightStory(ctx, eventID, storyID, dto.Position)
+	if err != nil {
+		if err == story_repo.ErrEventHighlightNotFound {
+			return shared.PipeError[EventHighlightStoryResponse](messages.Story_Not_Found)
+		}
+		return pipeInternalError[EventHighlightStoryResponse](err, "story.reorder_highlight")
+	}
+	response, err := p.eventHighlightResponse(ctx, highlight)
+	if err != nil {
+		return pipeInternalError[EventHighlightStoryResponse](err, "story.reorder_highlight_response")
+	}
+	return shared.PipeSuccess(messages.Event_Highlight_Story_Reordered, response)
 }
 
 func (p *StoryPipe) eventHighlightResponse(ctx context.Context, highlight *models.EventHighlightStory) (*EventHighlightStoryResponse, error) {

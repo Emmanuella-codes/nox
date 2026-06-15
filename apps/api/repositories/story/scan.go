@@ -5,6 +5,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type storyScanner interface {
@@ -39,6 +40,7 @@ func scanStory(scanner storyScanner) (*models.Story, error) {
 		&story.Title,
 		&story.ContributionMode,
 		&story.TotalDurationSeconds,
+		&story.ExpiresAt,
 		&story.CreatedAt,
 		&story.UpdatedAt,
 	)
@@ -113,4 +115,9 @@ func mapStoryError(err error) error {
 		return ErrStoryNotFound
 	}
 	return err
+}
+
+func isUniqueViolation(err error, constraint string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == constraint
 }

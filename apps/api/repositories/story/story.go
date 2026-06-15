@@ -14,6 +14,7 @@ var (
 	ErrStoryNotFound              = errors.New("story not found")
 	ErrStoryItemNotFound          = errors.New("story item not found")
 	ErrStoryDurationLimitExceeded = errors.New("story duration limit exceeded")
+	ErrStoryMediaInUse            = errors.New("story media asset already used")
 	ErrEventHighlightNotFound     = errors.New("event highlight story not found")
 )
 
@@ -26,8 +27,10 @@ type StoryRepository interface {
 	AddStoryItem(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, durationSeconds int, anonymousLabel string, dto storydtos.AddStoryItemDTO) (*models.StoryItem, error)
 	FindStoryItems(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error)
 	DeleteStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error)
+	ReorderStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID, position int) (*models.StoryItem, error)
 	AddEventHighlightStory(ctx context.Context, eventID uuid.UUID, dto storydtos.AddEventHighlightStoryDTO) (*models.EventHighlightStory, error)
 	FindEventHighlightStories(ctx context.Context, eventID uuid.UUID) ([]*models.EventHighlightStory, error)
+	ReorderEventHighlightStory(ctx context.Context, eventID uuid.UUID, storyID uuid.UUID, position int) (*models.EventHighlightStory, error)
 	RemoveEventHighlightStory(ctx context.Context, eventID uuid.UUID, storyID uuid.UUID) error
 }
 

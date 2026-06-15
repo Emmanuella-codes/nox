@@ -36,6 +36,10 @@ func validSetVideo(mimeType string, durationSeconds int) bool {
 	return durationSeconds > 0 && durationSeconds <= 900
 }
 
+func validStoryVideo(mimeType string, durationSeconds int) bool {
+	return validSetVideoMime(mimeType) && durationSeconds > 0 && durationSeconds <= 300
+}
+
 func validSetVideoMime(mimeType string) bool {
 	switch strings.ToLower(strings.TrimSpace(mimeType)) {
 	case "video/mp4", "video/webm", "video/quicktime":
@@ -61,6 +65,10 @@ func (p *MediaPipe) playbackURL(storageKey string) string {
 
 func setVideoStorageKey(ownerPersonaID string) string {
 	return fmt.Sprintf("sets/%s/%s", ownerPersonaID, uuid.NewString())
+}
+
+func storyVideoStorageKey(ownerPersonaID string) string {
+	return fmt.Sprintf("stories/%s/%s", ownerPersonaID, uuid.NewString())
 }
 
 func isDJPersona(persona *models.Persona) bool {

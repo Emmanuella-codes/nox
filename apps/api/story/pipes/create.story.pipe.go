@@ -27,6 +27,7 @@ func (p *StoryPipe) CreateStoryPipe(ctx context.Context, userID uuid.UUID, dto d
 	if _, message := p.ownedPersona(ctx, userID, dto.OwnerPersonaID); message != "" {
 		return shared.PipeError[StoryResponse](message)
 	}
+	dto.ExpiresAt = defaultStoryExpiry(dto.ExpiresAt)
 
 	story, err := p.storyRepo.CreateStory(ctx, userID, dto)
 	if err != nil {

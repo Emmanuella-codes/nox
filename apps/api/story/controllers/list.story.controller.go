@@ -11,12 +11,15 @@ func (c *StoryController) ListEventStories(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_event_id")
 	}
 
-	viewerPersonaID, err := optionalViewerPersonaID(ctx)
+	viewerUserID, viewerPersonaID, err := optionalViewerContext(ctx)
 	if err != nil {
+		if err == fiber.ErrUnauthorized {
+			return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+		}
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.ListEventStoriesPipe(ctx.Context(), eventID, queryLimit(ctx, 20), queryOffset(ctx), viewerPersonaID)
+	res := c.pipe.ListEventStoriesPipe(ctx.Context(), eventID, queryLimit(ctx, 20), queryOffset(ctx), viewerUserID, viewerPersonaID)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
@@ -29,12 +32,15 @@ func (c *StoryController) ListPersonaStories(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	viewerPersonaID, err := optionalViewerPersonaID(ctx)
+	viewerUserID, viewerPersonaID, err := optionalViewerContext(ctx)
 	if err != nil {
+		if err == fiber.ErrUnauthorized {
+			return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+		}
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.ListPersonaStoriesPipe(ctx.Context(), personaID, queryLimit(ctx, 20), queryOffset(ctx), viewerPersonaID)
+	res := c.pipe.ListPersonaStoriesPipe(ctx.Context(), personaID, queryLimit(ctx, 20), queryOffset(ctx), viewerUserID, viewerPersonaID)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

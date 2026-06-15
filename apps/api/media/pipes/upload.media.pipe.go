@@ -52,6 +52,34 @@ func (p *MediaPipe) InitiateSetVideoUploadPipe(ctx context.Context, userID uuid.
 	})
 }
 
+func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateStoryVideoUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
+	dto.MimeType = strings.TrimSpace(dto.MimeType)
+	if !validSetVideoMime(dto.MimeType) || dto.SizeBytes <= 0 {
+		return shared.PipeError[InitiateUploadResponse](messages.Invalid_Media)
+	}
+	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[InitiateUploadResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[InitiateUploadResponse](err, "media.story_upload_persona")
+	}
+	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+		return shared.PipeError[InitiateUploadResponse](messages.Forbidden)
+	}
+	storageKey := storyVideoStorageKey(dto.OwnerPersonaID.String())
+	playbackURL := p.playbackURL(storageKey)
+	asset, err := p.mediaRepo.CreatePendingStoryMediaAsset(ctx, userID, storageKey, playbackURL, dto)
+	if err != nil {
+		return pipeInternalError[InitiateUploadResponse](err, "media.story_upload_create")
+	}
+	return shared.PipeSuccess(messages.Media_Upload_Initiated, &InitiateUploadResponse{
+		MediaAsset: asset,
+		UploadURL:  p.uploadURL(storageKey),
+		StorageKey: storageKey,
+	})
+}
+
 func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {
 	dto.PlaybackURL = strings.TrimSpace(dto.PlaybackURL)
 	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
@@ -65,6 +93,23 @@ func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetI
 			return shared.PipeError[models.MediaAsset](messages.Media_Not_Found)
 		}
 		return pipeInternalError[models.MediaAsset](err, "media.processing_ready")
+	}
+	return shared.PipeSuccess(messages.Media_Processing_Updated, asset)
+}
+
+func (p *MediaPipe) CompleteStoryMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {
+	dto.PlaybackURL = strings.TrimSpace(dto.PlaybackURL)
+	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
+	dto.MimeType = strings.TrimSpace(dto.MimeType)
+	if !validStoryVideo(dto.MimeType, dto.DurationSeconds) || dto.SizeBytes <= 0 || dto.PlaybackURL == "" {
+		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
+	}
+	asset, err := p.mediaRepo.MarkMediaAssetReady(ctx, mediaAssetID, dto)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return shared.PipeError[models.MediaAsset](messages.Media_Not_Found)
+		}
+		return pipeInternalError[models.MediaAsset](err, "media.story_processing_ready")
 	}
 	return shared.PipeSuccess(messages.Media_Processing_Updated, asset)
 }

@@ -18,6 +18,12 @@ type InitiateSetVideoUploadDTO struct {
 	SizeBytes      int64     `json:"size_bytes" validate:"required,min=1"`
 }
 
+type InitiateStoryVideoUploadDTO struct {
+	OwnerPersonaID uuid.UUID `json:"owner_persona_id" validate:"required"`
+	MimeType       string    `json:"mime_type" validate:"required"`
+	SizeBytes      int64     `json:"size_bytes" validate:"required,min=1"`
+}
+
 type CompleteMediaProcessingDTO struct {
 	PlaybackURL     string `json:"playback_url" validate:"required"`
 	ThumbnailURL    string `json:"thumbnail_url"`

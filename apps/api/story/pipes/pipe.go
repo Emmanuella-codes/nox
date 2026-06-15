@@ -2,6 +2,9 @@ package pipes
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	event_repo "github.com/emmanuella-codes/nox/repositories/event"
@@ -46,6 +49,13 @@ func validStoryVideo(asset *models.MediaAsset) bool {
 		asset.DurationSeconds <= 300
 }
 
+func defaultStoryExpiry(expiresAt time.Time) time.Time {
+	if expiresAt.IsZero() || expiresAt.Before(time.Now()) {
+		return time.Now().Add(24 * time.Hour)
+	}
+	return expiresAt
+}
+
 func (p *StoryPipe) ownedPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
@@ -56,6 +66,20 @@ func (p *StoryPipe) ownedPersona(ctx context.Context, userID uuid.UUID, personaI
 	}
 	if persona.UserID != userID {
 		return nil, messages.Forbidden
+	}
+	return persona, ""
+}
+
+func (p *StoryPipe) viewerPersona(ctx context.Context, userID *uuid.UUID, personaID *uuid.UUID) (*models.Persona, shared.PipeMessage) {
+	if personaID == nil {
+		return nil, ""
+	}
+	if userID == nil {
+		return nil, messages.Forbidden
+	}
+	persona, message := p.ownedPersona(ctx, *userID, *personaID)
+	if message != "" {
+		return nil, message
 	}
 	return persona, ""
 }
@@ -81,6 +105,19 @@ func (p *StoryPipe) canContribute(ctx context.Context, story *models.Story, cont
 	return p.followRepo.IsFollowing(ctx, contributorPersonaID, story.OwnerPersonaID)
 }
 
+func (p *StoryPipe) canView(ctx context.Context, story *models.Story, viewerPersonaID *uuid.UUID) (bool, error) {
+	if story.ContributionMode == models.PublicStoryContributionMode {
+		return true, nil
+	}
+	if viewerPersonaID == nil {
+		return false, nil
+	}
+	if story.OwnerPersonaID == *viewerPersonaID {
+		return true, nil
+	}
+	return p.followRepo.IsFollowing(ctx, *viewerPersonaID, story.OwnerPersonaID)
+}
+
 func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, viewerPersonaID *uuid.UUID, includeItems bool) (*StoryResponse, error) {
 	owner, err := p.personaRepo.FindPersonaByID(ctx, story.OwnerPersonaID)
 	if err != nil {
@@ -103,6 +140,7 @@ func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, view
 		TotalDurationSeconds: story.TotalDurationSeconds,
 		CanContribute:        canContribute,
 		Items:                []StoryItemResponse{},
+		ExpiresAt:            story.ExpiresAt,
 		CreatedAt:            story.CreatedAt,
 		UpdatedAt:            story.UpdatedAt,
 	}
@@ -114,6 +152,11 @@ func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, view
 		response.Items = items
 	}
 	return response, nil
+}
+
+func anonymousLabel(storyID uuid.UUID, personaID uuid.UUID) string {
+	sum := sha256.Sum256([]byte(storyID.String() + ":" + personaID.String()))
+	return fmt.Sprintf("anonymous-%x", sum[:4])
 }
 
 func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID) ([]StoryItemResponse, error) {

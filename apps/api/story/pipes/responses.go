@@ -16,6 +16,7 @@ type StoryResponse struct {
 	TotalDurationSeconds int                          `json:"total_duration_seconds"`
 	CanContribute        bool                         `json:"can_contribute"`
 	Items                []StoryItemResponse          `json:"items"`
+	ExpiresAt            time.Time                    `json:"expires_at"`
 	CreatedAt            time.Time                    `json:"created_at"`
 	UpdatedAt            time.Time                    `json:"updated_at"`
 }

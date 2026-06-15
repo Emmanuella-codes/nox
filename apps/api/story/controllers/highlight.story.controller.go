@@ -36,7 +36,15 @@ func (c *StoryController) ListEventHighlightStories(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_event_id")
 	}
 
-	res := c.pipe.ListEventHighlightStoriesPipe(ctx.Context(), eventID)
+	viewerUserID, viewerPersonaID, err := optionalViewerContext(ctx)
+	if err != nil {
+		if err == fiber.ErrUnauthorized {
+			return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+		}
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+
+	res := c.pipe.ListEventHighlightStoriesPipe(ctx.Context(), eventID, queryLimit(ctx, 20), queryOffset(ctx), viewerUserID, viewerPersonaID)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
@@ -67,4 +75,31 @@ func (c *StoryController) RemoveEventHighlightStory(ctx *fiber.Ctx) error {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
 	return pipeSuccess[any](ctx, fiber.StatusOK, res.Message, nil)
+}
+
+func (c *StoryController) ReorderEventHighlightStory(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+
+	eventID, err := uuid.Parse(ctx.Params("eventID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_event_id")
+	}
+	storyID, err := uuid.Parse(ctx.Params("storyID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_story_id")
+	}
+
+	var dto dtos.ReorderEventHighlightStoryDTO
+	if err := parseAndValidate(ctx, &dto); err != nil {
+		return validationError(ctx, err)
+	}
+
+	res := c.pipe.ReorderEventHighlightStoryPipe(ctx.Context(), userID, eventID, storyID, dto)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 }

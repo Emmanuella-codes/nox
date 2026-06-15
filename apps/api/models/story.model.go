@@ -21,6 +21,7 @@ type Story struct {
 	Title                string                `json:"title"`
 	ContributionMode     StoryContributionMode `json:"contribution_mode"`
 	TotalDurationSeconds int                   `json:"total_duration_seconds"`
+	ExpiresAt            time.Time             `json:"expires_at"`
 	CreatedAt            time.Time             `json:"created_at"`
 	UpdatedAt            time.Time             `json:"updated_at"`
 }

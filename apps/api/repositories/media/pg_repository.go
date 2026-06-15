@@ -33,6 +33,14 @@ func (r *pgRepository) CreateMediaAsset(ctx context.Context, ownerUserID uuid.UU
 }
 
 func (r *pgRepository) CreatePendingMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateSetVideoUploadDTO) (*models.MediaAsset, error) {
+	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+}
+
+func (r *pgRepository) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryVideoUploadDTO) (*models.MediaAsset, error) {
+	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+}
+
+func (r *pgRepository) createPendingVideoAsset(ctx context.Context, ownerUserID uuid.UUID, ownerPersonaID uuid.UUID, storageKey string, playbackURL string, mimeType string, sizeBytes int64) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
 			owner_user_id, owner_persona_id, media_kind, storage_key, playback_url, thumbnail_url,
@@ -41,7 +49,7 @@ func (r *pgRepository) CreatePendingMediaAsset(ctx context.Context, ownerUserID 
 		RETURNING id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
 		          COALESCE(thumbnail_url, ''), mime_type, duration_seconds, size_bytes,
 		          processing_status, created_at, updated_at
-	`, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+	`, ownerUserID, ownerPersonaID, storageKey, playbackURL, mimeType, sizeBytes)
 
 	return scanMediaAsset(row)
 }

@@ -3,6 +3,7 @@ package controllers
 import (
 	"strconv"
 
+	"github.com/emmanuella-codes/nox/middleware"
 	"github.com/emmanuella-codes/nox/shared"
 	sharedapi "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/story/messages"
@@ -44,7 +45,7 @@ func pipeError(ctx *fiber.Ctx, status int, message shared.PipeMessage) error {
 
 func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
-	case messages.Invalid_Payload, messages.Invalid_Story, messages.Story_Duration_Limit_Exceeded:
+	case messages.Invalid_Payload, messages.Invalid_Story, messages.Story_Duration_Limit_Exceeded, messages.Media_Asset_In_Use:
 		return fiber.StatusBadRequest
 	case messages.Story_Not_Found, messages.Story_Item_Not_Found, messages.Event_Not_Found, messages.Persona_Not_Found, messages.Media_Asset_Not_Found:
 		return fiber.StatusNotFound
@@ -91,6 +92,21 @@ func optionalViewerPersonaID(ctx *fiber.Ctx) (*uuid.UUID, error) {
 		return nil, err
 	}
 	return &id, nil
+}
+
+func optionalViewerContext(ctx *fiber.Ctx) (*uuid.UUID, *uuid.UUID, error) {
+	viewerPersonaID, err := optionalViewerPersonaID(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if viewerPersonaID == nil {
+		return nil, nil, nil
+	}
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return nil, nil, fiber.ErrUnauthorized
+	}
+	return &userID, viewerPersonaID, nil
 }
 
 func requiredPersonaQuery(ctx *fiber.Ctx, key string) (uuid.UUID, error) {

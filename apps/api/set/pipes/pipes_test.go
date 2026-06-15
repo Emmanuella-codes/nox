@@ -182,6 +182,10 @@ func (r *setTestMediaRepo) CreatePendingMediaAsset(ctx context.Context, ownerUse
 	return nil, nil
 }
 
+func (r *setTestMediaRepo) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryVideoUploadDTO) (*models.MediaAsset, error) {
+	return nil, nil
+}
+
 func (r *setTestMediaRepo) FindMediaAssetByID(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
 	return r.assets[mediaAssetID], nil
 }

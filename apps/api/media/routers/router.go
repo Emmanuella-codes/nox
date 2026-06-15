@@ -17,9 +17,20 @@ func MediaRoutes(controller *controllers.MediaController, cfg *config.Config) []
 			Handler:     controller.InitiateSetVideoUpload,
 		},
 		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/story-video/uploads",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.InitiateStoryVideoUpload,
+		},
+		{
 			RouteMethod: api.RouteMethod("PATCH"),
 			Path:        "/:mediaAssetID/processing/ready",
 			Handler:     controller.CompleteMediaProcessing,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/:mediaAssetID/processing/story-ready",
+			Handler:     controller.CompleteStoryMediaProcessing,
 		},
 		{
 			RouteMethod: api.RouteMethod("PATCH"),
