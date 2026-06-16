@@ -165,15 +165,13 @@ export function PersonaProfileScreen({ personaID }: PersonaProfileScreenProps) {
 
             {isOwnProfile && (
               <div className="mb-1 flex gap-2">
-                {persona?.category === "dj" ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push("/sets/create")}
-                    className="rounded-[8px] border border-(--nox-accent-line) px-3 py-1.5 text-[12px] font-semibold text-(--nox-accent-ink) transition hover:border-(--nox-accent)"
-                  >
-                    new set
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => router.push("/sets/create")}
+                  className="rounded-[8px] border border-(--nox-accent-line) px-3 py-1.5 text-[12px] font-semibold text-(--nox-accent-ink) transition hover:border-(--nox-accent)"
+                >
+                  new set
+                </button>
                 <button
                   type="button"
                   onClick={() => router.push("/settings")}

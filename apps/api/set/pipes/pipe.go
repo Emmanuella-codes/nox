@@ -31,8 +31,11 @@ func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "set", operation, messages.Internal_Error)
 }
 
-func isDJPersona(persona *models.Persona) bool {
-	return persona.PersonaType == models.VisiblePersonaType && persona.Category == models.DJPersonaCategory
+func canCreateSet(persona *models.Persona) bool {
+	return persona.PersonaType == models.VisiblePersonaType &&
+		(persona.Category == models.PatronPersonaCategory ||
+			persona.Category == models.DJPersonaCategory ||
+			persona.Category == models.OrganizerPersonaCategory)
 }
 
 func validSetMedia(asset *models.MediaAsset) bool {

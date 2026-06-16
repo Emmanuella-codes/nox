@@ -73,7 +73,7 @@ export function CheckoutScreen({ eventID }: CheckoutScreenProps) {
 
             <div className="rounded-[10px] border border-(--nox-border) bg-(--nox-surface) px-4 py-4">
               <p className="mb-3 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-(--nox-ink-soft)">payment via paystack</p>
-              <p className="text-[12px] text-(--nox-ink-soft)">You'll be redirected to Paystack to complete your payment securely.</p>
+              <p className="text-[12px] text-(--nox-ink-soft)">You will be redirected to Paystack to complete your payment securely.</p>
             </div>
 
             {event.ticket_url ? (

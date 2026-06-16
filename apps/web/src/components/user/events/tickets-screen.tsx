@@ -25,7 +25,7 @@ export function TicketsScreen() {
     <FeedShell>
       <header className="px-4 pt-[env(safe-area-inset-top,12px)] pb-3">
         <h1 className="text-[22px] font-bold tracking-[-0.03em] text-(--nox-ink)">my tickets</h1>
-        <p className="mt-1 text-[12px] text-(--nox-ink-soft)">upcoming events you're attending</p>
+        <p className="mt-1 text-[12px] text-(--nox-ink-soft)">upcoming events you are attending</p>
       </header>
 
       <div className="flex-1 overflow-y-auto">

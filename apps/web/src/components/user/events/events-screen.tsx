@@ -44,7 +44,7 @@ export function EventsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const canCreate = activePersona?.category === "organizer";
+  const canCreate = activePersona?.category === "dj" || activePersona?.category === "organizer";
 
   useEffect(() => {
     async function loadEvents() {

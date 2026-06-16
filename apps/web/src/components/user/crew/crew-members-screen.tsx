@@ -25,7 +25,7 @@ export function CrewMembersScreen({ crewID }: CrewMembersScreenProps) {
         </button>
         <div>
           <h1 className="text-[18px] font-bold text-(--nox-ink)">crew members</h1>
-          <p className="text-[11px] text-(--nox-ink-soft)">{SAMPLE_MEMBERS.length} in your crew</p>
+          <p className="text-[11px] text-(--nox-ink-soft)">crew {crewID.slice(0, 8)} · {SAMPLE_MEMBERS.length} members</p>
         </div>
       </header>
 

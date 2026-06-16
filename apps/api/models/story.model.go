@@ -9,8 +9,10 @@ import (
 type StoryContributionMode string
 
 const (
-	PublicStoryContributionMode    StoryContributionMode = "public"
-	FollowersStoryContributionMode StoryContributionMode = "followers"
+	PublicStoryContributionMode  StoryContributionMode = "public"
+	PrivateStoryContributionMode StoryContributionMode = "private"
+
+	FollowersStoryContributionMode StoryContributionMode = PrivateStoryContributionMode
 )
 
 type Story struct {

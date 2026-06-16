@@ -15,7 +15,7 @@ export interface SignupRequest {
   lastname: string;
   email: string;
   password: string;
-  category?: "fan" | "dj" | "organizer" | "creator";
+  category?: "patron" | "dj" | "organizer";
 }
 
 export interface AuthUser {

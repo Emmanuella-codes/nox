@@ -34,7 +34,7 @@ export function CreateSetScreen() {
   const [message, setMessage] = useState("");
 
   const durationSeconds = Number(duration);
-  const canCreate = activePersona?.category === "dj";
+  const canCreate = Boolean(activePersona);
   const canSubmit = useMemo(
     () =>
       Boolean(canCreate) &&
@@ -117,7 +117,7 @@ export function CreateSetScreen() {
           <p className="text-[13px] text-(--nox-ink-soft)">Loading persona...</p>
         ) : !canCreate ? (
           <p className="rounded-[8px] border border-(--nox-border) bg-(--nox-surface) px-3 py-3 text-[13px] text-(--nox-ink-soft)">
-            Only DJ personas can create sets.
+            Select a persona to create a set.
           </p>
         ) : (
           <div className="grid gap-4">

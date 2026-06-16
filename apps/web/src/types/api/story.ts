@@ -1,6 +1,6 @@
 import type { MediaAsset } from "@/src/types/api/set";
 
-export type StoryContributionMode = "public" | "followers";
+export type StoryContributionMode = "public" | "private";
 export type StoryPostingMode = "public" | "anonymous";
 
 export interface StoryOwner {

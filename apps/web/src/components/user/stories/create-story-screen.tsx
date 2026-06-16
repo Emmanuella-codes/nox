@@ -95,7 +95,7 @@ export function CreateStoryScreen() {
             <div>
               <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-(--nox-ink-soft)">who can contribute</p>
               <div className="flex gap-2">
-                {(["public", "followers"] as StoryContributionMode[]).map((mode) => (
+                {(["public", "private"] as StoryContributionMode[]).map((mode) => (
                   <button key={mode} type="button" onClick={() => setContributionMode(mode)}
                     className={`rounded-full border px-4 py-2 font-mono text-[10px] font-medium transition ${
                       contributionMode === mode

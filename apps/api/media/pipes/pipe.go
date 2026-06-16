@@ -71,6 +71,9 @@ func storyVideoStorageKey(ownerPersonaID string) string {
 	return fmt.Sprintf("stories/%s/%s", ownerPersonaID, uuid.NewString())
 }
 
-func isDJPersona(persona *models.Persona) bool {
-	return persona.PersonaType == models.VisiblePersonaType && persona.Category == models.DJPersonaCategory
+func canOwnSetMedia(persona *models.Persona) bool {
+	return persona.PersonaType == models.VisiblePersonaType &&
+		(persona.Category == models.PatronPersonaCategory ||
+			persona.Category == models.DJPersonaCategory ||
+			persona.Category == models.OrganizerPersonaCategory)
 }

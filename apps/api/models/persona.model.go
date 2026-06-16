@@ -15,10 +15,12 @@ const (
 )
 
 const (
-	FanPersonaCategory       PersonaCategory = "fan"
+	PatronPersonaCategory    PersonaCategory = "patron"
 	DJPersonaCategory        PersonaCategory = "dj"
 	OrganizerPersonaCategory PersonaCategory = "organizer"
-	CreatorPersonaCategory   PersonaCategory = "creator"
+
+	FanPersonaCategory     PersonaCategory = PatronPersonaCategory
+	CreatorPersonaCategory PersonaCategory = PatronPersonaCategory
 )
 
 type Persona struct {

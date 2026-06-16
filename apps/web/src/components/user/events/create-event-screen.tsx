@@ -26,7 +26,7 @@ export function CreateEventScreen() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  const canCreate = activePersona?.category === "organizer";
+  const canCreate = activePersona?.category === "dj" || activePersona?.category === "organizer";
   const canSubmit = useMemo(
     () =>
       canCreate &&
@@ -76,7 +76,7 @@ export function CreateEventScreen() {
         </button>
         <div>
           <h1 className="text-[18px] font-bold text-(--nox-ink)">create event</h1>
-          <p className="text-[11px] text-(--nox-ink-soft)">organizer only</p>
+          <p className="text-[11px] text-(--nox-ink-soft)">dj or organizer only</p>
         </div>
       </header>
 
@@ -85,7 +85,7 @@ export function CreateEventScreen() {
           <p className="text-[13px] text-(--nox-ink-soft)">Loading persona...</p>
         ) : !canCreate ? (
           <p className="rounded-[8px] border border-(--nox-border) bg-(--nox-surface) px-3 py-3 text-[13px] text-(--nox-ink-soft)">
-            Only organizer personas can create events. Switch to an organizer persona to continue.
+            Only DJ and organizer personas can create events. Switch persona to continue.
           </p>
         ) : (
           <div className="grid gap-4">

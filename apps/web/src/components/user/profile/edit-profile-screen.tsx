@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
@@ -15,22 +15,19 @@ import { ApiRequestError } from "@/src/utils/api/api";
 export function EditProfileScreen() {
   const router = useRouter();
   const { activePersona, loading: personaLoading } = useActivePersona();
-  const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
-  const [avatarURL, setAvatarURL] = useState("");
-  const [coverURL, setCoverURL] = useState("");
-  const [genres, setGenres] = useState("");
+  const [displayName, setDisplayName] = useState<string>();
+  const [bio, setBio] = useState<string>();
+  const [avatarURL, setAvatarURL] = useState<string>();
+  const [coverURL, setCoverURL] = useState<string>();
+  const [genres, setGenres] = useState<string>();
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (!activePersona) return;
-    setDisplayName(activePersona.display_name);
-    setBio(activePersona.bio ?? "");
-    setAvatarURL(activePersona.avatar_url ?? "");
-    setCoverURL(activePersona.cover_url ?? "");
-    setGenres(activePersona.genre_tags?.join(", ") ?? "");
-  }, [activePersona]);
+  const displayNameValue = displayName ?? activePersona?.display_name ?? "";
+  const bioValue = bio ?? activePersona?.bio ?? "";
+  const avatarURLValue = avatarURL ?? activePersona?.avatar_url ?? "";
+  const coverURLValue = coverURL ?? activePersona?.cover_url ?? "";
+  const genresValue = genres ?? activePersona?.genre_tags?.join(", ") ?? "";
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -42,11 +39,11 @@ export function EditProfileScreen() {
       await updatePersona(
         activePersona.id,
         {
-          display_name: displayName.trim() || undefined,
-          bio: bio.trim() || undefined,
-          avatar_url: avatarURL.trim() || undefined,
-          cover_url: coverURL.trim() || undefined,
-          genre_tags: genres.split(",").map((g) => g.trim().toLowerCase()).filter(Boolean),
+          display_name: displayNameValue.trim() || undefined,
+          bio: bioValue.trim() || undefined,
+          avatar_url: avatarURLValue.trim() || undefined,
+          cover_url: coverURLValue.trim() || undefined,
+          genre_tags: genresValue.split(",").map((g) => g.trim().toLowerCase()).filter(Boolean),
         },
         token,
       );
@@ -82,14 +79,14 @@ export function EditProfileScreen() {
               </div>
             </div>
 
-            <AuthField id="ep-name" label="display name" type="text" value={displayName} placeholder="Your name" autoComplete="off" icon={<span />} onChange={setDisplayName} />
-            <AuthField id="ep-avatar" label="avatar url" type="url" value={avatarURL} placeholder="https://..." autoComplete="off" icon={<span />} onChange={setAvatarURL} />
-            <AuthField id="ep-cover" label="cover url" type="url" value={coverURL} placeholder="https://..." autoComplete="off" icon={<span />} onChange={setCoverURL} />
-            <AuthField id="ep-genres" label="genres" type="text" value={genres} placeholder="amapiano, afro-house" autoComplete="off" icon={<span />} onChange={setGenres} />
+            <AuthField id="ep-name" label="display name" type="text" value={displayNameValue} placeholder="Your name" autoComplete="off" icon={<span />} onChange={setDisplayName} />
+            <AuthField id="ep-avatar" label="avatar url" type="url" value={avatarURLValue} placeholder="https://..." autoComplete="off" icon={<span />} onChange={setAvatarURL} />
+            <AuthField id="ep-cover" label="cover url" type="url" value={coverURLValue} placeholder="https://..." autoComplete="off" icon={<span />} onChange={setCoverURL} />
+            <AuthField id="ep-genres" label="genres" type="text" value={genresValue} placeholder="amapiano, afro-house" autoComplete="off" icon={<span />} onChange={setGenres} />
 
             <label htmlFor="ep-bio" className="block">
               <span className="mb-2 block font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-(--nox-ink-soft)">bio</span>
-              <textarea id="ep-bio" value={bio} rows={3} onChange={(e) => setBio(e.target.value)}
+              <textarea id="ep-bio" value={bioValue} rows={3} onChange={(e) => setBio(e.target.value)}
                 className="w-full resize-none rounded-[8px] border border-(--nox-border) bg-(--nox-surface) px-3 py-3 text-[14px] text-(--nox-ink) outline-none focus:border-(--nox-accent-line)" />
             </label>
           </div>

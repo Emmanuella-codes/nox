@@ -29,7 +29,7 @@ func (p *MediaPipe) CreateSetVideoAssetPipe(ctx context.Context, userID uuid.UUI
 		}
 		return pipeInternalError[models.MediaAsset](err, "media.find_persona")
 	}
-	if persona.UserID != userID || !isDJPersona(persona) {
+	if persona.UserID != userID || !canOwnSetMedia(persona) {
 		return shared.PipeError[models.MediaAsset](messages.Forbidden)
 	}
 

@@ -17,7 +17,7 @@ function formatDuration(seconds: number) {
 }
 
 export function StoryCard({ story, onPress, compact }: StoryCardProps) {
-  const modeLabel = story.contribution_mode === "public" ? "open" : "followers";
+  const modeLabel = story.contribution_mode === "public" ? "open" : "private";
 
   if (compact) {
     return (

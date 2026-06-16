@@ -67,7 +67,7 @@ export function ProfileScreen() {
     avatar_url: "",
     cover_url: "",
     persona_type: "visible",
-    category: "fan",
+    category: "patron",
     genre_tags: ["afro-house", "amapiano", "electronic"],
     follower_count: 0,
     following_count: 0,

@@ -30,7 +30,7 @@ func (p *SetPipe) CreateSetPipe(ctx context.Context, userID uuid.UUID, dto dtos.
 		}
 		return pipeInternalError[models.Set](err, "set.find_persona")
 	}
-	if persona.UserID != userID || !isDJPersona(persona) {
+	if persona.UserID != userID || !canCreateSet(persona) {
 		return shared.PipeError[models.Set](messages.Forbidden)
 	}
 

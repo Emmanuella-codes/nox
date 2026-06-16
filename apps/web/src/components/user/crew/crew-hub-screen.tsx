@@ -22,7 +22,7 @@ export function CrewHubScreen({ eventID }: CrewHubScreenProps) {
         </button>
         <div>
           <h1 className="text-[18px] font-bold text-(--nox-ink)">crew hub</h1>
-          <p className="text-[11px] text-(--nox-ink-soft)">find your people at the event</p>
+          <p className="text-[11px] text-(--nox-ink-soft)">event {eventID.slice(0, 8)} · @{activePersona?.handle ?? "guest"}</p>
         </div>
       </header>
 

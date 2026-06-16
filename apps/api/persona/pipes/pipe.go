@@ -28,7 +28,7 @@ func validPersonaType(personaType models.PersonaType) bool {
 
 func validPersonaCategory(category models.PersonaCategory) bool {
 	switch category {
-	case models.FanPersonaCategory, models.DJPersonaCategory, models.OrganizerPersonaCategory, models.CreatorPersonaCategory:
+	case models.PatronPersonaCategory, models.DJPersonaCategory, models.OrganizerPersonaCategory:
 		return true
 	default:
 		return false

@@ -116,7 +116,7 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int,
 		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at,
 		       pe.id, pe.user_id, COALESCE(pe.handle, ''), COALESCE(pe.display_name, ''),
 		       COALESCE(pe.bio, ''), COALESCE(pe.avatar_url, ''), COALESCE(pe.cover_url, ''),
-		       COALESCE(pe.persona_type, ''), COALESCE(pe.category, 'fan'), COALESCE(pe.genre_tags, ARRAY[]::text[]),
+		       COALESCE(pe.persona_type, ''), COALESCE(pe.category, 'patron'), COALESCE(pe.genre_tags, ARRAY[]::text[]),
 		       COALESCE(pe.follower_count, 0), COALESCE(pe.following_count, 0), COALESCE(pe.post_count, 0),
 		       COALESCE(pe.created_at, now()), COALESCE(pe.updated_at, now())
 		FROM posts p

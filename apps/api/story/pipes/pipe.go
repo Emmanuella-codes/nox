@@ -35,7 +35,7 @@ func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 }
 
 func validContributionMode(mode models.StoryContributionMode) bool {
-	return mode == models.PublicStoryContributionMode || mode == models.FollowersStoryContributionMode
+	return mode == models.PublicStoryContributionMode || mode == models.PrivateStoryContributionMode
 }
 
 func validPostingMode(mode models.PostingMode) bool {

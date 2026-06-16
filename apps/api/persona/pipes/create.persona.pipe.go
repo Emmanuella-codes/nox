@@ -18,7 +18,7 @@ func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, d
 	dto.AvatarURL = strings.TrimSpace(dto.AvatarURL)
 	dto.CoverURL = strings.TrimSpace(dto.CoverURL)
 	if dto.Category == "" {
-		dto.Category = models.FanPersonaCategory
+		dto.Category = models.PatronPersonaCategory
 	}
 
 	if !validPersonaType(dto.PersonaType) {

@@ -49,11 +49,22 @@ func TestCreateSetPipeAllowsDJWithReadyShortVideo(t *testing.T) {
 	}
 }
 
-func TestCreateSetPipeRejectsNonDJPersona(t *testing.T) {
+func TestCreateSetPipeAllowsOrganizerWithReadyShortVideo(t *testing.T) {
 	userID := uuid.New()
 	personaID := uuid.New()
 	mediaID := uuid.New()
-	pipe := NewSetPipe(&setTestRepo{}, &setTestMediaRepo{}, &setTestPersonaRepo{
+	pipe := NewSetPipe(&setTestRepo{}, &setTestMediaRepo{
+		assets: map[uuid.UUID]*models.MediaAsset{
+			mediaID: {
+				ID:               mediaID,
+				OwnerUserID:      userID,
+				OwnerPersonaID:   personaID,
+				MediaKind:        models.VideoMediaKind,
+				ProcessingStatus: models.ReadyMediaStatus,
+				DurationSeconds:  600,
+			},
+		},
+	}, &setTestPersonaRepo{
 		personas: map[uuid.UUID]*models.Persona{
 			personaID: {ID: personaID, UserID: userID, PersonaType: models.VisiblePersonaType, Category: models.OrganizerPersonaCategory},
 		},
@@ -65,8 +76,8 @@ func TestCreateSetPipeRejectsNonDJPersona(t *testing.T) {
 		Title:        "Organizer set",
 		GenreTags:    []string{"afro-house"},
 	})
-	if res.Message != messages.Forbidden {
-		t.Fatalf("expected forbidden, got %q", res.Message)
+	if !res.Success {
+		t.Fatalf("expected set create success, got %q", res.Message)
 	}
 }
 

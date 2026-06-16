@@ -36,7 +36,7 @@ func (p *MediaPipe) InitiateSetVideoUploadPipe(ctx context.Context, userID uuid.
 		}
 		return pipeInternalError[InitiateUploadResponse](err, "media.upload_persona")
 	}
-	if persona.UserID != userID || !isDJPersona(persona) {
+	if persona.UserID != userID || !canOwnSetMedia(persona) {
 		return shared.PipeError[InitiateUploadResponse](messages.Forbidden)
 	}
 	storageKey := setVideoStorageKey(dto.OwnerPersonaID.String())

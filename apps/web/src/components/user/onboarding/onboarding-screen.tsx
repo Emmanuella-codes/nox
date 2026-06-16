@@ -20,7 +20,7 @@ const navItems = [
 ];
 
 type Step = 0 | 1;
-type PersonaCategory = "socialite" | "dj" | "organizer" | "creator";
+type PersonaCategory = "patron" | "dj" | "organizer";
 
 export function OnboardingScreen() {
   const router = useRouter();
@@ -31,9 +31,9 @@ export function OnboardingScreen() {
   const [bio, setBio] = useState("");
   const [genreTags, setGenreTags] = useState<string[]>([]);
   const [category] = useState<PersonaCategory>(() => {
-    if (typeof window === "undefined") return "socialite";
+    if (typeof window === "undefined") return "patron";
     const stored = localStorage.getItem("nox_signup_category");
-    return stored === "dj" || stored === "organizer" || stored === "creator" || stored === "socialite" ? stored : "socialite";
+    return stored === "dj" || stored === "organizer" || stored === "patron" ? stored : "patron";
   });
 
   const [loading, setLoading] = useState(false);

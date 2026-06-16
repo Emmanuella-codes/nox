@@ -9,10 +9,9 @@ import { signup } from "@/src/utils/api/user/auth";
 import { ApiRequestError } from "@/src/utils/api/api";
 
 const CATEGORY_OPTIONS = [
-  { value: "fan", label: "fan" },
+  { value: "patron", label: "patron" },
   { value: "dj", label: "dj" },
   { value: "organizer", label: "organizer" },
-  { value: "creator", label: "creator" },
 ] as const;
 
 export function SignupForm({ className, onSuccess }: SignupFormProps) {
@@ -20,7 +19,7 @@ export function SignupForm({ className, onSuccess }: SignupFormProps) {
   const [lastname, setLastname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number]["value"]>("fan");
+  const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number]["value"]>("patron");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");

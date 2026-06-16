@@ -25,7 +25,7 @@ function ToggleRow({ label, sub, value, onChange }: ToggleRowProps) {
 export function PrivacyScreen() {
   const router = useRouter();
   const [anonDefault, setAnonDefault] = useState(false);
-  const [storyFollowers, setStoryFollowers] = useState(false);
+  const [storyPrivate, setStoryPrivate] = useState(false);
   const [crewLocation, setCrewLocation] = useState(true);
   const [searchable, setSearchable] = useState(true);
 
@@ -41,7 +41,7 @@ export function PrivacyScreen() {
       <div className="flex-1 overflow-y-auto">
         <p className="px-4 pb-1 pt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-(--nox-ink-soft)">posting</p>
         <ToggleRow label="default to anonymous" sub="Story clips will be anonymous unless you change it" value={anonDefault} onChange={setAnonDefault} />
-        <ToggleRow label="story visibility" sub="New stories default to followers-only (instead of public)" value={storyFollowers} onChange={setStoryFollowers} />
+        <ToggleRow label="story visibility" sub="New stories default to private instead of public" value={storyPrivate} onChange={setStoryPrivate} />
 
         <p className="px-4 pb-1 pt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-(--nox-ink-soft)">crew & location</p>
         <ToggleRow label="share location in crew" sub="Allow crew members to see your pin on the live map" value={crewLocation} onChange={setCrewLocation} />

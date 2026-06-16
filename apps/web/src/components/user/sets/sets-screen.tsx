@@ -69,14 +69,14 @@ export function SetsScreen() {
   }, [sets]);
 
   const filtered = activeGenre ? sets.filter((s) => s.genre_tags.includes(activeGenre)) : sets;
-  const canCreate = activePersona?.category === "dj";
+  const canCreate = Boolean(activePersona);
 
   return (
     <FeedShell>
       <header className="flex items-center justify-between px-4 pt-[env(safe-area-inset-top,12px)] pb-3">
         <div>
           <h1 className="text-[22px] font-bold tracking-[-0.03em] text-(--nox-ink)">sets</h1>
-          <p className="mt-1 text-[12px] text-(--nox-ink-soft)">15-minute mixes from DJs.</p>
+          <p className="mt-1 text-[12px] text-(--nox-ink-soft)">15-minute sets from the community.</p>
         </div>
         <div className="flex items-center gap-2">
           {!personaLoading && canCreate ? (
