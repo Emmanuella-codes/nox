@@ -28,6 +28,14 @@ export interface FollowListResponse {
   personas: Persona[];
 }
 
+export interface UpdatePersonaRequest {
+  display_name?: string;
+  bio?: string;
+  avatar_url?: string;
+  cover_url?: string;
+  genre_tags?: string[];
+}
+
 export interface CreatePersonaRequest {
   handle: string;
   display_name: string;
