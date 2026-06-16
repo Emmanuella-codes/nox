@@ -1,6 +1,7 @@
 package pipes
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/emmanuella-codes/nox/models"
@@ -54,8 +55,9 @@ type PostResponse struct {
 }
 
 type PostAuthor struct {
-	Mode    models.PostingMode `json:"mode"`
-	Persona *PostPersonaAuthor `json:"persona,omitempty"`
+	Mode      models.PostingMode   `json:"mode"`
+	Persona   *PostPersonaAuthor   `json:"persona,omitempty"`
+	Anonymous *PostAnonymousAuthor `json:"anonymous,omitempty"`
 }
 
 type PostPersonaAuthor struct {
@@ -63,6 +65,10 @@ type PostPersonaAuthor struct {
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
+}
+
+type PostAnonymousAuthor struct {
+	Handle string `json:"handle"`
 }
 
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
@@ -73,7 +79,7 @@ func validPostingMode(mode models.PostingMode) bool {
 	return mode == models.PublicPostingMode || mode == models.AnonymousPostingMode
 }
 
-func postResponse(post *models.Post, persona *models.Persona) PostResponse {
+func postResponse(post *models.Post, persona *models.Persona, anonymousIdentity *models.AnonymousThreadIdentity) PostResponse {
 	res := PostResponse{
 		ID:           post.ID.String(),
 		Author:       PostAuthor{Mode: post.PostingMode},
@@ -105,17 +111,24 @@ func postResponse(post *models.Post, persona *models.Persona) PostResponse {
 			AvatarURL:   persona.AvatarURL,
 		}
 	}
+	if post.PostingMode == models.AnonymousPostingMode {
+		handle := "anonymous"
+		if anonymousIdentity != nil && anonymousIdentity.AnonymousHandle != "" {
+			handle = anonymousIdentity.AnonymousHandle
+		}
+		res.Author.Anonymous = &PostAnonymousAuthor{Handle: handle}
+	}
 	return res
 }
 
-func postResponses(posts []*models.Post, personas map[string]*models.Persona) []PostResponse {
+func postResponses(posts []*models.Post, personas map[string]*models.Persona, anonymousIdentities map[uuid.UUID]*models.AnonymousThreadIdentity) []PostResponse {
 	responses := make([]PostResponse, 0, len(posts))
 	for _, post := range posts {
 		var persona *models.Persona
 		if post.PersonaID != nil {
 			persona = personas[post.PersonaID.String()]
 		}
-		response := postResponse(post, persona)
+		response := postResponse(post, persona, anonymousIdentities[post.ID])
 		responses = append(responses, response)
 	}
 	return responses
@@ -127,4 +140,9 @@ func postIDs(posts []*models.Post) []uuid.UUID {
 		ids = append(ids, post.ID)
 	}
 	return ids
+}
+
+func anonymousHandle() string {
+	id := uuid.NewString()
+	return fmt.Sprintf("ghost_%s", id[:8])
 }

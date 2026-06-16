@@ -101,6 +101,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
 
   const isAnon = post?.author.mode === "anonymous";
   const persona = post?.author.persona;
+  const anonymousLabel = post?.author.anonymous?.handle ?? "anonymous";
   const canAct = Boolean(getAccessToken() && viewerPersonaID);
 
   async function handleToggleLike() {
@@ -141,7 +142,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
     try {
       const res = await createComment(
         post.id,
-        { persona_id: viewerPersonaID, body: commentBody.trim() },
+        { persona_id: viewerPersonaID, posting_mode: isAnon ? "anonymous" : "public", body: commentBody.trim() },
         token,
       );
       if (res.data) {
@@ -208,7 +209,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
                       style={{ background: "var(--nox-surface-alt)", color: "var(--nox-ink-mid)" }}
                     >
                       <Ghost className="size-2.5" strokeWidth={1.8} />
-                      anonymous
+                      {anonymousLabel}
                     </span>
                   ) : (
                     <>

@@ -9,6 +9,7 @@ import (
 	hashtag_repo "github.com/emmanuella-codes/nox/repositories/hashtag"
 	like_repo "github.com/emmanuella-codes/nox/repositories/like"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 )
@@ -17,20 +18,24 @@ type HashtagPipe struct {
 	repo        hashtag_repo.HashtagRepository
 	personaRepo persona_repo.PersonaRepository
 	likeRepo    like_repo.LikeRepository
+	postRepo    post_repo.PostRepository
 }
 
 func NewHashtagPipe(repo hashtag_repo.HashtagRepository, deps ...any) *HashtagPipe {
 	var personas persona_repo.PersonaRepository
 	var likes like_repo.LikeRepository
+	var posts post_repo.PostRepository
 	for _, dep := range deps {
 		switch typed := dep.(type) {
 		case persona_repo.PersonaRepository:
 			personas = typed
 		case like_repo.LikeRepository:
 			likes = typed
+		case post_repo.PostRepository:
+			posts = typed
 		}
 	}
-	return &HashtagPipe{repo: repo, personaRepo: personas, likeRepo: likes}
+	return &HashtagPipe{repo: repo, personaRepo: personas, likeRepo: likes, postRepo: posts}
 }
 
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
@@ -63,7 +68,11 @@ func (p *HashtagPipe) postResponses(ctx context.Context, posts []*models.Post) (
 
 	responses := make([]post_pipes.PostResponse, 0, len(posts))
 	for _, post := range posts {
-		response := postResponse(post, personas)
+		identity, err := p.anonymousPostIdentity(ctx, post)
+		if err != nil {
+			return nil, err
+		}
+		response := postResponse(post, personas, identity)
 		response.Hashtags = tagsByPost[post.ID]
 		responses = append(responses, response)
 	}
@@ -112,7 +121,14 @@ func (p *HashtagPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, p
 	return persona, ""
 }
 
-func postResponse(post *models.Post, personas map[string]*models.Persona) post_pipes.PostResponse {
+func (p *HashtagPipe) anonymousPostIdentity(ctx context.Context, post *models.Post) (*models.AnonymousThreadIdentity, error) {
+	if p.postRepo == nil || post.PostingMode != models.AnonymousPostingMode || post.PersonaID == nil {
+		return nil, nil
+	}
+	return p.postRepo.EnsureAnonymousThreadIdentity(ctx, post.ID, post.AuthorUserID, *post.PersonaID, anonymousHandle())
+}
+
+func postResponse(post *models.Post, personas map[string]*models.Persona, identity *models.AnonymousThreadIdentity) post_pipes.PostResponse {
 	response := post_pipes.PostResponse{
 		ID:           post.ID.String(),
 		Author:       post_pipes.PostAuthor{Mode: post.PostingMode},
@@ -146,7 +162,19 @@ func postResponse(post *models.Post, personas map[string]*models.Persona) post_p
 			}
 		}
 	}
+	if post.PostingMode == models.AnonymousPostingMode {
+		handle := "anonymous"
+		if identity != nil && identity.AnonymousHandle != "" {
+			handle = identity.AnonymousHandle
+		}
+		response.Author.Anonymous = &post_pipes.PostAnonymousAuthor{Handle: handle}
+	}
 	return response
+}
+
+func anonymousHandle() string {
+	id := uuid.NewString()
+	return "ghost_" + id[:8]
 }
 
 func postIDs(posts []*models.Post) []uuid.UUID {

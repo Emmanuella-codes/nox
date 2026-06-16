@@ -16,12 +16,20 @@ import (
 func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 	userID := uuid.New()
 	postRepo := &postTestRepo{}
-	personaRepo := &postTestPersonaRepo{}
+	personaID := uuid.New()
+	personaRepo := &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			personaID.String(): {
+				ID:          personaID,
+				UserID:      userID,
+				PersonaType: models.VisiblePersonaType,
+			},
+		},
+	}
 	pipe := NewPostPipe(postRepo, personaRepo)
-	leakyPersonaID := uuid.New()
 
 	res := pipe.CreatePostPipe(context.Background(), userID, postdtos.CreatePostDTO{
-		PersonaID:   &leakyPersonaID,
+		PersonaID:   &personaID,
 		PostingMode: models.AnonymousPostingMode,
 		Body:        "anonymous body",
 		PostType:    models.TextPostType,
@@ -32,8 +40,8 @@ func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 	if postRepo.createdAuthorUserID != userID {
 		t.Fatalf("expected author user id %s, got %s", userID, postRepo.createdAuthorUserID)
 	}
-	if postRepo.createdDTO.PersonaID != nil {
-		t.Fatal("expected anonymous post persona id to be cleared before persistence")
+	if postRepo.createdDTO.PersonaID == nil || *postRepo.createdDTO.PersonaID != personaID {
+		t.Fatal("expected anonymous post persona id to be retained internally")
 	}
 	if res.Data == nil {
 		t.Fatal("expected post response")
@@ -44,14 +52,27 @@ func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 	if res.Data.Author.Persona != nil {
 		t.Fatal("expected anonymous response not to expose persona")
 	}
+	if res.Data.Author.Anonymous == nil || res.Data.Author.Anonymous.Handle == "" {
+		t.Fatal("expected anonymous response to expose thread alias")
+	}
 }
 
 func TestCreatePostPipeSyncsExtractedHashtags(t *testing.T) {
 	userID := uuid.New()
+	personaID := uuid.New()
 	postRepo := &postTestRepo{}
-	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{}, &postTestHashtagRepo{})
+	pipe := NewPostPipe(postRepo, &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			personaID.String(): {
+				ID:          personaID,
+				UserID:      userID,
+				PersonaType: models.VisiblePersonaType,
+			},
+		},
+	}, &postTestHashtagRepo{})
 
 	res := pipe.CreatePostPipe(context.Background(), userID, postdtos.CreatePostDTO{
+		PersonaID:   &personaID,
 		PostingMode: models.AnonymousPostingMode,
 		Body:        "tonight at #Amapiano with #afro-house and #amapiano",
 		PostType:    models.TextPostType,
@@ -266,6 +287,7 @@ type postTestRepo struct {
 	personaPosts        []*models.Post
 	feedPosts           []*models.Post
 	followingFeedPosts  []*models.Post
+	identities          map[uuid.UUID]*models.AnonymousThreadIdentity
 	createdAuthorUserID uuid.UUID
 	createdDTO          postdtos.CreatePostDTO
 	createdTags         []string
@@ -313,6 +335,42 @@ func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, l
 
 func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
 	return r.followingFeedPosts, nil
+}
+
+func (r *postTestRepo) EnsureAnonymousThreadIdentity(ctx context.Context, threadID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, anonymousHandle string) (*models.AnonymousThreadIdentity, error) {
+	if r.identities == nil {
+		r.identities = map[uuid.UUID]*models.AnonymousThreadIdentity{}
+	}
+	if identity, ok := r.identities[threadID]; ok {
+		return identity, nil
+	}
+	identity := &models.AnonymousThreadIdentity{
+		ID:              uuid.New(),
+		ThreadID:        threadID,
+		UserID:          userID,
+		PersonaID:       personaID,
+		AnonymousHandle: anonymousHandle,
+	}
+	r.identities[threadID] = identity
+	return identity, nil
+}
+
+func (r *postTestRepo) FindAnonymousThreadIdentities(ctx context.Context, threadID uuid.UUID, personaIDs []uuid.UUID) (map[uuid.UUID]*models.AnonymousThreadIdentity, error) {
+	identities := map[uuid.UUID]*models.AnonymousThreadIdentity{}
+	if r.identities == nil {
+		return identities, nil
+	}
+	for _, identity := range r.identities {
+		if identity.ThreadID != threadID {
+			continue
+		}
+		for _, personaID := range personaIDs {
+			if identity.PersonaID == personaID {
+				identities[personaID] = identity
+			}
+		}
+	}
+	return identities, nil
 }
 
 func (r *postTestRepo) DeletePost(ctx context.Context, postID uuid.UUID) error {

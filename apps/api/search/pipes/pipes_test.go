@@ -116,8 +116,8 @@ func TestSearchAnonymousPostsExposeUnlinkableLabel(t *testing.T) {
 	if !res.Success {
 		t.Fatalf("expected search success, got %q", res.Message)
 	}
-	if res.Data.Posts[0].Author.AnonymousLabel != "anonymous" {
-		t.Fatalf("expected anonymous label, got %q", res.Data.Posts[0].Author.AnonymousLabel)
+	if res.Data.Posts[0].Author.Anonymous == nil || res.Data.Posts[0].Author.Anonymous.Handle != "anonymous" {
+		t.Fatalf("expected anonymous label, got %#v", res.Data.Posts[0].Author.Anonymous)
 	}
 	if res.Data.Posts[0].Author.Persona != nil {
 		t.Fatal("expected anonymous search result not to expose persona")

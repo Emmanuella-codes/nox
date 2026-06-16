@@ -24,8 +24,12 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	if pipeErr != nil {
 		return pipeErr
 	}
+	identity, err := p.anonymousPostIdentity(ctx, post)
+	if err != nil {
+		return pipeInternalError[PostResponse](err, "post.anonymous_identity")
+	}
 
-	response := postResponse(post, persona)
+	response := postResponse(post, persona, identity)
 	if p.hashtagRepo != nil {
 		tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, []uuid.UUID{post.ID})
 		if err != nil {
@@ -68,7 +72,12 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 		return pipeErr
 	}
 
-	responses := postResponses(posts, personas)
+	identities, err := p.anonymousPostIdentities(ctx, posts)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.anonymous_identities")
+	}
+
+	responses := postResponses(posts, personas, identities)
 	if err := p.hydrateHashtags(ctx, responses); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.persona_posts_hashtags")
 	}
@@ -105,7 +114,12 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 		return pipeErr
 	}
 
-	responses := postResponses(posts, personas)
+	identities, err := p.anonymousPostIdentities(ctx, posts)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.feed_anonymous_identities")
+	}
+
+	responses := postResponses(posts, personas, identities)
 	if err := p.hydrateHashtags(ctx, responses); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.feed_hashtags")
 	}
@@ -135,7 +149,12 @@ func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID
 		return pipeErr
 	}
 
-	responses := postResponses(posts, personas)
+	identities, err := p.anonymousPostIdentities(ctx, posts)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.following_feed_anonymous_identities")
+	}
+
+	responses := postResponses(posts, personas, identities)
 	if err := p.hydrateHashtags(ctx, responses); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.following_feed_hashtags")
 	}
@@ -199,6 +218,27 @@ func (p *PostPipe) publicPostPersonas(ctx context.Context, posts []*models.Post)
 	}
 
 	return personas, nil
+}
+
+func (p *PostPipe) anonymousPostIdentity(ctx context.Context, post *models.Post) (*models.AnonymousThreadIdentity, error) {
+	if post.PostingMode != models.AnonymousPostingMode || post.PersonaID == nil {
+		return nil, nil
+	}
+	return p.postRepo.EnsureAnonymousThreadIdentity(ctx, post.ID, post.AuthorUserID, *post.PersonaID, anonymousHandle())
+}
+
+func (p *PostPipe) anonymousPostIdentities(ctx context.Context, posts []*models.Post) (map[uuid.UUID]*models.AnonymousThreadIdentity, error) {
+	identities := make(map[uuid.UUID]*models.AnonymousThreadIdentity)
+	for _, post := range posts {
+		identity, err := p.anonymousPostIdentity(ctx, post)
+		if err != nil {
+			return nil, err
+		}
+		if identity != nil {
+			identities[post.ID] = identity
+		}
+	}
+	return identities, nil
 }
 
 func (p *PostPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, responses []PostResponse) error {

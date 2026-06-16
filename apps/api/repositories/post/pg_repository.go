@@ -3,6 +3,7 @@ package post
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/post/dtos"
@@ -191,6 +192,46 @@ func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uui
 	return posts, nil
 }
 
+func (r *pgRepository) EnsureAnonymousThreadIdentity(ctx context.Context, threadID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, anonymousHandle string) (*models.AnonymousThreadIdentity, error) {
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO anonymous_thread_identities (thread_id, user_id, persona_id, anonymous_handle)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (thread_id, persona_id) DO UPDATE
+		SET anonymous_handle = anonymous_thread_identities.anonymous_handle
+		RETURNING id, thread_id, user_id, persona_id, anonymous_handle, created_at
+	`, threadID, userID, personaID, anonymousHandle)
+	return scanAnonymousThreadIdentity(row)
+}
+
+func (r *pgRepository) FindAnonymousThreadIdentities(ctx context.Context, threadID uuid.UUID, personaIDs []uuid.UUID) (map[uuid.UUID]*models.AnonymousThreadIdentity, error) {
+	identities := make(map[uuid.UUID]*models.AnonymousThreadIdentity)
+	if len(personaIDs) == 0 {
+		return identities, nil
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT id, thread_id, user_id, persona_id, anonymous_handle, created_at
+		FROM anonymous_thread_identities
+		WHERE thread_id = $1 AND persona_id = ANY($2)
+	`, threadID, personaIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		identity, err := scanAnonymousThreadIdentity(rows)
+		if err != nil {
+			return nil, err
+		}
+		identities[identity.PersonaID] = identity
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return identities, nil
+}
+
 func (r *pgRepository) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	commandTag, err := r.db.Exec(ctx, `DELETE FROM posts WHERE id = $1`, postID)
 	if err != nil {
@@ -301,6 +342,28 @@ func deletePostHashtags(ctx context.Context, db execQuerier, postID uuid.UUID) e
 
 type postScanner interface {
 	Scan(dest ...any) error
+}
+
+type anonymousThreadIdentityScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanAnonymousThreadIdentity(scanner anonymousThreadIdentityScanner) (*models.AnonymousThreadIdentity, error) {
+	var identity models.AnonymousThreadIdentity
+	var createdAt time.Time
+	err := scanner.Scan(
+		&identity.ID,
+		&identity.ThreadID,
+		&identity.UserID,
+		&identity.PersonaID,
+		&identity.AnonymousHandle,
+		&createdAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	identity.CreatedAt = createdAt
+	return &identity, nil
 }
 
 func scanPost(scanner postScanner) (*models.Post, error) {

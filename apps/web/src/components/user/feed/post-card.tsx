@@ -38,7 +38,7 @@ export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps
   const router = useRouter();
   const isAnon = post.author.mode === "anonymous";
   const persona = post.author.persona;
-  const anonymousLabel = post.author.anonymous_label ?? "anonymous";
+  const anonymousLabel = post.author.anonymous?.handle ?? "anonymous";
   const { segments } = extractHashtags(post.body);
 
   return (

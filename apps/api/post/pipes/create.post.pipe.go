@@ -24,7 +24,7 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 
 	var persona *models.Persona
 	switch dto.PostingMode {
-	case models.PublicPostingMode:
+	case models.PublicPostingMode, models.AnonymousPostingMode:
 		if dto.PersonaID == nil || *dto.PersonaID == uuid.Nil {
 			return shared.PipeError[PostResponse](messages.Persona_Required)
 		}
@@ -39,9 +39,9 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 		if foundPersona.UserID != userID || foundPersona.PersonaType != models.VisiblePersonaType {
 			return shared.PipeError[PostResponse](messages.Forbidden)
 		}
-		persona = foundPersona
-	case models.AnonymousPostingMode:
-		dto.PersonaID = nil
+		if dto.PostingMode == models.PublicPostingMode {
+			persona = foundPersona
+		}
 	}
 
 	tags := hashtag_repo.ExtractTags(dto.Body)
@@ -50,7 +50,15 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 		return pipeInternalError[PostResponse](err, "post.create")
 	}
 
-	response := postResponse(post, persona)
+	var identity *models.AnonymousThreadIdentity
+	if post.PostingMode == models.AnonymousPostingMode && post.PersonaID != nil {
+		identity, err = p.postRepo.EnsureAnonymousThreadIdentity(ctx, post.ID, userID, *post.PersonaID, anonymousHandle())
+		if err != nil {
+			return pipeInternalError[PostResponse](err, "post.anonymous_identity")
+		}
+	}
+
+	response := postResponse(post, persona, identity)
 	response.Hashtags = tags
 	return shared.PipeSuccess(messages.Post_Created, &response)
 }

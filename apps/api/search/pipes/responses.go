@@ -57,9 +57,9 @@ type SearchPostResponse struct {
 }
 
 type SearchPostAuthor struct {
-	Mode           models.PostingMode `json:"mode"`
-	Persona        *SearchPostPersona `json:"persona,omitempty"`
-	AnonymousLabel string             `json:"anonymous_label,omitempty"`
+	Mode      models.PostingMode   `json:"mode"`
+	Persona   *SearchPostPersona   `json:"persona,omitempty"`
+	Anonymous *SearchPostAnonymous `json:"anonymous,omitempty"`
 }
 
 type SearchPostPersona struct {
@@ -67,6 +67,10 @@ type SearchPostPersona struct {
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
+}
+
+type SearchPostAnonymous struct {
+	Handle string `json:"handle"`
 }
 
 type SearchEventResponse struct {
@@ -151,7 +155,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 func postAuthor(result *searchrepo.PostResult) SearchPostAuthor {
 	author := SearchPostAuthor{Mode: result.Post.PostingMode}
 	if result.Post.PostingMode == models.AnonymousPostingMode {
-		author.AnonymousLabel = "anonymous"
+		author.Anonymous = &SearchPostAnonymous{Handle: "anonymous"}
 		return author
 	}
 	if result.Post.PostingMode == models.PublicPostingMode && result.Persona != nil {

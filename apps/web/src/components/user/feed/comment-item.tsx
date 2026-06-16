@@ -19,6 +19,10 @@ function formatTime(isoString: string): string {
 }
 
 export function CommentItem({ comment, isReply = false }: CommentItemProps) {
+  const displayName = comment.author.mode === "anonymous"
+    ? comment.author.anonymous?.handle ?? "anonymous"
+    : comment.author.persona?.display_name ?? comment.author.persona?.handle ?? "public commenter";
+
   return (
     <div className={`flex gap-3 py-3 ${isReply ? "pl-10" : ""}`}>
       {/* Avatar */}
@@ -35,7 +39,7 @@ export function CommentItem({ comment, isReply = false }: CommentItemProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[12px] font-semibold text-(--nox-ink)">
-            public commenter
+            {displayName}
           </span>
           <span className="text-[11px] text-(--nox-ink-soft)">
             {formatTime(comment.created_at)}
