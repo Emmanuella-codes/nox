@@ -27,7 +27,7 @@ func (p *EventPipe) CreateEventPipe(ctx context.Context, userID uuid.UUID, dto d
 		}
 		return pipeInternalError[models.Event](err, "event.find_organizer")
 	}
-	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+	if persona.UserID != userID || !canCreateEvent(persona) {
 		return shared.PipeError[models.Event](messages.Forbidden)
 	}
 
@@ -36,4 +36,10 @@ func (p *EventPipe) CreateEventPipe(ctx context.Context, userID uuid.UUID, dto d
 		return pipeInternalError[models.Event](err, "event.create")
 	}
 	return shared.PipeSuccess(messages.Event_Created, event)
+}
+
+func canCreateEvent(persona *models.Persona) bool {
+	return persona.PersonaType == models.VisiblePersonaType &&
+		(persona.Category == models.DJPersonaCategory ||
+			persona.Category == models.OrganizerPersonaCategory)
 }

@@ -17,8 +17,14 @@ func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, d
 	dto.Bio = strings.TrimSpace(dto.Bio)
 	dto.AvatarURL = strings.TrimSpace(dto.AvatarURL)
 	dto.CoverURL = strings.TrimSpace(dto.CoverURL)
+	if dto.Category == "" {
+		dto.Category = models.PatronPersonaCategory
+	}
 
 	if !validPersonaType(dto.PersonaType) {
+		return shared.PipeError[models.Persona](messages.Invalid_Persona_Type)
+	}
+	if !validPersonaCategory(dto.Category) {
 		return shared.PipeError[models.Persona](messages.Invalid_Persona_Type)
 	}
 

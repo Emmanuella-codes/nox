@@ -38,7 +38,7 @@ export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps
   const router = useRouter();
   const isAnon = post.author.mode === "anonymous";
   const persona = post.author.persona;
-  const anonymousLabel = post.author.anonymous_label ?? "anonymous";
+  const anonymousLabel = post.author.anonymous?.handle ?? "anonymous";
   const { segments } = extractHashtags(post.body);
 
   return (
@@ -133,6 +133,20 @@ export function PostCard({ post, onClick, liked = false, onLike }: PostCardProps
               />
             </div>
           )}
+          {post.media?.length ? (
+            <div className="mt-2.5 grid gap-2 overflow-hidden rounded-[10px]">
+              {post.media.map((asset) =>
+                asset.media_kind === "video" ? (
+                  <video key={asset.id} controls preload="metadata" poster={asset.thumbnail_url || undefined} className="max-h-[360px] w-full rounded-[8px] bg-black object-cover">
+                    <source src={asset.playback_url} type={asset.mime_type} />
+                  </video>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={asset.id} src={asset.playback_url} alt="" className="max-h-[420px] w-full rounded-[8px] object-cover" loading="lazy" />
+                ),
+              )}
+            </div>
+          ) : null}
 
           {/* Engagement row */}
           <div className="mt-3 flex items-center gap-5">

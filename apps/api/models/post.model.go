@@ -11,6 +11,7 @@ type PostType string
 const (
 	TextPostType     PostType = "text"
 	ImagePostType    PostType = "image"
+	VideoPostType    PostType = "video"
 	SetPostType      PostType = "set"
 	EventTagPostType PostType = "event_tag"
 )

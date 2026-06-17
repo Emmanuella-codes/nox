@@ -27,6 +27,7 @@ type SearchPersonaResponse struct {
 	AvatarURL      string    `json:"avatar_url"`
 	CoverURL       string    `json:"cover_url"`
 	PersonaType    string    `json:"persona_type"`
+	Category       string    `json:"category"`
 	GenreTags      []string  `json:"genre_tags"`
 	FollowerCount  int       `json:"follower_count"`
 	FollowingCount int       `json:"following_count"`
@@ -37,28 +38,29 @@ type SearchPersonaResponse struct {
 }
 
 type SearchPostResponse struct {
-	ID           string           `json:"id"`
-	Author       SearchPostAuthor `json:"author"`
-	EventID      *string          `json:"event_id,omitempty"`
-	Body         string           `json:"body"`
-	PostType     models.PostType  `json:"post_type"`
-	MediaURL     string           `json:"media_url,omitempty"`
-	MediaType    models.MediaType `json:"media_type,omitempty"`
-	Location     string           `json:"location,omitempty"`
-	LikeCount    int              `json:"like_count"`
-	CommentCount int              `json:"comment_count"`
-	RepostCount  int              `json:"repost_count"`
-	IsLiked      bool             `json:"is_liked"`
-	IsRepost     bool             `json:"is_repost"`
-	RepostOf     *string          `json:"repost_of,omitempty"`
-	Hashtags     []string         `json:"hashtags"`
-	CreatedAt    time.Time        `json:"created_at"`
+	ID           string               `json:"id"`
+	Author       SearchPostAuthor     `json:"author"`
+	EventID      *string              `json:"event_id,omitempty"`
+	Body         string               `json:"body"`
+	PostType     models.PostType      `json:"post_type"`
+	MediaURL     string               `json:"media_url,omitempty"`
+	MediaType    models.MediaType     `json:"media_type,omitempty"`
+	Location     string               `json:"location,omitempty"`
+	LikeCount    int                  `json:"like_count"`
+	CommentCount int                  `json:"comment_count"`
+	RepostCount  int                  `json:"repost_count"`
+	IsLiked      bool                 `json:"is_liked"`
+	IsRepost     bool                 `json:"is_repost"`
+	RepostOf     *string              `json:"repost_of,omitempty"`
+	Hashtags     []string             `json:"hashtags"`
+	Media        []*models.MediaAsset `json:"media"`
+	CreatedAt    time.Time            `json:"created_at"`
 }
 
 type SearchPostAuthor struct {
-	Mode           models.PostingMode `json:"mode"`
-	Persona        *SearchPostPersona `json:"persona,omitempty"`
-	AnonymousLabel string             `json:"anonymous_label,omitempty"`
+	Mode      models.PostingMode   `json:"mode"`
+	Persona   *SearchPostPersona   `json:"persona,omitempty"`
+	Anonymous *SearchPostAnonymous `json:"anonymous,omitempty"`
 }
 
 type SearchPostPersona struct {
@@ -66,6 +68,10 @@ type SearchPostPersona struct {
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
+}
+
+type SearchPostAnonymous struct {
+	Handle string `json:"handle"`
 }
 
 type SearchEventResponse struct {
@@ -101,6 +107,7 @@ func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 			AvatarURL:      persona.AvatarURL,
 			CoverURL:       persona.CoverURL,
 			PersonaType:    string(persona.PersonaType),
+			Category:       string(persona.Category),
 			GenreTags:      persona.GenreTags,
 			FollowerCount:  persona.FollowerCount,
 			FollowingCount: persona.FollowingCount,
@@ -131,6 +138,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 			IsLiked:      false,
 			IsRepost:     post.IsRepost,
 			Hashtags:     []string{},
+			Media:        []*models.MediaAsset{},
 			CreatedAt:    post.CreatedAt,
 		}
 		if post.EventID != nil {
@@ -149,7 +157,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 func postAuthor(result *searchrepo.PostResult) SearchPostAuthor {
 	author := SearchPostAuthor{Mode: result.Post.PostingMode}
 	if result.Post.PostingMode == models.AnonymousPostingMode {
-		author.AnonymousLabel = "anonymous"
+		author.Anonymous = &SearchPostAnonymous{Handle: "anonymous"}
 		return author
 	}
 	if result.Post.PostingMode == models.PublicPostingMode && result.Persona != nil {

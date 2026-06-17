@@ -31,6 +31,32 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+
+  /* ── nox design tokens — light ─────────────────────────────────────── */
+  --nox-bg:            #f3f0e9;
+  --nox-bg-soft:       #fbf9f4;
+  --nox-surface:       #ffffff;
+  --nox-surface-alt:   #ebe7dd;
+  --nox-surface-sunk:  #e6e1d4;
+  --nox-border:        rgba(20, 18, 22, 0.09);
+  --nox-border-strong: rgba(20, 18, 22, 0.16);
+  --nox-divider:       rgba(20, 18, 22, 0.06);
+  --nox-ink:           #14121a;
+  --nox-ink-mid:       #56525e;
+  --nox-ink-soft:      #8a8694;
+  --nox-ink-faint:     #b6b1bf;
+  --nox-accent:        #6b4dff;
+  --nox-accent-ink:    #4a2fcc;
+  --nox-accent-soft:   #ece6ff;
+  --nox-accent-line:   rgba(107, 77, 255, 0.32);
+  --nox-danger:        #c43d3d;
+  --nox-danger-soft:   #f7e3e3;
+  --nox-success:       #3d8a4a;
+  --nox-success-soft:  #e2efe1;
+  --nox-gold:          #a87a1f;
+  --nox-shadow:        0 1px 2px rgba(20, 18, 22, 0.04), 0 8px 32px rgba(20, 18, 22, 0.06);
+  /* ─────────────────────────────────────────────────────────────────── */
+
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -131,6 +157,31 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* ── nox design tokens — dark ───────────────────────────────────────── */
+  --nox-bg:            #0a0a0c;
+  --nox-bg-soft:       #101013;
+  --nox-surface:       #15151a;
+  --nox-surface-alt:   #1c1c22;
+  --nox-surface-sunk:  #0e0e11;
+  --nox-border:        rgba(255, 255, 255, 0.07);
+  --nox-border-strong: rgba(255, 255, 255, 0.14);
+  --nox-divider:       rgba(255, 255, 255, 0.05);
+  --nox-ink:           #ededf2;
+  --nox-ink-mid:       #9a96a8;
+  --nox-ink-soft:      #6b6878;
+  --nox-ink-faint:     #3a3744;
+  --nox-accent:        #a78bfa;
+  --nox-accent-ink:    #c8b6ff;
+  --nox-accent-soft:   rgba(167, 139, 250, 0.14);
+  --nox-accent-line:   rgba(167, 139, 250, 0.4);
+  --nox-danger:        #e07070;
+  --nox-danger-soft:   rgba(224, 112, 112, 0.14);
+  --nox-success:       #7ac687;
+  --nox-success-soft:  rgba(122, 198, 135, 0.14);
+  --nox-gold:          #d4a347;
+  --nox-shadow:        0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 32px rgba(0, 0, 0, 0.3);
+  /* ─────────────────────────────────────────────────────────────────── */
 }
 
 /* Landing page responsive overrides */

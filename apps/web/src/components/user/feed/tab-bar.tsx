@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarDays, Grid2X2, Search, User } from "lucide-react";
+import { CalendarDays, Grid2X2, ListMusic, Search, User } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
 const tabs = [
   { label: "feed", icon: Grid2X2, href: "/feed" },
   { label: "discover", icon: Search, href: "/discover" },
+  { label: "sets", icon: ListMusic, href: "/sets" },
   { label: "events", icon: CalendarDays, href: "/events" },
   { label: "profile", icon: User, href: "/profile" },
 ];
@@ -16,7 +17,7 @@ export function TabBar() {
 
   return (
     <nav className="border-t border-(--nox-divider) bg-(--nox-bg)">
-      <div className="grid grid-cols-4 pb-[env(safe-area-inset-bottom,12px)] pt-2">
+      <div className="grid grid-cols-5 pb-[env(safe-area-inset-bottom,12px)] pt-2">
         {tabs.map(({ label, icon: Icon, href }) => {
           const active = pathname.startsWith(href);
           return (

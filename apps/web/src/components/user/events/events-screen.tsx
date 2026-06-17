@@ -1,10 +1,13 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { EventCard } from "@/src/components/user/events/event-card";
 import { getEvents } from "@/src/utils/api/user/event";
+import { useActivePersona } from "@/src/hooks/use-active-persona";
 import type { Event } from "@/src/types/api/event";
 
 type EventFilter = "upcoming" | "this-week" | "this-month";
@@ -34,10 +37,14 @@ function filterEvents(events: Event[], filter: EventFilter): Event[] {
 }
 
 export function EventsScreen() {
+  const router = useRouter();
+  const { activePersona } = useActivePersona();
   const [filter, setFilter] = useState<EventFilter>("upcoming");
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const canCreate = activePersona?.category === "dj" || activePersona?.category === "organizer";
 
   useEffect(() => {
     async function loadEvents() {
@@ -58,8 +65,15 @@ export function EventsScreen() {
   return (
     <FeedShell>
       {/* Header */}
-      <header className="px-4 pt-[env(safe-area-inset-top,12px)] pb-3">
+      <header className="flex items-center justify-between px-4 pt-[env(safe-area-inset-top,12px)] pb-3">
         <h1 className="text-[22px] font-bold tracking-[-0.03em] text-(--nox-ink)">events</h1>
+        {canCreate && (
+          <button type="button" onClick={() => router.push("/events/create")}
+            className="flex items-center gap-1.5 rounded-[8px] bg-(--nox-accent) px-3 py-1.5 text-[12px] font-semibold text-white">
+            <Plus className="size-3.5" strokeWidth={2} />
+            create
+          </button>
+        )}
       </header>
 
       {/* Filter tabs */}
@@ -91,7 +105,7 @@ export function EventsScreen() {
         ) : error ? (
           <p className="px-4 py-8 text-[13px] text-(--nox-danger)">{error}</p>
         ) : events.length > 0 ? (
-          events.map((e) => <EventCard key={e.id} event={e} />)
+          events.map((e) => <EventCard key={e.id} event={e} onPress={() => router.push(`/events/${e.id}`)} />)
         ) : (
           <div className="flex flex-col items-center justify-center py-16">
             <p className="text-[13px] text-(--nox-ink-soft)">no events {filter.replace("-", " ")}</p>

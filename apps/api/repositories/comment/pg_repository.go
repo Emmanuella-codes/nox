@@ -27,10 +27,10 @@ func (r *pgRepository) CreateComment(ctx context.Context, postID uuid.UUID, dto 
 	defer tx.Rollback(ctx)
 
 	row := tx.QueryRow(ctx, `
-		INSERT INTO comments (persona_id, post_id, body, parent_id)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, persona_id, post_id, body, parent_id, like_count, created_at
-	`, dto.PersonaID, postID, dto.Body, dto.ParentID)
+		INSERT INTO comments (persona_id, post_id, posting_mode, body, parent_id)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
+	`, dto.PersonaID, postID, dto.PostingMode, dto.Body, dto.ParentID)
 
 	comment, err := scanComment(row)
 	if err != nil {
@@ -50,7 +50,7 @@ func (r *pgRepository) CreateComment(ctx context.Context, postID uuid.UUID, dto 
 
 func (r *pgRepository) FindCommentsByPostID(ctx context.Context, postID uuid.UUID, limit int) ([]*models.Comment, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, persona_id, post_id, body, parent_id, like_count, created_at
+		SELECT id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
 		FROM comments
 		WHERE post_id = $1
 		ORDER BY created_at ASC
@@ -74,7 +74,7 @@ func (r *pgRepository) FindCommentsByPostID(ctx context.Context, postID uuid.UUI
 
 func (r *pgRepository) FindCommentByID(ctx context.Context, commentID uuid.UUID) (*models.Comment, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, persona_id, post_id, body, parent_id, like_count, created_at
+		SELECT id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
 		FROM comments
 		WHERE id = $1
 	`, commentID)
@@ -116,6 +116,7 @@ func scanComment(scanner commentScanner) (*models.Comment, error) {
 		&comment.ID,
 		&comment.PersonaID,
 		&comment.PostID,
+		&comment.PostingMode,
 		&comment.Body,
 		&parentID,
 		&comment.LikeCount,

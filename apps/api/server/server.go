@@ -24,6 +24,9 @@ import (
 	like_controllers "github.com/emmanuella-codes/nox/like/controllers"
 	like_pipes "github.com/emmanuella-codes/nox/like/pipes"
 	like_routers "github.com/emmanuella-codes/nox/like/routers"
+	media_controllers "github.com/emmanuella-codes/nox/media/controllers"
+	media_pipes "github.com/emmanuella-codes/nox/media/pipes"
+	media_routers "github.com/emmanuella-codes/nox/media/routers"
 	"github.com/emmanuella-codes/nox/middleware"
 	persona_controllers "github.com/emmanuella-codes/nox/persona/controllers"
 	persona_pipes "github.com/emmanuella-codes/nox/persona/pipes"
@@ -35,8 +38,14 @@ import (
 	search_controllers "github.com/emmanuella-codes/nox/search/controllers"
 	search_pipes "github.com/emmanuella-codes/nox/search/pipes"
 	search_routers "github.com/emmanuella-codes/nox/search/routers"
+	set_controllers "github.com/emmanuella-codes/nox/set/controllers"
+	set_pipes "github.com/emmanuella-codes/nox/set/pipes"
+	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
+	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
+	story_routers "github.com/emmanuella-codes/nox/story/routers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/redis/go-redis/v9"
@@ -81,13 +90,16 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 
 	authController := controllers.NewAuthController(authPipe)
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona))
-	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag))
+	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media))
 	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
 	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
 	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
-	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow))
+	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow, repos.Post))
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
-	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like))
+	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like, repos.Post))
+	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
+	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
+	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 
 	api := app.Group("/api/v1")
 
@@ -100,6 +112,9 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
+	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))
+	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
+	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 
 	go func() {
 		<-ctx.Done()

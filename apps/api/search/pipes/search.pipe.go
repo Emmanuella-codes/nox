@@ -76,6 +76,12 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 	if err := p.hydrateHashtags(ctx, response.Posts); err != nil {
 		return pipeInternalError[SearchResponse](err, "search.hashtags")
 	}
+	if err := p.hydrateMedia(ctx, response.Posts); err != nil {
+		return pipeInternalError[SearchResponse](err, "search.media")
+	}
+	if err := p.hydrateAnonymousAuthors(ctx, results.Posts, response.Posts); err != nil {
+		return pipeInternalError[SearchResponse](err, "search.anonymous_authors")
+	}
 	return shared.PipeSuccess(searchmessages.Search_Listed, &response)
 }
 
@@ -131,6 +137,52 @@ func (p *SearchPipe) hydrateHashtags(ctx context.Context, posts []SearchPostResp
 	}
 	for i := range posts {
 		posts[i].Hashtags = tags[postIDs[i]]
+	}
+	return nil
+}
+
+func (p *SearchPipe) hydrateMedia(ctx context.Context, posts []SearchPostResponse) error {
+	if p.postRepo == nil || len(posts) == 0 {
+		return nil
+	}
+
+	postIDs := make([]uuid.UUID, 0, len(posts))
+	for _, post := range posts {
+		postID, err := uuid.Parse(post.ID)
+		if err != nil {
+			return err
+		}
+		postIDs = append(postIDs, postID)
+	}
+
+	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs)
+	if err != nil {
+		return err
+	}
+	for i := range posts {
+		posts[i].Media = mediaByPost[postIDs[i]]
+		if posts[i].Media == nil {
+			posts[i].Media = []*models.MediaAsset{}
+		}
+	}
+	return nil
+}
+
+func (p *SearchPipe) hydrateAnonymousAuthors(ctx context.Context, results []*searchrepo.PostResult, posts []SearchPostResponse) error {
+	if p.postRepo == nil || len(results) == 0 {
+		return nil
+	}
+	for i, result := range results {
+		if i >= len(posts) || result.Post.PostingMode != models.AnonymousPostingMode || result.Post.PersonaID == nil {
+			continue
+		}
+		identity, err := p.postRepo.EnsureAnonymousThreadIdentity(ctx, result.Post.ID, result.Post.AuthorUserID, *result.Post.PersonaID, anonymousHandle())
+		if err != nil {
+			return err
+		}
+		if identity != nil && identity.AnonymousHandle != "" {
+			posts[i].Author.Anonymous = &SearchPostAnonymous{Handle: identity.AnonymousHandle}
+		}
 	}
 	return nil
 }

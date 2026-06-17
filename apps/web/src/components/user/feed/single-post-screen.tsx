@@ -101,6 +101,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
 
   const isAnon = post?.author.mode === "anonymous";
   const persona = post?.author.persona;
+  const anonymousLabel = post?.author.anonymous?.handle ?? "anonymous";
   const canAct = Boolean(getAccessToken() && viewerPersonaID);
 
   async function handleToggleLike() {
@@ -141,7 +142,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
     try {
       const res = await createComment(
         post.id,
-        { persona_id: viewerPersonaID, body: commentBody.trim() },
+        { persona_id: viewerPersonaID, posting_mode: isAnon ? "anonymous" : "public", body: commentBody.trim() },
         token,
       );
       if (res.data) {
@@ -208,7 +209,7 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
                       style={{ background: "var(--nox-surface-alt)", color: "var(--nox-ink-mid)" }}
                     >
                       <Ghost className="size-2.5" strokeWidth={1.8} />
-                      anonymous
+                      {anonymousLabel}
                     </span>
                   ) : (
                     <>
@@ -222,6 +223,20 @@ export function SinglePostScreen({ postId }: SinglePostScreenProps) {
               <p className="mt-3 text-[16px] leading-[1.6] text-(--nox-ink)">
                 {extractHashtags(post.body, (tag) => router.push(`/hashtags/${encodeURIComponent(tag)}`))}
               </p>
+              {post.media?.length ? (
+                <div className="mt-3 grid gap-2 overflow-hidden rounded-[10px]">
+                  {post.media.map((asset) =>
+                    asset.media_kind === "video" ? (
+                      <video key={asset.id} controls preload="metadata" poster={asset.thumbnail_url || undefined} className="max-h-[420px] w-full rounded-[8px] bg-black object-cover">
+                        <source src={asset.playback_url} type={asset.mime_type} />
+                      </video>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={asset.id} src={asset.playback_url} alt="" className="max-h-[480px] w-full rounded-[8px] object-cover" loading="lazy" />
+                    ),
+                  )}
+                </div>
+              ) : null}
 
               <p className="mt-3 text-[11px] text-(--nox-ink-soft)">{formatTime(post.created_at)}</p>
 

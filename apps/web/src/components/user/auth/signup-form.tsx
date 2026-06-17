@@ -8,11 +8,18 @@ import type { SignupFormProps } from "@/src/types/components/auth";
 import { signup } from "@/src/utils/api/user/auth";
 import { ApiRequestError } from "@/src/utils/api/api";
 
+const CATEGORY_OPTIONS = [
+  { value: "patron", label: "patron" },
+  { value: "dj", label: "dj" },
+  { value: "organizer", label: "organizer" },
+] as const;
+
 export function SignupForm({ className, onSuccess }: SignupFormProps) {
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number]["value"]>("patron");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -43,7 +50,9 @@ export function SignupForm({ className, onSuccess }: SignupFormProps) {
         lastname: lastname.trim(),
         email: email.trim(),
         password,
+        category,
       });
+      localStorage.setItem("nox_signup_category", category);
       onSuccess?.(email.trim(), password, res.data?.expires_in_seconds ?? 600);
     } catch (error) {
       setStatus("error");
@@ -106,6 +115,32 @@ export function SignupForm({ className, onSuccess }: SignupFormProps) {
           }
           onChange={setPassword}
         />
+
+        <div>
+          <p className="mb-2 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-(--nox-ink-soft)">
+            category
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_OPTIONS.map((item) => {
+              const active = category === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setCategory(item.value)}
+                  className="rounded-full border px-3 py-1.5 font-mono text-[11px] font-semibold lowercase transition"
+                  style={{
+                    borderColor: active ? "var(--nox-accent-line)" : "var(--nox-border)",
+                    background: active ? "var(--nox-accent-soft)" : "transparent",
+                    color: active ? "var(--nox-accent-ink)" : "var(--nox-ink-mid)",
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {message ? (
