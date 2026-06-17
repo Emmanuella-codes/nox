@@ -10,6 +10,7 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
+	cloudinaryclient "github.com/emmanuella-codes/nox/shared/cloudinary/client"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -19,6 +20,8 @@ type InitiateUploadResponse struct {
 	UploadURL  string             `json:"upload_url"`
 	StorageKey string             `json:"storage_key"`
 }
+
+type CloudinaryPostUploadResponse = cloudinaryclient.UploadSignature
 
 type MediaCleanupResponse struct {
 	DeletedCount int64 `json:"deleted_count"`
@@ -78,6 +81,60 @@ func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uui
 		UploadURL:  p.uploadURL(storageKey),
 		StorageKey: storageKey,
 	})
+}
+
+func (p *MediaPipe) InitiatePostMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiatePostMediaUploadDTO) *shared.PipeRes[CloudinaryPostUploadResponse] {
+	dto.MimeType = strings.TrimSpace(dto.MimeType)
+	if p.cloudinaryClient == nil || !p.cloudinaryClient.Configured() || !validPostMedia(dto.MediaKind, dto.MimeType, dto.SizeBytes, 0) {
+		return shared.PipeError[CloudinaryPostUploadResponse](messages.Invalid_Media)
+	}
+	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[CloudinaryPostUploadResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[CloudinaryPostUploadResponse](err, "media.post_upload_persona")
+	}
+	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+		return shared.PipeError[CloudinaryPostUploadResponse](messages.Forbidden)
+	}
+
+	resourceType := cloudinaryResourceType(dto.MediaKind)
+	publicID := cloudinaryclient.PostPublicID(dto.OwnerPersonaID)
+	upload := p.cloudinaryClient.SignUpload(resourceType, publicID)
+
+	return shared.PipeSuccess(messages.Media_Upload_Initiated, &upload)
+}
+
+func (p *MediaPipe) ConfirmPostMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) *shared.PipeRes[models.MediaAsset] {
+	dto.PublicID = strings.TrimSpace(dto.PublicID)
+	dto.SecureURL = strings.TrimSpace(dto.SecureURL)
+	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
+	dto.MimeType = strings.TrimSpace(dto.MimeType)
+	if !validPostMedia(dto.MediaKind, dto.MimeType, dto.SizeBytes, dto.DurationSeconds) || dto.PublicID == "" || dto.SecureURL == "" {
+		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
+	}
+	if dto.MediaKind == models.ImageMediaKind && dto.DurationSeconds <= 0 {
+		dto.DurationSeconds = 1
+	}
+	if dto.MediaKind == models.VideoMediaKind && dto.DurationSeconds <= 0 {
+		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
+	}
+	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[models.MediaAsset](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[models.MediaAsset](err, "media.post_confirm_persona")
+	}
+	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+		return shared.PipeError[models.MediaAsset](messages.Forbidden)
+	}
+	asset, err := p.mediaRepo.CreatePostMediaAsset(ctx, userID, dto)
+	if err != nil {
+		return pipeInternalError[models.MediaAsset](err, "media.post_confirm_create")
+	}
+	return shared.PipeSuccess(messages.Media_Asset_Created, asset)
 }
 
 func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {

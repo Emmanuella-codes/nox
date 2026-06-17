@@ -189,6 +189,10 @@ func (r *setTestMediaRepo) CreateMediaAsset(ctx context.Context, ownerUserID uui
 	return nil, nil
 }
 
+func (r *setTestMediaRepo) CreatePostMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) (*models.MediaAsset, error) {
+	return nil, nil
+}
+
 func (r *setTestMediaRepo) CreatePendingMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateSetVideoUploadDTO) (*models.MediaAsset, error) {
 	return nil, nil
 }

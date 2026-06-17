@@ -10,17 +10,28 @@ import (
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
+	cloudinaryclient "github.com/emmanuella-codes/nox/shared/cloudinary/client"
 	"github.com/google/uuid"
 )
 
 type MediaPipe struct {
-	mediaRepo   media_repo.MediaRepository
-	personaRepo persona_repo.PersonaRepository
-	config      *config.Config
+	mediaRepo        media_repo.MediaRepository
+	personaRepo      persona_repo.PersonaRepository
+	config           *config.Config
+	cloudinaryClient *cloudinaryclient.Client
 }
 
 func NewMediaPipe(mediaRepo media_repo.MediaRepository, personaRepo persona_repo.PersonaRepository, cfg *config.Config) *MediaPipe {
-	return &MediaPipe{mediaRepo: mediaRepo, personaRepo: personaRepo, config: cfg}
+	var cloudinary *cloudinaryclient.Client
+	if cfg != nil {
+		cloudinary = cloudinaryclient.New(cloudinaryclient.Config{
+			CloudName:    cfg.CloudinaryCloudName,
+			APIKey:       cfg.CloudinaryAPIKey,
+			APISecret:    cfg.CloudinaryAPISecret,
+			UploadFolder: cfg.CloudinaryUploadFolder,
+		})
+	}
+	return &MediaPipe{mediaRepo: mediaRepo, personaRepo: personaRepo, config: cfg, cloudinaryClient: cloudinary}
 }
 
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
@@ -47,6 +58,32 @@ func validSetVideoMime(mimeType string) bool {
 	default:
 		return false
 	}
+}
+
+func validPostMedia(kind models.MediaKind, mimeType string, sizeBytes int64, durationSeconds int) bool {
+	if sizeBytes <= 0 {
+		return false
+	}
+	switch kind {
+	case models.ImageMediaKind:
+		switch strings.ToLower(strings.TrimSpace(mimeType)) {
+		case "image/jpeg", "image/png", "image/webp", "image/gif":
+			return true
+		default:
+			return false
+		}
+	case models.VideoMediaKind:
+		return validSetVideoMime(mimeType) && durationSeconds <= 300
+	default:
+		return false
+	}
+}
+
+func cloudinaryResourceType(kind models.MediaKind) string {
+	if kind == models.VideoMediaKind {
+		return "video"
+	}
+	return "image"
 }
 
 func (p *MediaPipe) uploadURL(storageKey string) string {

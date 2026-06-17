@@ -66,6 +66,14 @@ func (p *HashtagPipe) postResponses(ctx context.Context, posts []*models.Post) (
 		return nil, err
 	}
 
+	mediaByPost := map[uuid.UUID][]*models.MediaAsset{}
+	if p.postRepo != nil {
+		mediaByPost, err = p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	responses := make([]post_pipes.PostResponse, 0, len(posts))
 	for _, post := range posts {
 		identity, err := p.anonymousPostIdentity(ctx, post)
@@ -74,6 +82,10 @@ func (p *HashtagPipe) postResponses(ctx context.Context, posts []*models.Post) (
 		}
 		response := postResponse(post, personas, identity)
 		response.Hashtags = tagsByPost[post.ID]
+		response.Media = mediaByPost[post.ID]
+		if response.Media == nil {
+			response.Media = []*models.MediaAsset{}
+		}
 		responses = append(responses, response)
 	}
 	return responses, nil
@@ -142,6 +154,7 @@ func postResponse(post *models.Post, personas map[string]*models.Persona, identi
 		RepostCount:  post.RepostCount,
 		IsRepost:     post.IsRepost,
 		Hashtags:     []string{},
+		Media:        []*models.MediaAsset{},
 		CreatedAt:    post.CreatedAt,
 	}
 	if post.EventID != nil {

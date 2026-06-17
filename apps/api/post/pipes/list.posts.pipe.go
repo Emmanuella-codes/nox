@@ -30,6 +30,11 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	}
 
 	response := postResponse(post, persona, identity)
+	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, []uuid.UUID{post.ID})
+	if err != nil {
+		return pipeInternalError[PostResponse](err, "post.media")
+	}
+	response.Media = mediaByPost[post.ID]
 	if p.hashtagRepo != nil {
 		tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, []uuid.UUID{post.ID})
 		if err != nil {
@@ -77,7 +82,12 @@ func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID,
 		return pipeInternalError[[]PostResponse](err, "post.anonymous_identities")
 	}
 
-	responses := postResponses(posts, personas, identities)
+	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.persona_posts_media")
+	}
+
+	responses := postResponses(posts, personas, identities, mediaByPost)
 	if err := p.hydrateHashtags(ctx, responses); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.persona_posts_hashtags")
 	}
@@ -119,7 +129,12 @@ func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit i
 		return pipeInternalError[[]PostResponse](err, "post.feed_anonymous_identities")
 	}
 
-	responses := postResponses(posts, personas, identities)
+	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.feed_media")
+	}
+
+	responses := postResponses(posts, personas, identities, mediaByPost)
 	if err := p.hydrateHashtags(ctx, responses); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.feed_hashtags")
 	}
@@ -154,7 +169,12 @@ func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID
 		return pipeInternalError[[]PostResponse](err, "post.following_feed_anonymous_identities")
 	}
 
-	responses := postResponses(posts, personas, identities)
+	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.following_feed_media")
+	}
+
+	responses := postResponses(posts, personas, identities, mediaByPost)
 	if err := p.hydrateHashtags(ctx, responses); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.following_feed_hashtags")
 	}

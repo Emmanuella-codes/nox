@@ -33,6 +33,10 @@ func (r *pgRepository) CreatePost(ctx context.Context, authorUserID uuid.UUID, d
 }
 
 func (r *pgRepository) CreatePostWithHashtags(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO, tags []string) (*models.Post, error) {
+	return r.CreatePostWithHashtagsAndMedia(ctx, authorUserID, dto, tags, nil)
+}
+
+func (r *pgRepository) CreatePostWithHashtagsAndMedia(ctx context.Context, authorUserID uuid.UUID, dto dtos.CreatePostDTO, tags []string, mediaAssetIDs []uuid.UUID) (*models.Post, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -44,6 +48,9 @@ func (r *pgRepository) CreatePostWithHashtags(ctx context.Context, authorUserID 
 		return nil, err
 	}
 	if err := syncPostHashtags(ctx, tx, post.ID, tags); err != nil {
+		return nil, err
+	}
+	if err := syncPostMediaAssets(ctx, tx, post.ID, mediaAssetIDs); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -232,6 +239,53 @@ func (r *pgRepository) FindAnonymousThreadIdentities(ctx context.Context, thread
 	return identities, nil
 }
 
+func (r *pgRepository) FindMediaAssetsByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]*models.MediaAsset, error) {
+	assetsByPost := make(map[uuid.UUID][]*models.MediaAsset)
+	if len(postIDs) == 0 {
+		return assetsByPost, nil
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT pma.post_id, ma.id, ma.owner_user_id, ma.owner_persona_id, ma.media_kind, ma.storage_key,
+		       ma.playback_url, COALESCE(ma.thumbnail_url, ''), ma.mime_type, ma.duration_seconds,
+		       ma.size_bytes, ma.processing_status, ma.created_at, ma.updated_at
+		FROM post_media_assets pma
+		INNER JOIN media_assets ma ON ma.id = pma.media_asset_id
+		WHERE pma.post_id = ANY($1)
+		ORDER BY pma.position ASC
+	`, postIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var postID uuid.UUID
+		var asset models.MediaAsset
+		if err := rows.Scan(
+			&postID,
+			&asset.ID,
+			&asset.OwnerUserID,
+			&asset.OwnerPersonaID,
+			&asset.MediaKind,
+			&asset.StorageKey,
+			&asset.PlaybackURL,
+			&asset.ThumbnailURL,
+			&asset.MimeType,
+			&asset.DurationSeconds,
+			&asset.SizeBytes,
+			&asset.ProcessingStatus,
+			&asset.CreatedAt,
+			&asset.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		assetsByPost[postID] = append(assetsByPost[postID], &asset)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return assetsByPost, nil
+}
+
 func (r *pgRepository) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	commandTag, err := r.db.Exec(ctx, `DELETE FROM posts WHERE id = $1`, postID)
 	if err != nil {
@@ -298,6 +352,21 @@ func syncPostHashtags(ctx context.Context, db execQuerier, postID uuid.UUID, tag
 			if _, err := db.Exec(ctx, `UPDATE hashtags SET post_count = post_count + 1 WHERE id = $1`, hashtagID); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func syncPostMediaAssets(ctx context.Context, db execQuerier, postID uuid.UUID, mediaAssetIDs []uuid.UUID) error {
+	for position, mediaAssetID := range mediaAssetIDs {
+		if mediaAssetID == uuid.Nil {
+			continue
+		}
+		if _, err := db.Exec(ctx, `
+			INSERT INTO post_media_assets (post_id, media_asset_id, position)
+			VALUES ($1, $2, $3)
+		`, postID, mediaAssetID, position); err != nil {
+			return err
 		}
 	}
 	return nil

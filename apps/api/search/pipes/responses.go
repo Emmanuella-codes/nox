@@ -38,22 +38,23 @@ type SearchPersonaResponse struct {
 }
 
 type SearchPostResponse struct {
-	ID           string           `json:"id"`
-	Author       SearchPostAuthor `json:"author"`
-	EventID      *string          `json:"event_id,omitempty"`
-	Body         string           `json:"body"`
-	PostType     models.PostType  `json:"post_type"`
-	MediaURL     string           `json:"media_url,omitempty"`
-	MediaType    models.MediaType `json:"media_type,omitempty"`
-	Location     string           `json:"location,omitempty"`
-	LikeCount    int              `json:"like_count"`
-	CommentCount int              `json:"comment_count"`
-	RepostCount  int              `json:"repost_count"`
-	IsLiked      bool             `json:"is_liked"`
-	IsRepost     bool             `json:"is_repost"`
-	RepostOf     *string          `json:"repost_of,omitempty"`
-	Hashtags     []string         `json:"hashtags"`
-	CreatedAt    time.Time        `json:"created_at"`
+	ID           string               `json:"id"`
+	Author       SearchPostAuthor     `json:"author"`
+	EventID      *string              `json:"event_id,omitempty"`
+	Body         string               `json:"body"`
+	PostType     models.PostType      `json:"post_type"`
+	MediaURL     string               `json:"media_url,omitempty"`
+	MediaType    models.MediaType     `json:"media_type,omitempty"`
+	Location     string               `json:"location,omitempty"`
+	LikeCount    int                  `json:"like_count"`
+	CommentCount int                  `json:"comment_count"`
+	RepostCount  int                  `json:"repost_count"`
+	IsLiked      bool                 `json:"is_liked"`
+	IsRepost     bool                 `json:"is_repost"`
+	RepostOf     *string              `json:"repost_of,omitempty"`
+	Hashtags     []string             `json:"hashtags"`
+	Media        []*models.MediaAsset `json:"media"`
+	CreatedAt    time.Time            `json:"created_at"`
 }
 
 type SearchPostAuthor struct {
@@ -137,6 +138,7 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 			IsLiked:      false,
 			IsRepost:     post.IsRepost,
 			Hashtags:     []string{},
+			Media:        []*models.MediaAsset{},
 			CreatedAt:    post.CreatedAt,
 		}
 		if post.EventID != nil {

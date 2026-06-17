@@ -23,6 +23,7 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 	}
 
 	var persona *models.Persona
+	var ownerPersonaID uuid.UUID
 	switch dto.PostingMode {
 	case models.PublicPostingMode, models.AnonymousPostingMode:
 		if dto.PersonaID == nil || *dto.PersonaID == uuid.Nil {
@@ -39,13 +40,21 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 		if foundPersona.UserID != userID || foundPersona.PersonaType != models.VisiblePersonaType {
 			return shared.PipeError[PostResponse](messages.Forbidden)
 		}
+		ownerPersonaID = foundPersona.ID
 		if dto.PostingMode == models.PublicPostingMode {
 			persona = foundPersona
 		}
 	}
 
+	if err := p.validatePostMedia(ctx, userID, ownerPersonaID, dto.MediaAssetIDs); err != nil {
+		if err == errInvalidPostMedia {
+			return shared.PipeError[PostResponse](messages.Invalid_Payload)
+		}
+		return pipeInternalError[PostResponse](err, "post.validate_media")
+	}
+
 	tags := hashtag_repo.ExtractTags(dto.Body)
-	post, err := p.postRepo.CreatePostWithHashtags(ctx, userID, dto, tags)
+	post, err := p.postRepo.CreatePostWithHashtagsAndMedia(ctx, userID, dto, tags, dto.MediaAssetIDs)
 	if err != nil {
 		return pipeInternalError[PostResponse](err, "post.create")
 	}
@@ -60,5 +69,12 @@ func (p *PostPipe) CreatePostPipe(ctx context.Context, userID uuid.UUID, dto dto
 
 	response := postResponse(post, persona, identity)
 	response.Hashtags = tags
+	if len(dto.MediaAssetIDs) > 0 {
+		mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, []uuid.UUID{post.ID})
+		if err != nil {
+			return pipeInternalError[PostResponse](err, "post.media_response")
+		}
+		response.Media = mediaByPost[post.ID]
+	}
 	return shared.PipeSuccess(messages.Post_Created, &response)
 }

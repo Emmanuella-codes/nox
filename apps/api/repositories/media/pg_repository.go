@@ -19,15 +19,33 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 }
 
 func (r *pgRepository) CreateMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.CreateMediaAssetDTO) (*models.MediaAsset, error) {
+	mediaKind := dto.MediaKind
+	if mediaKind == "" {
+		mediaKind = models.VideoMediaKind
+	}
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
 			owner_user_id, owner_persona_id, media_kind, storage_key, playback_url, thumbnail_url,
 			mime_type, duration_seconds, size_bytes, processing_status
-		) VALUES ($1, $2, 'video', $3, $4, $5, $6, $7, $8, 'ready')
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
 		RETURNING id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
 		          COALESCE(thumbnail_url, ''), mime_type, duration_seconds, size_bytes,
 		          processing_status, created_at, updated_at
-	`, ownerUserID, dto.OwnerPersonaID, dto.StorageKey, dto.PlaybackURL, emptyToNil(dto.ThumbnailURL), dto.MimeType, dto.DurationSeconds, dto.SizeBytes)
+	`, ownerUserID, dto.OwnerPersonaID, mediaKind, dto.StorageKey, dto.PlaybackURL, emptyToNil(dto.ThumbnailURL), dto.MimeType, dto.DurationSeconds, dto.SizeBytes)
+
+	return scanMediaAsset(row)
+}
+
+func (r *pgRepository) CreatePostMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) (*models.MediaAsset, error) {
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO media_assets (
+			owner_user_id, owner_persona_id, media_kind, storage_key, playback_url, thumbnail_url,
+			mime_type, duration_seconds, size_bytes, processing_status
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
+		RETURNING id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
+		          COALESCE(thumbnail_url, ''), mime_type, duration_seconds, size_bytes,
+		          processing_status, created_at, updated_at
+	`, ownerUserID, dto.OwnerPersonaID, dto.MediaKind, dto.PublicID, dto.SecureURL, emptyToNil(dto.ThumbnailURL), dto.MimeType, dto.DurationSeconds, dto.SizeBytes)
 
 	return scanMediaAsset(row)
 }
@@ -113,8 +131,10 @@ func (r *pgRepository) DeleteOrphanedMediaAssets(ctx context.Context, olderThan 
 			FROM media_assets
 			LEFT JOIN sets ON sets.media_asset_id = media_assets.id
 			LEFT JOIN story_items ON story_items.media_asset_id = media_assets.id
+			LEFT JOIN post_media_assets ON post_media_assets.media_asset_id = media_assets.id
 			WHERE sets.id IS NULL
 			  AND story_items.id IS NULL
+			  AND post_media_assets.post_id IS NULL
 			  AND media_assets.processing_status IN ('pending', 'failed')
 			  AND media_assets.created_at < $1
 			ORDER BY media_assets.created_at ASC

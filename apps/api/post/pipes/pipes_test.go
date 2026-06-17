@@ -317,6 +317,11 @@ func (r *postTestRepo) CreatePostWithHashtags(ctx context.Context, authorUserID 
 	return r.CreatePost(ctx, authorUserID, dto)
 }
 
+func (r *postTestRepo) CreatePostWithHashtagsAndMedia(ctx context.Context, authorUserID uuid.UUID, dto postdtos.CreatePostDTO, tags []string, mediaAssetIDs []uuid.UUID) (*models.Post, error) {
+	r.createdTags = tags
+	return r.CreatePost(ctx, authorUserID, dto)
+}
+
 func (r *postTestRepo) FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error) {
 	post, ok := r.posts[postID.String()]
 	if !ok {
@@ -371,6 +376,10 @@ func (r *postTestRepo) FindAnonymousThreadIdentities(ctx context.Context, thread
 		}
 	}
 	return identities, nil
+}
+
+func (r *postTestRepo) FindMediaAssetsByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]*models.MediaAsset, error) {
+	return map[uuid.UUID][]*models.MediaAsset{}, nil
 }
 
 func (r *postTestRepo) DeletePost(ctx context.Context, postID uuid.UUID) error {

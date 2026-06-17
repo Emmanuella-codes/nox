@@ -16,7 +16,7 @@ export interface Post {
   author: PostAuthor;
   event_id?: string;
   body: string;
-  post_type: "text" | "image" | "set" | "event_tag";
+  post_type: "text" | "image" | "video" | "set" | "event_tag";
   media_url?: string;
   media_type?: "image" | "youtube" | "soundcloud";
   location?: string;
@@ -27,6 +27,19 @@ export interface Post {
   is_repost: boolean;
   repost_of?: string;
   hashtags: string[];
+  media: {
+    id: string;
+    owner_persona_id: string;
+    media_kind: "image" | "video";
+    playback_url: string;
+    thumbnail_url: string;
+    mime_type: string;
+    duration_seconds: number;
+    size_bytes: number;
+    processing_status: "pending" | "ready" | "failed";
+    created_at: string;
+    updated_at: string;
+  }[];
   created_at: string;
 }
 
@@ -35,7 +48,8 @@ export interface CreatePostRequest {
   posting_mode: "public" | "anonymous";
   event_id?: string;
   body: string;
-  post_type: "text" | "image" | "set" | "event_tag";
+  post_type: "text" | "image" | "video" | "set" | "event_tag";
+  media_asset_ids?: string[];
   media_url?: string;
   media_type?: "image" | "youtube" | "soundcloud";
   location?: string;

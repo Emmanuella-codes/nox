@@ -46,6 +46,42 @@ func (c *MediaController) InitiateStoryVideoUpload(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
 }
 
+func (c *MediaController) InitiatePostMediaUpload(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+
+	var dto dtos.InitiatePostMediaUploadDTO
+	if err := parseAndValidate(ctx, &dto); err != nil {
+		return validationError(ctx, err)
+	}
+
+	res := c.pipe.InitiatePostMediaUploadPipe(ctx.Context(), userID, dto)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
+}
+
+func (c *MediaController) ConfirmPostMediaUpload(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+
+	var dto dtos.ConfirmPostMediaUploadDTO
+	if err := parseAndValidate(ctx, &dto); err != nil {
+		return validationError(ctx, err)
+	}
+
+	res := c.pipe.ConfirmPostMediaUploadPipe(ctx.Context(), userID, dto)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
+}
+
 func (c *MediaController) CompleteMediaProcessing(ctx *fiber.Ctx) error {
 	if !c.validProcessingSecret(ctx) {
 		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_processing_secret")
