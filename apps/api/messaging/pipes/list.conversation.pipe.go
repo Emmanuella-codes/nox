@@ -10,18 +10,25 @@ import (
 	"github.com/google/uuid"
 )
 
-func (p *MessagingPipe) ListConversationsPipe(ctx context.Context, userID uuid.UUID, limit int, offset int) *shared.PipeRes[[]ConversationResponse] {
+func (p *MessagingPipe) ListConversationsPipe(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) *shared.PipeRes[[]ConversationResponse] {
+	if _, message := p.visiblePersona(ctx, userID, personaID, true); message != "" {
+		return shared.PipeError[[]ConversationResponse](message)
+	}
 	limit = normalizeLimit(limit, 20, 50)
 	if offset < 0 {
 		offset = 0
 	}
-	items, err := p.messagingRepo.FindUserConversations(ctx, userID, limit, offset)
+	items, err := p.messagingRepo.FindPersonaConversations(ctx, userID, personaID, limit, offset)
 	if err != nil {
 		return pipeInternalError[[]ConversationResponse](err, "messaging.list_conversations")
 	}
 	responses := make([]ConversationResponse, 0, len(items))
 	for _, item := range items {
-		responses = append(responses, conversationResponse(item.Conversation, item.Members, item.LastMessage, item.UnreadCount))
+		personas, err := p.memberPersonas(ctx, item.Members)
+		if err != nil {
+			return pipeInternalError[[]ConversationResponse](err, "messaging.list_member_personas")
+		}
+		responses = append(responses, p.conversationResponse(ctx, item.Conversation, item.Members, personas, item.LastMessage, item.UnreadCount))
 	}
 	return shared.PipeSuccess(messages.Conversations_Listed, &responses)
 }
@@ -41,6 +48,10 @@ func (p *MessagingPipe) GetConversationPipe(ctx context.Context, userID uuid.UUI
 	if !userInConversation(userID, members) {
 		return shared.PipeError[ConversationResponse](messages.Forbidden)
 	}
+	personas, err := p.memberPersonas(ctx, members)
+	if err != nil {
+		return pipeInternalError[ConversationResponse](err, "messaging.get_member_personas")
+	}
 	var lastMessage *models.Message
 	if conversation.LastMessageID != nil {
 		lastMessage, err = p.messagingRepo.FindMessageByID(ctx, *conversation.LastMessageID)
@@ -48,7 +59,7 @@ func (p *MessagingPipe) GetConversationPipe(ctx context.Context, userID uuid.UUI
 			return pipeInternalError[ConversationResponse](err, "messaging.get_last_message")
 		}
 	}
-	response := conversationResponse(conversation, members, lastMessage, 0)
+	response := p.conversationResponse(ctx, conversation, members, personas, lastMessage, 0)
 	return shared.PipeSuccess(messages.Conversation_Fetched, &response)
 }
 

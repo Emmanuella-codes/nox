@@ -44,7 +44,11 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 	if err != nil {
 		return pipeInternalError[ConversationResponse](err, "messaging.direct_members")
 	}
-	response := conversationResponse(conversation, members, nil, 0)
+	personas, err := p.memberPersonas(ctx, members)
+	if err != nil {
+		return pipeInternalError[ConversationResponse](err, "messaging.direct_member_personas")
+	}
+	response := p.conversationResponse(ctx, conversation, members, personas, nil, 0)
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 
@@ -80,7 +84,11 @@ func (p *MessagingPipe) CreateGroupConversationPipe(ctx context.Context, userID 
 	if err != nil {
 		return pipeInternalError[ConversationResponse](err, "messaging.group_members")
 	}
-	response := conversationResponse(conversation, members, nil, 0)
+	personas, err := p.memberPersonas(ctx, members)
+	if err != nil {
+		return pipeInternalError[ConversationResponse](err, "messaging.group_member_personas")
+	}
+	response := p.conversationResponse(ctx, conversation, members, personas, nil, 0)
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 

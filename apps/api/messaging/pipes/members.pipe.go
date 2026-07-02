@@ -35,7 +35,11 @@ func (p *MessagingPipe) AddMembersPipe(ctx context.Context, userID uuid.UUID, co
 	if err != nil {
 		return pipeInternalError[[]MemberResponse](err, "messaging.add_members")
 	}
-	responses := memberResponses(added)
+	personasByID, err := p.memberPersonas(ctx, added)
+	if err != nil {
+		return pipeInternalError[[]MemberResponse](err, "messaging.add_member_personas")
+	}
+	responses := memberResponses(added, personasByID)
 	return shared.PipeSuccess(messages.Members_Added, &responses)
 }
 

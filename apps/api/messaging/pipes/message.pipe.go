@@ -40,7 +40,7 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	if err != nil {
 		return pipeInternalError[MessageResponse](err, "messaging.send_message")
 	}
-	response := messageResponse(created)
+	response := p.messageResponse(ctx, created)
 	return shared.PipeSuccess(messages.Message_Sent, &response)
 }
 
@@ -56,7 +56,7 @@ func (p *MessagingPipe) ListMessagesPipe(ctx context.Context, userID uuid.UUID, 
 	if err != nil {
 		return pipeInternalError[[]MessageResponse](err, "messaging.list_messages")
 	}
-	responses := messageResponses(messageModels)
+	responses := p.messageResponses(ctx, messageModels)
 	return shared.PipeSuccess(messages.Messages_Listed, &responses)
 }
 
@@ -78,7 +78,11 @@ func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conv
 	if err != nil {
 		return pipeInternalError[MemberResponse](err, "messaging.mark_read")
 	}
-	response := memberResponses([]*models.ConversationMember{member})[0]
+	personas, err := p.memberPersonas(ctx, []*models.ConversationMember{member})
+	if err != nil {
+		return pipeInternalError[MemberResponse](err, "messaging.mark_read_persona")
+	}
+	response := memberResponses([]*models.ConversationMember{member}, personas)[0]
 	return shared.PipeSuccess(messages.Conversation_Read, &response)
 }
 
@@ -97,7 +101,7 @@ func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID,
 	if err != nil {
 		return pipeInternalError[MessageResponse](err, "messaging.delete_message")
 	}
-	response := messageResponse(deleted)
+	response := p.messageResponse(ctx, deleted)
 	return shared.PipeSuccess(messages.Message_Deleted, &response)
 }
 

@@ -44,7 +44,11 @@ func (c *MessagingController) ListConversations(ctx *fiber.Ctx) error {
 	if !ok {
 		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
 	}
-	res := c.pipe.ListConversationsPipe(ctx.Context(), userID, queryLimit(ctx, 20), queryOffset(ctx))
+	personaID, err := uuid.Parse(ctx.Query("persona_id"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+	res := c.pipe.ListConversationsPipe(ctx.Context(), userID, personaID, queryLimit(ctx, 20), queryOffset(ctx))
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

@@ -97,7 +97,7 @@ func (r *pgRepository) FindConversationByID(ctx context.Context, conversationID 
 	return scanConversation(row)
 }
 
-func (r *pgRepository) FindUserConversations(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*ConversationListItem, error) {
+func (r *pgRepository) FindPersonaConversations(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*ConversationListItem, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT c.id, c.conversation_type, c.title, c.created_by, c.last_message_id, c.created_at, c.updated_at,
 		       (
@@ -113,10 +113,10 @@ func (r *pgRepository) FindUserConversations(ctx context.Context, userID uuid.UU
 		       )::INT AS unread_count
 		FROM conversation_members cm
 		JOIN conversations c ON c.id = cm.conversation_id
-		WHERE cm.user_id = $1 AND cm.left_at IS NULL
+		WHERE cm.user_id = $1 AND cm.persona_id = $2 AND cm.left_at IS NULL
 		ORDER BY c.updated_at DESC
-		LIMIT $2 OFFSET $3
-	`, userID, limit, offset)
+		LIMIT $3 OFFSET $4
+	`, userID, personaID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -283,9 +283,21 @@ func (r *pgRepository) MarkConversationRead(ctx context.Context, conversationID 
 		UPDATE conversation_members
 		SET last_read_message_id = $3
 		WHERE conversation_id = $1 AND persona_id = $2 AND left_at IS NULL
+		  AND (
+		    last_read_message_id IS NULL
+		    OR (SELECT created_at FROM messages WHERE id = $3 AND conversation_id = $1) >
+		       COALESCE((SELECT created_at FROM messages WHERE id = last_read_message_id), joined_at)
+		  )
 		RETURNING conversation_id, user_id, persona_id, role, last_read_message_id, joined_at, left_at
 	`, conversationID, personaID, messageID)
-	return scanMember(row)
+	member, err := scanMember(row)
+	if err == nil {
+		return member, nil
+	}
+	if errors.Is(err, ErrMembershipNotFound) {
+		return r.FindMember(ctx, conversationID, personaID)
+	}
+	return nil, err
 }
 
 func (r *pgRepository) SoftDeleteMessage(ctx context.Context, messageID uuid.UUID) (*models.Message, error) {

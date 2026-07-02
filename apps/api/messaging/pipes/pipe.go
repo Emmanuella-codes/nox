@@ -42,10 +42,18 @@ type ConversationResponse struct {
 }
 
 type MemberResponse struct {
-	PersonaID         string  `json:"persona_id"`
-	Role              string  `json:"role"`
-	LastReadMessageID *string `json:"last_read_message_id,omitempty"`
-	JoinedAt          string  `json:"joined_at"`
+	PersonaID         string                 `json:"persona_id"`
+	Persona           *MemberPersonaResponse `json:"persona,omitempty"`
+	Role              string                 `json:"role"`
+	LastReadMessageID *string                `json:"last_read_message_id,omitempty"`
+	JoinedAt          string                 `json:"joined_at"`
+}
+
+type MemberPersonaResponse struct {
+	ID          string `json:"id"`
+	Handle      string `json:"handle"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url"`
 }
 
 type MessageResponse struct {
@@ -55,12 +63,13 @@ type MessageResponse struct {
 	Body            string             `json:"body"`
 	MessageType     models.MessageType `json:"message_type"`
 	MediaAssetID    *string            `json:"media_asset_id,omitempty"`
+	Media           *models.MediaAsset `json:"media,omitempty"`
 	Deleted         bool               `json:"deleted"`
 	CreatedAt       string             `json:"created_at"`
 	EditedAt        *string            `json:"edited_at,omitempty"`
 }
 
-func conversationResponse(conversation *models.Conversation, members []*models.ConversationMember, lastMessage *models.Message, unreadCount int) ConversationResponse {
+func (p *MessagingPipe) conversationResponse(ctx context.Context, conversation *models.Conversation, members []*models.ConversationMember, personas map[uuid.UUID]*models.Persona, lastMessage *models.Message, unreadCount int) ConversationResponse {
 	var lastMessageID *string
 	if conversation.LastMessageID != nil {
 		value := conversation.LastMessageID.String()
@@ -72,19 +81,19 @@ func conversationResponse(conversation *models.Conversation, members []*models.C
 		Title:            conversation.Title,
 		CreatedBy:        conversation.CreatedBy.String(),
 		LastMessageID:    lastMessageID,
-		Members:          memberResponses(members),
+		Members:          memberResponses(members, personas),
 		UnreadCount:      unreadCount,
 		CreatedAt:        conversation.CreatedAt.Format(timeFormat),
 		UpdatedAt:        conversation.UpdatedAt.Format(timeFormat),
 	}
 	if lastMessage != nil {
-		message := messageResponse(lastMessage)
+		message := p.messageResponse(ctx, lastMessage)
 		response.LastMessage = &message
 	}
 	return response
 }
 
-func memberResponses(members []*models.ConversationMember) []MemberResponse {
+func memberResponses(members []*models.ConversationMember, personas map[uuid.UUID]*models.Persona) []MemberResponse {
 	responses := make([]MemberResponse, 0, len(members))
 	for _, member := range members {
 		var lastReadMessageID *string
@@ -92,8 +101,18 @@ func memberResponses(members []*models.ConversationMember) []MemberResponse {
 			value := member.LastReadMessageID.String()
 			lastReadMessageID = &value
 		}
+		var personaResponse *MemberPersonaResponse
+		if persona := personas[member.PersonaID]; persona != nil {
+			personaResponse = &MemberPersonaResponse{
+				ID:          persona.ID.String(),
+				Handle:      persona.Handle,
+				DisplayName: persona.DisplayName,
+				AvatarURL:   persona.AvatarURL,
+			}
+		}
 		responses = append(responses, MemberResponse{
 			PersonaID:         member.PersonaID.String(),
+			Persona:           personaResponse,
 			Role:              string(member.Role),
 			LastReadMessageID: lastReadMessageID,
 			JoinedAt:          member.JoinedAt.Format(timeFormat),
@@ -102,11 +121,33 @@ func memberResponses(members []*models.ConversationMember) []MemberResponse {
 	return responses
 }
 
-func messageResponse(message *models.Message) MessageResponse {
+func (p *MessagingPipe) memberPersonas(ctx context.Context, members []*models.ConversationMember) (map[uuid.UUID]*models.Persona, error) {
+	personas := make(map[uuid.UUID]*models.Persona, len(members))
+	for _, member := range members {
+		if _, ok := personas[member.PersonaID]; ok {
+			continue
+		}
+		persona, err := p.personaRepo.FindPersonaByID(ctx, member.PersonaID)
+		if err != nil {
+			return nil, err
+		}
+		personas[member.PersonaID] = persona
+	}
+	return personas, nil
+}
+
+func (p *MessagingPipe) messageResponse(ctx context.Context, message *models.Message) MessageResponse {
 	var mediaAssetID *string
+	var media *models.MediaAsset
 	if message.MediaAssetID != nil {
 		value := message.MediaAssetID.String()
 		mediaAssetID = &value
+		if p.mediaRepo != nil && message.DeletedAt == nil {
+			asset, err := p.mediaRepo.FindMediaAssetByID(ctx, *message.MediaAssetID)
+			if err == nil {
+				media = asset
+			}
+		}
 	}
 	var editedAt *string
 	if message.EditedAt != nil {
@@ -124,16 +165,17 @@ func messageResponse(message *models.Message) MessageResponse {
 		Body:            body,
 		MessageType:     message.MessageType,
 		MediaAssetID:    mediaAssetID,
+		Media:           media,
 		Deleted:         message.DeletedAt != nil,
 		CreatedAt:       message.CreatedAt.Format(timeFormat),
 		EditedAt:        editedAt,
 	}
 }
 
-func messageResponses(messageModels []*models.Message) []MessageResponse {
+func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*models.Message) []MessageResponse {
 	responses := make([]MessageResponse, 0, len(messageModels))
 	for _, message := range messageModels {
-		responses = append(responses, messageResponse(message))
+		responses = append(responses, p.messageResponse(ctx, message))
 	}
 	return responses
 }
