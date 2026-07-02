@@ -1,0 +1,72 @@
+package pipes
+
+import (
+	"context"
+
+	"github.com/emmanuella-codes/nox/messaging/messages"
+	"github.com/emmanuella-codes/nox/models"
+	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
+	"github.com/emmanuella-codes/nox/shared"
+	"github.com/google/uuid"
+)
+
+func (p *MessagingPipe) ListConversationsPipe(ctx context.Context, userID uuid.UUID, limit int, offset int) *shared.PipeRes[[]ConversationResponse] {
+	limit = normalizeLimit(limit, 20, 50)
+	if offset < 0 {
+		offset = 0
+	}
+	items, err := p.messagingRepo.FindUserConversations(ctx, userID, limit, offset)
+	if err != nil {
+		return pipeInternalError[[]ConversationResponse](err, "messaging.list_conversations")
+	}
+	responses := make([]ConversationResponse, 0, len(items))
+	for _, item := range items {
+		responses = append(responses, conversationResponse(item.Conversation, item.Members, item.LastMessage, item.UnreadCount))
+	}
+	return shared.PipeSuccess(messages.Conversations_Listed, &responses)
+}
+
+func (p *MessagingPipe) GetConversationPipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID) *shared.PipeRes[ConversationResponse] {
+	conversation, err := p.messagingRepo.FindConversationByID(ctx, conversationID)
+	if err != nil {
+		if err == messaging_repo.ErrConversationNotFound {
+			return shared.PipeError[ConversationResponse](messages.Conversation_Not_Found)
+		}
+		return pipeInternalError[ConversationResponse](err, "messaging.get_conversation")
+	}
+	members, err := p.messagingRepo.FindConversationMembers(ctx, conversationID)
+	if err != nil {
+		return pipeInternalError[ConversationResponse](err, "messaging.get_members")
+	}
+	if !userInConversation(userID, members) {
+		return shared.PipeError[ConversationResponse](messages.Forbidden)
+	}
+	var lastMessage *models.Message
+	if conversation.LastMessageID != nil {
+		lastMessage, err = p.messagingRepo.FindMessageByID(ctx, *conversation.LastMessageID)
+		if err != nil {
+			return pipeInternalError[ConversationResponse](err, "messaging.get_last_message")
+		}
+	}
+	response := conversationResponse(conversation, members, lastMessage, 0)
+	return shared.PipeSuccess(messages.Conversation_Fetched, &response)
+}
+
+func userInConversation(userID uuid.UUID, members []*models.ConversationMember) bool {
+	for _, member := range members {
+		if member.UserID == userID {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeLimit(limit int, fallback int, max int) int {
+	if limit <= 0 {
+		return fallback
+	}
+	if limit > max {
+		return max
+	}
+	return limit
+}
