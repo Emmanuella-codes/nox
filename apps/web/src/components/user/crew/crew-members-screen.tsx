@@ -12,6 +12,10 @@ import { useActivePersona } from "@/src/hooks/use-active-persona";
 
 interface CrewMembersScreenProps { crewID: string }
 
+function crewClosed(crew: Crew | null) {
+  return !crew || crew.status === "ended" || new Date(crew.expires_at).getTime() <= Date.now();
+}
+
 export function CrewMembersScreen({ crewID }: CrewMembersScreenProps) {
   const router = useRouter();
   const { activeID, loading: personaLoading } = useActivePersona();
@@ -70,6 +74,7 @@ export function CrewMembersScreen({ crewID }: CrewMembersScreenProps) {
   const members = crew?.members ?? [];
   const currentMember = members.find((member) => member.persona_id === activeID);
   const isOwner = currentMember?.role === "owner";
+  const closed = crewClosed(crew);
 
   return (
     <FeedShell>
@@ -79,9 +84,11 @@ export function CrewMembersScreen({ crewID }: CrewMembersScreenProps) {
         </button>
         <div>
           <h1 className="text-[18px] font-bold text-(--nox-ink)">crew members</h1>
-          <p className="text-[11px] text-(--nox-ink-soft)">crew {crewID.slice(0, 8)} · {members.length} members</p>
+          <p className="text-[11px] text-(--nox-ink-soft)">
+            crew {crewID.slice(0, 8)} · {members.length} members · {closed ? "closed" : "active"}
+          </p>
         </div>
-        {crew?.conversation_id ? (
+        {crew?.conversation_id && !closed ? (
           <button type="button" onClick={() => router.push(`/messages/${crew.conversation_id}`)}
             className="ml-auto flex items-center gap-1.5 rounded-[8px] border border-(--nox-border-strong) px-3 py-1.5 text-[12px] font-semibold text-(--nox-ink-mid)">
             <MessageCircle className="size-3.5" strokeWidth={1.7} />
@@ -119,7 +126,7 @@ export function CrewMembersScreen({ crewID }: CrewMembersScreenProps) {
             </div>
           </div>
         )})}
-        {crew && (
+        {crew && !closed && (
           <div className="px-4 py-5">
             <button type="button" onClick={() => void handleLeaveOrEnd()} disabled={acting}
               className="flex w-full items-center justify-center gap-2 rounded-[8px] border border-(--nox-danger) px-4 py-3 text-[13px] font-semibold text-(--nox-danger) disabled:opacity-50">
@@ -128,7 +135,9 @@ export function CrewMembersScreen({ crewID }: CrewMembersScreenProps) {
             </button>
           </div>
         )}
-        <p className="px-4 py-6 text-center text-[12px] text-(--nox-ink-soft)">Location sharing expires when the event window closes.</p>
+        <p className="px-4 py-6 text-center text-[12px] text-(--nox-ink-soft)">
+          {closed ? "This crew is closed. Chat and location sharing are no longer available." : "Location sharing expires when the event window closes."}
+        </p>
       </div>
     </FeedShell>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { ChevronLeft, Map, MessageCircle, Plus, Users } from "lucide-react";
+import { Check, ChevronLeft, Copy, Map, MessageCircle, Plus, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
@@ -14,6 +14,10 @@ import { getAccessToken } from "@/src/utils/auth/session";
 
 interface CrewHubScreenProps { eventID: string }
 
+function crewClosed(crew: Crew) {
+  return crew.status === "ended" || new Date(crew.expires_at).getTime() <= Date.now();
+}
+
 export function CrewHubScreen({ eventID }: CrewHubScreenProps) {
   const router = useRouter();
   const { activeID, activePersona, loading: personaLoading } = useActivePersona();
@@ -22,6 +26,7 @@ export function CrewHubScreen({ eventID }: CrewHubScreenProps) {
   const [joinCode, setJoinCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<"create" | "join" | "">("");
+  const [copiedCrewID, setCopiedCrewID] = useState("");
   const [message, setMessage] = useState("");
 
   const loadCrews = useCallback(async () => {
@@ -90,6 +95,16 @@ export function CrewHubScreen({ eventID }: CrewHubScreenProps) {
     }
   }
 
+  async function handleCopyCode(crew: Crew) {
+    try {
+      await navigator.clipboard.writeText(crew.join_code);
+      setCopiedCrewID(crew.id);
+      window.setTimeout(() => setCopiedCrewID(""), 1800);
+    } catch {
+      setMessage("Could not copy invite code.");
+    }
+  }
+
   return (
     <FeedShell>
       <header className="flex items-center gap-3 border-b border-(--nox-divider) px-4 pt-[env(safe-area-inset-top,12px)] pb-3">
@@ -147,31 +162,48 @@ export function CrewHubScreen({ eventID }: CrewHubScreenProps) {
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-(--nox-ink-soft)">your event crews</p>
           {loading ? <p className="text-[12px] text-(--nox-ink-soft)">Loading crews...</p> : null}
           {!loading && crews.length === 0 ? <p className="text-[12px] text-(--nox-ink-soft)">Create or join a crew for this event.</p> : null}
-          {crews.map((crew) => (
-            <div key={crew.id} className="rounded-[12px] border border-(--nox-border) bg-(--nox-surface) p-4">
+          {crews.map((crew) => {
+            const closed = crewClosed(crew);
+            return (
+            <div key={crew.id} className={`rounded-[12px] border p-4 ${closed ? "border-(--nox-divider) bg-(--nox-surface-alt)" : "border-(--nox-border) bg-(--nox-surface)"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[15px] font-bold text-(--nox-ink)">{crew.name}</p>
-                  <p className="mt-1 font-mono text-[10px] text-(--nox-ink-soft)">code {crew.join_code} · {crew.members.length} members</p>
+                  <p className="mt-1 font-mono text-[10px] text-(--nox-ink-soft)">
+                    {closed ? "crew closed" : `code ${crew.join_code}`} · {crew.members.length} members
+                  </p>
                 </div>
-                <span className="rounded-full bg-(--nox-accent-soft) px-2 py-1 font-mono text-[9px] font-semibold text-(--nox-accent-ink)">{crew.status}</span>
+                <span className={`rounded-full px-2 py-1 font-mono text-[9px] font-semibold ${closed ? "bg-(--nox-surface) text-(--nox-ink-faint)" : "bg-(--nox-accent-soft) text-(--nox-accent-ink)"}`}>
+                  {closed ? "closed" : "active"}
+                </span>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              {!closed && (
+                <button type="button" onClick={() => void handleCopyCode(crew)}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-[8px] border border-(--nox-border-strong) py-2 text-[12px] font-semibold text-(--nox-ink-mid)">
+                  {copiedCrewID === crew.id ? <Check className="size-4" strokeWidth={1.6} /> : <Copy className="size-4" strokeWidth={1.6} />}
+                  {copiedCrewID === crew.id ? "Copied" : "Copy invite code"}
+                </button>
+              )}
+              <div className={`mt-3 grid ${closed ? "grid-cols-1" : "grid-cols-3"} gap-2`}>
                 <button type="button" onClick={() => router.push(`/crews/${crew.id}`)}
                   className="flex items-center justify-center gap-2 rounded-[8px] border border-(--nox-border-strong) py-2 text-[12px] font-semibold text-(--nox-ink-mid)">
-                  <Map className="size-4" strokeWidth={1.6} /> Live map
+                  <Map className="size-4" strokeWidth={1.6} /> {closed ? "View crew" : "Live map"}
                 </button>
-                <button type="button" onClick={() => router.push(`/messages/${crew.conversation_id}`)}
-                  className="flex items-center justify-center gap-2 rounded-[8px] border border-(--nox-border-strong) py-2 text-[12px] font-semibold text-(--nox-ink-mid)">
-                  <MessageCircle className="size-4" strokeWidth={1.6} /> Chat
-                </button>
-                <button type="button" onClick={() => router.push(`/crews/${crew.id}/members`)}
-                  className="flex items-center justify-center gap-2 rounded-[8px] border border-(--nox-border-strong) py-2 text-[12px] font-semibold text-(--nox-ink-mid)">
-                  <Users className="size-4" strokeWidth={1.6} /> Members
-                </button>
+                {!closed && (
+                  <>
+                    <button type="button" onClick={() => router.push(`/messages/${crew.conversation_id}`)}
+                      className="flex items-center justify-center gap-2 rounded-[8px] border border-(--nox-border-strong) py-2 text-[12px] font-semibold text-(--nox-ink-mid)">
+                      <MessageCircle className="size-4" strokeWidth={1.6} /> Chat
+                    </button>
+                    <button type="button" onClick={() => router.push(`/crews/${crew.id}/members`)}
+                      className="flex items-center justify-center gap-2 rounded-[8px] border border-(--nox-border-strong) py-2 text-[12px] font-semibold text-(--nox-ink-mid)">
+                      <Users className="size-4" strokeWidth={1.6} /> Members
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         <p className="py-2 text-center text-[12px] text-(--nox-ink-soft)">
