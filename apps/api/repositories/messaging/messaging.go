@@ -28,6 +28,7 @@ type MessagingRepository interface {
 	FindDirectConversationBetweenPersonas(ctx context.Context, personaAID uuid.UUID, personaBID uuid.UUID) (*models.Conversation, error)
 	CreateGroupConversation(ctx context.Context, creator *models.Persona, members []*models.Persona, dto dtos.CreateGroupConversationDTO) (*models.Conversation, error)
 	FindConversationByID(ctx context.Context, conversationID uuid.UUID) (*models.Conversation, error)
+	ConversationBelongsToInactiveCrew(ctx context.Context, conversationID uuid.UUID) (bool, error)
 	FindPersonaConversations(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*ConversationListItem, error)
 	FindConversationMembers(ctx context.Context, conversationID uuid.UUID) ([]*models.ConversationMember, error)
 	FindMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, error)

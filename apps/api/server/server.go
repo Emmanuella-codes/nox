@@ -12,6 +12,9 @@ import (
 	comment_pipes "github.com/emmanuella-codes/nox/comment/pipes"
 	comment_routers "github.com/emmanuella-codes/nox/comment/routers"
 	"github.com/emmanuella-codes/nox/config"
+	crew_controllers "github.com/emmanuella-codes/nox/crew/controllers"
+	crew_pipes "github.com/emmanuella-codes/nox/crew/pipes"
+	crew_routers "github.com/emmanuella-codes/nox/crew/routers"
 	event_controllers "github.com/emmanuella-codes/nox/event/controllers"
 	event_pipes "github.com/emmanuella-codes/nox/event/pipes"
 	event_routers "github.com/emmanuella-codes/nox/event/routers"
@@ -95,6 +98,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona))
 	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media))
 	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
+	crewController := crew_controllers.NewCrewController(crew_pipes.NewCrewPipe(repos.Crew, repos.Event, repos.Persona))
 	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
 	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
 	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow, repos.Post))
@@ -111,6 +115,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/personas"), persona_routers.PersonaRoutes(personaController, cfg, repos.Persona))
 	shared_api.BaseRouter(api.Group("/posts"), post_routers.PostRoutes(postController, cfg, repos.Persona))
 	shared_api.BaseRouter(api, comment_routers.CommentRoutes(commentController, cfg))
+	shared_api.BaseRouter(api, crew_routers.CrewRoutes(crewController, cfg, redisClient))
 	shared_api.BaseRouter(api, like_routers.LikeRoutes(likeController, cfg))
 	shared_api.BaseRouter(api, follow_routers.FollowRoutes(followController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))

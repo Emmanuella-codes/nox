@@ -97,6 +97,19 @@ func (r *pgRepository) FindConversationByID(ctx context.Context, conversationID 
 	return scanConversation(row)
 }
 
+func (r *pgRepository) ConversationBelongsToInactiveCrew(ctx context.Context, conversationID uuid.UUID) (bool, error) {
+	var inactive bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM event_crews
+			WHERE conversation_id = $1
+			  AND (status = 'ended' OR expires_at <= now())
+		)
+	`, conversationID).Scan(&inactive)
+	return inactive, err
+}
+
 func (r *pgRepository) FindPersonaConversations(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*ConversationListItem, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT c.id, c.conversation_type, c.title, c.created_by, c.last_message_id, c.created_at, c.updated_at,

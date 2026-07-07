@@ -31,6 +31,13 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	if message != "" {
 		return shared.PipeError[MessageResponse](message)
 	}
+	inactiveCrew, err := p.messagingRepo.ConversationBelongsToInactiveCrew(ctx, conversationID)
+	if err != nil {
+		return pipeInternalError[MessageResponse](err, "messaging.check_crew_conversation")
+	}
+	if inactiveCrew {
+		return shared.PipeError[MessageResponse](messages.Forbidden)
+	}
 	if dto.MediaAssetID != nil {
 		if message := p.validateMessageMedia(ctx, userID, member.PersonaID, dto); message != "" {
 			return shared.PipeError[MessageResponse](message)
