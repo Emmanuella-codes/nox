@@ -132,9 +132,11 @@ func (r *pgRepository) DeleteOrphanedMediaAssets(ctx context.Context, olderThan 
 			LEFT JOIN sets ON sets.media_asset_id = media_assets.id
 			LEFT JOIN story_items ON story_items.media_asset_id = media_assets.id
 			LEFT JOIN post_media_assets ON post_media_assets.media_asset_id = media_assets.id
+			LEFT JOIN messages ON messages.media_asset_id = media_assets.id
 			WHERE sets.id IS NULL
 			  AND story_items.id IS NULL
 			  AND post_media_assets.post_id IS NULL
+			  AND messages.id IS NULL
 			  AND media_assets.processing_status IN ('pending', 'failed')
 			  AND media_assets.created_at < $1
 			ORDER BY media_assets.created_at ASC

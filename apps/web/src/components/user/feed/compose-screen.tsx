@@ -9,7 +9,7 @@ import { confirmPostMediaUpload, initiatePostMediaUpload, uploadToCloudinary } f
 import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import { ApiRequestError } from "@/src/utils/api/api";
-import type { Persona } from "@/src/types/api/persona";
+import type { Persona } from "@/src/types/api/user/persona";
 
 type PostingMode = "anonymous" | "public";
 

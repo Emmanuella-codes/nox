@@ -1,4 +1,4 @@
-import type { SearchResponse } from "@/src/types/api/search";
+import type { SearchResponse } from "@/src/types/api/user/search";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function searchNox(

@@ -10,8 +10,8 @@ import { Avatar } from "@/src/components/user/shared/avatar";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { getPersonaPosts, likePost, unlikePost } from "@/src/utils/api/user/post";
 import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
-import type { Persona } from "@/src/types/api/persona";
-import type { Post } from "@/src/types/api/post";
+import type { Persona } from "@/src/types/api/user/persona";
+import type { Post } from "@/src/types/api/user/post";
 
 type ProfileTab = "posts" | "sets";
 

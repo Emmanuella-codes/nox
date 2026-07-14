@@ -9,7 +9,7 @@ import { darkAuthTheme } from "@/src/components/user/auth/auth-theme";
 import { LoginForm } from "@/src/components/user/auth/login-form";
 import { SignupForm } from "@/src/components/user/auth/signup-form";
 import { VerifyEmailForm } from "@/src/components/user/auth/verify-email-form";
-import type { AuthMode } from "@/src/types/components/auth";
+import type { AuthMode } from "@/src/types/components/user/auth";
 
 const navItems = [
   { label: "feed", icon: Grid2X2 },

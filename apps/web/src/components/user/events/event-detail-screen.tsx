@@ -10,8 +10,8 @@ import { useActivePersona } from "@/src/hooks/use-active-persona";
 import { getEvent } from "@/src/utils/api/user/event";
 import { listEventStories, listEventHighlightStories } from "@/src/utils/api/user/story";
 import { getAccessToken } from "@/src/utils/auth/session";
-import type { Event } from "@/src/types/api/event";
-import type { Story, EventHighlightStory } from "@/src/types/api/story";
+import type { Event } from "@/src/types/api/user/event";
+import type { Story, EventHighlightStory } from "@/src/types/api/user/story";
 
 interface EventDetailScreenProps { eventID: string }
 

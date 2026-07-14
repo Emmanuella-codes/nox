@@ -5,7 +5,7 @@ import type {
   SignupRequest,
   VerificationResponse,
   VerifyEmailRequest,
-} from "@/src/types/api/auth";
+} from "@/src/types/api/user/auth";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function login(payload: LoginRequest) {

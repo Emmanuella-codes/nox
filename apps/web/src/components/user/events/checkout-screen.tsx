@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { getEvent } from "@/src/utils/api/user/event";
-import type { Event } from "@/src/types/api/event";
+import type { Event } from "@/src/types/api/user/event";
 
 interface CheckoutScreenProps { eventID: string }
 

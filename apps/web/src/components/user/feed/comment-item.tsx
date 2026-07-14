@@ -1,7 +1,7 @@
 "use client";
 
 import { Heart, Ghost } from "lucide-react";
-import type { Comment } from "@/src/types/api/comment";
+import type { Comment } from "@/src/types/api/user/comment";
 
 interface CommentItemProps {
   comment: Comment;

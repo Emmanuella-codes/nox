@@ -1,4 +1,4 @@
-import type { CreatePostRequest, Post } from "@/src/types/api/post";
+import type { CreatePostRequest, Post } from "@/src/types/api/user/post";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function createPost(payload: CreatePostRequest, token: string) {

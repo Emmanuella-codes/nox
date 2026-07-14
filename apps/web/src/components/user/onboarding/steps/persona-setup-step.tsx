@@ -3,15 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, AtSign, Type, AlignLeft } from "lucide-react";
 import { AuthField } from "@/src/components/user/auth/auth-field";
-
-interface PersonaSetupStepProps {
-  handle: string;
-  displayName: string;
-  bio: string;
-  onChange: (fields: { handle: string; displayName: string; bio: string }) => void;
-  onContinue: () => void;
-  onBack: () => void;
-}
+import type { PersonaSetupStepProps } from "@/src/types/components/user/onboarding";
 
 export function PersonaSetupStep({
   handle,

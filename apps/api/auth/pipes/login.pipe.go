@@ -31,5 +31,5 @@ func (p *AuthPipe) LoginPipe(ctx context.Context, dto dtos.LoginDTO) *shared.Pip
 		return shared.PipeError[AuthResponse](messages.Internal_Error)
 	}
 
-	return shared.PipeSuccess(messages.User_Logged_In, authResponse(foundUser, tokens))
+	return shared.PipeSuccess(messages.User_Logged_In, authResponse(tokens))
 }

@@ -4,7 +4,7 @@ import type {
   MediaAsset,
   Set,
   SetListResponse,
-} from "@/src/types/api/set";
+} from "@/src/types/api/user/set";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function createSetVideoAsset(payload: CreateMediaAssetRequest, token: string) {

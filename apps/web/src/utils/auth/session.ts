@@ -25,3 +25,13 @@ export function setActivePersonaID(personaID: string) {
 
   localStorage.setItem("nox_active_persona_id", personaID);
 }
+
+export function clearSession() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("nox_access_token");
+  localStorage.removeItem("nox_active_persona_id");
+  localStorage.removeItem("nox_signup_category");
+}

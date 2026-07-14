@@ -45,10 +45,6 @@ func (p *AuthPipe) SignupPipe(ctx context.Context, dto dtos.SignupDTO) *shared.P
 	}
 
 	return shared.PipeSuccess(messages.Verification_Sent, &VerificationResponse{
-		User: UserResponse{
-			ID:    createdUser.ID,
-			Email: createdUser.Email,
-		},
 		ExpiresInSeconds: int64(p.cfg.EmailOTPTTL.Seconds()),
 	})
 }

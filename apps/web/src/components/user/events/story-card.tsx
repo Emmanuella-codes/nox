@@ -2,7 +2,7 @@
 
 import { Clock, Users } from "lucide-react";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Story } from "@/src/types/api/story";
+import type { Story } from "@/src/types/api/user/story";
 
 interface StoryCardProps {
   story: Story;

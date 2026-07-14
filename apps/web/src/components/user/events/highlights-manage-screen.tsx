@@ -10,7 +10,7 @@ import { useActivePersona } from "@/src/hooks/use-active-persona";
 import { listEventStories, listEventHighlightStories, addEventHighlightStory, removeEventHighlightStory } from "@/src/utils/api/user/story";
 import { getEvent } from "@/src/utils/api/user/event";
 import { getAccessToken } from "@/src/utils/auth/session";
-import type { Story, EventHighlightStory } from "@/src/types/api/story";
+import type { Story, EventHighlightStory } from "@/src/types/api/user/story";
 
 interface HighlightsManageScreenProps { eventID: string }
 

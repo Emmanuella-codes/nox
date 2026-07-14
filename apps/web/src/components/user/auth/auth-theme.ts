@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { AuthTheme } from "@/src/types/components/auth";
+import type { AuthTheme } from "@/src/types/components/user/auth";
 
 export const darkAuthTheme: AuthTheme = {
   bg: "#0a0a0c",

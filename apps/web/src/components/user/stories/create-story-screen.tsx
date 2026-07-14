@@ -11,8 +11,8 @@ import { getEvents } from "@/src/utils/api/user/event";
 import { createStory } from "@/src/utils/api/user/story";
 import { getAccessToken } from "@/src/utils/auth/session";
 import { ApiRequestError } from "@/src/utils/api/api";
-import type { StoryContributionMode } from "@/src/types/api/story";
-import type { Event } from "@/src/types/api/event";
+import type { StoryContributionMode } from "@/src/types/api/user/story";
+import type { Event } from "@/src/types/api/user/event";
 
 export function CreateStoryScreen() {
   const router = useRouter();

@@ -4,6 +4,7 @@ import { CalendarDays, MapPin, Ticket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
+import type { SampleTicket } from "@/src/types/components/user/events";
 
 // Tickets require a ticketing/payments API that is not yet available.
 // This screen renders a placeholder until the backend is wired up.
@@ -13,7 +14,7 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
-const SAMPLE_TICKETS = [
+const SAMPLE_TICKETS: SampleTicket[] = [
   { id: "t1", event: "Warehouse Sessions Vol. 3", venue: "Eko Atlantic", location: "Lagos", date: new Date(Date.now() + 7 * 86400000).toISOString(), price: 5000, ref: "NOX-A1B2C3" },
   { id: "t2", event: "Afro Roots All Night", venue: "Hard Rock Café", location: "Lekki", date: new Date(Date.now() + 21 * 86400000).toISOString(), price: 0, ref: "NOX-D4E5F6" },
 ];

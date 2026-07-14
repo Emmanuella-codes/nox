@@ -1,4 +1,4 @@
-import type { Post } from "@/src/types/api/post";
+import type { Post } from "@/src/types/api/user/post";
 
 export interface Hashtag {
   id: string;

@@ -12,8 +12,8 @@ import { getPersonaPosts, likePost, unlikePost } from "@/src/utils/api/user/post
 import { followPersona, unfollowPersona, getFollowStatus } from "@/src/utils/api/user/follow";
 import { useActivePersona } from "@/src/hooks/use-active-persona";
 import { getAccessToken } from "@/src/utils/auth/session";
-import type { Persona } from "@/src/types/api/persona";
-import type { Post } from "@/src/types/api/post";
+import type { Persona } from "@/src/types/api/user/persona";
+import type { Post } from "@/src/types/api/user/post";
 
 function formatCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;

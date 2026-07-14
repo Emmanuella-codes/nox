@@ -12,6 +12,9 @@ import (
 	comment_pipes "github.com/emmanuella-codes/nox/comment/pipes"
 	comment_routers "github.com/emmanuella-codes/nox/comment/routers"
 	"github.com/emmanuella-codes/nox/config"
+	crew_controllers "github.com/emmanuella-codes/nox/crew/controllers"
+	crew_pipes "github.com/emmanuella-codes/nox/crew/pipes"
+	crew_routers "github.com/emmanuella-codes/nox/crew/routers"
 	event_controllers "github.com/emmanuella-codes/nox/event/controllers"
 	event_pipes "github.com/emmanuella-codes/nox/event/pipes"
 	event_routers "github.com/emmanuella-codes/nox/event/routers"
@@ -27,6 +30,9 @@ import (
 	media_controllers "github.com/emmanuella-codes/nox/media/controllers"
 	media_pipes "github.com/emmanuella-codes/nox/media/pipes"
 	media_routers "github.com/emmanuella-codes/nox/media/routers"
+	messaging_controllers "github.com/emmanuella-codes/nox/messaging/controllers"
+	messaging_pipes "github.com/emmanuella-codes/nox/messaging/pipes"
+	messaging_routers "github.com/emmanuella-codes/nox/messaging/routers"
 	"github.com/emmanuella-codes/nox/middleware"
 	persona_controllers "github.com/emmanuella-codes/nox/persona/controllers"
 	persona_pipes "github.com/emmanuella-codes/nox/persona/pipes"
@@ -92,12 +98,14 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona))
 	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media))
 	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
+	crewController := crew_controllers.NewCrewController(crew_pipes.NewCrewPipe(repos.Crew, repos.Event, repos.Persona))
 	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
 	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
 	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow, repos.Post))
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like, repos.Post))
 	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
+	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 
@@ -107,12 +115,14 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/personas"), persona_routers.PersonaRoutes(personaController, cfg, repos.Persona))
 	shared_api.BaseRouter(api.Group("/posts"), post_routers.PostRoutes(postController, cfg, repos.Persona))
 	shared_api.BaseRouter(api, comment_routers.CommentRoutes(commentController, cfg))
+	shared_api.BaseRouter(api, crew_routers.CrewRoutes(crewController, cfg, redisClient))
 	shared_api.BaseRouter(api, like_routers.LikeRoutes(likeController, cfg))
 	shared_api.BaseRouter(api, follow_routers.FollowRoutes(followController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))
+	shared_api.BaseRouter(api, messaging_routers.MessagingRoutes(messagingController, cfg))
 	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
 	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 

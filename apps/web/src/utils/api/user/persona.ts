@@ -1,4 +1,4 @@
-import type { CreatePersonaRequest, Persona, UpdatePersonaRequest } from "@/src/types/api/persona";
+import type { CreatePersonaRequest, Persona, UpdatePersonaRequest } from "@/src/types/api/user/persona";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function createPersona(payload: CreatePersonaRequest, token: string) {

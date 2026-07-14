@@ -1,4 +1,4 @@
-import type { ApiResponse } from "@/src/types/api/auth";
+import type { ApiResponse } from "@/src/types/api/user/auth";
 
 export class ApiRequestError extends Error {
   status: number;
@@ -13,7 +13,7 @@ export class ApiRequestError extends Error {
 }
 
 interface ApiRequestOptions<TBody = unknown> {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: TBody;
   headers?: HeadersInit;
   token?: string;

@@ -11,7 +11,7 @@ import { getStory, addStoryItem, deleteStoryItem } from "@/src/utils/api/user/st
 import { createSetVideoAsset } from "@/src/utils/api/user/set";
 import { getAccessToken } from "@/src/utils/auth/session";
 import { ApiRequestError } from "@/src/utils/api/api";
-import type { Story } from "@/src/types/api/story";
+import type { Story } from "@/src/types/api/user/story";
 
 interface StoryViewerScreenProps {
   storyID: string;

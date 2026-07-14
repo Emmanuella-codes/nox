@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Persona } from "@/src/types/api/persona";
+import type { Persona } from "@/src/types/api/user/persona";
 
 interface PersonaCardProps {
   persona: Persona;

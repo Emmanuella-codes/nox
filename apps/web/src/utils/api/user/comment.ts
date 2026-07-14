@@ -1,4 +1,4 @@
-import type { Comment, CreateCommentRequest } from "@/src/types/api/comment";
+import type { Comment, CreateCommentRequest } from "@/src/types/api/user/comment";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function getPostComments(postID: string) {

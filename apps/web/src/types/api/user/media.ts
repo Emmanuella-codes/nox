@@ -2,7 +2,6 @@ export interface MediaAsset {
   id: string;
   owner_persona_id: string;
   media_kind: "image" | "video";
-  storage_key: string;
   playback_url: string;
   thumbnail_url: string;
   mime_type: string;
