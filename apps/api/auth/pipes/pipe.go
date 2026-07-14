@@ -36,13 +36,7 @@ type AuthPipeDeps struct {
 }
 
 type AuthResponse struct {
-	User   UserResponse       `json:"user"`
 	Tokens services.TokenPair `json:"tokens"`
-}
-
-type UserResponse struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
 }
 
 func NewAuthPipe(deps AuthPipeDeps) *AuthPipe {
@@ -58,8 +52,7 @@ func NewAuthPipe(deps AuthPipeDeps) *AuthPipe {
 }
 
 type VerificationResponse struct {
-	User             UserResponse `json:"user"`
-	ExpiresInSeconds int64        `json:"expires_in_seconds"`
+	ExpiresInSeconds int64 `json:"expires_in_seconds"`
 }
 
 func (p *AuthPipe) issueTokenPair(ctx context.Context, userID uuid.UUID) (*services.TokenPair, error) {
@@ -107,12 +100,8 @@ func (p *AuthPipe) revokeUserRefreshSessions(ctx context.Context, userID uuid.UU
 	return err
 }
 
-func authResponse(user *models.User, tokens *services.TokenPair) *AuthResponse {
+func authResponse(tokens *services.TokenPair) *AuthResponse {
 	return &AuthResponse{
-		User: UserResponse{
-			ID:    user.ID,
-			Email: user.Email,
-		},
 		Tokens: *tokens,
 	}
 }

@@ -74,9 +74,6 @@ export function VerifyEmailForm({ email, password, expiresInSeconds }: VerifyEma
       if (loginRes.data?.tokens.refresh_token) {
         localStorage.setItem("nox_refresh_token", loginRes.data.tokens.refresh_token);
       }
-      if (loginRes.data?.user.id) {
-        localStorage.setItem("nox_user_id", loginRes.data.user.id);
-      }
       router.push("/onboarding");
     } catch (error) {
       setStatus("error");

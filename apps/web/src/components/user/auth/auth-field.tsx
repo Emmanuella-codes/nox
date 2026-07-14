@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthFieldProps } from "@/src/types/components/auth";
+import type { AuthFieldProps } from "@/src/types/components/user/auth";
 
 export function AuthField({
   id,

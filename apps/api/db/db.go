@@ -10,6 +10,8 @@ import (
 )
 
 func Connect(ctx context.Context, databaseUrl string) (*pgxpool.Pool, error) {
+	databaseUrl = normalizeDatabaseURL(databaseUrl)
+
 	cfg, err := pgxpool.ParseConfig(databaseUrl)
 	if err != nil {
 		return nil, err
@@ -24,7 +26,7 @@ func Connect(ctx context.Context, databaseUrl string) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("db: ping: %w", err)
 	}

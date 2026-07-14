@@ -3,7 +3,7 @@
 import { Heart, MessageCircle, Repeat2, Ghost } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Post } from "@/src/types/api/post";
+import type { Post } from "@/src/types/api/user/post";
 
 interface PostCardProps {
   post: Post;

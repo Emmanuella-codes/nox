@@ -8,7 +8,7 @@ import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { EventCard } from "@/src/components/user/events/event-card";
 import { getEvents } from "@/src/utils/api/user/event";
 import { useActivePersona } from "@/src/hooks/use-active-persona";
-import type { Event } from "@/src/types/api/event";
+import type { Event } from "@/src/types/api/user/event";
 
 type EventFilter = "upcoming" | "this-week" | "this-month";
 

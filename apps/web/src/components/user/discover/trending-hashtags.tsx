@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Hash } from "lucide-react";
 import { getTrendingHashtags } from "@/src/utils/api/user/hashtag";
-import type { Hashtag } from "@/src/types/api/hashtag";
+import type { Hashtag } from "@/src/types/api/user/hashtag";
 
 export function TrendingHashtags() {
   const router = useRouter();

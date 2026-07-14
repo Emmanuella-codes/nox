@@ -6,7 +6,7 @@ import type {
   CreateStoryRequest,
   AddStoryItemRequest,
   EventHighlightStory,
-} from "@/src/types/api/story";
+} from "@/src/types/api/user/story";
 
 export function getStory(storyID: string, viewerPersonaID?: string, token?: string) {
   const params = new URLSearchParams();

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Conversation } from "@/src/types/api/messaging";
+import type { Conversation } from "@/src/types/api/user/messaging";
 import { listConversations } from "@/src/utils/api/user/messaging";
 import { getAccessToken } from "@/src/utils/auth/session";
 import { formatDateTime } from "@/src/utils/format/date";

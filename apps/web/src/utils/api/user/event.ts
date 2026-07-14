@@ -1,4 +1,4 @@
-import type { CreateEventRequest, Event } from "@/src/types/api/event";
+import type { CreateEventRequest, Event } from "@/src/types/api/user/event";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function getEvents() {

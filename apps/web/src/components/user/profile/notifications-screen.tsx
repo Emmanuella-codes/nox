@@ -4,8 +4,9 @@ import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { Avatar } from "@/src/components/user/shared/avatar";
+import type { NotificationType, SampleNotification } from "@/src/types/components/user/profile";
 
-const SAMPLE = [
+const SAMPLE: SampleNotification[] = [
   { id: "1", type: "like", actor: "djkhalid", actorID: "a1", text: "liked your post", time: "2m ago" },
   { id: "2", type: "follow", actor: "amirah_lagos", actorID: "a2", text: "started following you", time: "14m ago" },
   { id: "3", type: "comment", actor: "warehouse_nox", actorID: "a3", text: "commented on your post", time: "1h ago" },
@@ -13,7 +14,7 @@ const SAMPLE = [
   { id: "5", type: "follow", actor: "scene_curator", actorID: "a5", text: "started following you", time: "1d ago" },
 ];
 
-function NotifIcon({ type }: { type: string }) {
+function NotifIcon({ type }: { type: NotificationType }) {
   if (type === "like") return <Heart className="size-3.5 text-(--nox-danger)" strokeWidth={1.7} />;
   if (type === "follow") return <UserPlus className="size-3.5 text-(--nox-accent)" strokeWidth={1.7} />;
   if (type === "comment") return <MessageCircle className="size-3.5 text-(--nox-ink-mid)" strokeWidth={1.7} />;

@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { useMemo, useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { AuthField } from "@/src/components/user/auth/auth-field";
-import type { SignupFormProps } from "@/src/types/components/auth";
+import type { SignupFormProps } from "@/src/types/components/user/auth";
 import { signup } from "@/src/utils/api/user/auth";
 import { ApiRequestError } from "@/src/utils/api/api";
 

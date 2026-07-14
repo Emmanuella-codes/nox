@@ -10,7 +10,7 @@ import { SetCard } from "@/src/components/user/sets/set-card";
 import { SetSkeleton } from "@/src/components/user/sets/set-skeleton";
 import { useActivePersona } from "@/src/hooks/use-active-persona";
 import { getSets } from "@/src/utils/api/user/set";
-import type { Set } from "@/src/types/api/set";
+import type { Set } from "@/src/types/api/user/set";
 
 export function SetsScreen() {
   const router = useRouter();

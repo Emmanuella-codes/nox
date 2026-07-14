@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { useActivePersona } from "@/src/hooks/use-active-persona";
-import type { Crew } from "@/src/types/api/crew";
+import type { Crew } from "@/src/types/api/user/crew";
 import { ApiRequestError } from "@/src/utils/api/api";
 import { createCrew, joinCrew, listMyEventCrews } from "@/src/utils/api/user/crew";
 import { getAccessToken } from "@/src/utils/auth/session";

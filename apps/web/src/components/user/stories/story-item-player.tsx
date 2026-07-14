@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { StoryItem } from "@/src/types/api/story";
+import type { StoryItem } from "@/src/types/api/user/story";
 
 interface StoryItemPlayerProps {
   item: StoryItem;

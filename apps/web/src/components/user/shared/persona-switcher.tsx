@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Persona } from "@/src/types/api/persona";
+import type { Persona } from "@/src/types/api/user/persona";
 
 interface PersonaSwitcherProps {
   personas: Persona[];

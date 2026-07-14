@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Persona } from "@/src/types/api/persona";
+import type { Persona } from "@/src/types/api/user/persona";
 import { createDirectConversation, createGroupConversation } from "@/src/utils/api/user/messaging";
 import { searchNox } from "@/src/utils/api/user/search";
 import { getAccessToken } from "@/src/utils/auth/session";

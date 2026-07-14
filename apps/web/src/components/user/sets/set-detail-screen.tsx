@@ -7,7 +7,7 @@ import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
 import { Avatar } from "@/src/components/user/shared/avatar";
 import { getSet } from "@/src/utils/api/user/set";
-import type { Set } from "@/src/types/api/set";
+import type { Set } from "@/src/types/api/user/set";
 
 interface SetDetailScreenProps {
   setID: string;

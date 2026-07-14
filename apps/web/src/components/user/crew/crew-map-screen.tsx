@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Crew, CrewLocation } from "@/src/types/api/crew";
+import type { Crew, CrewLocation } from "@/src/types/api/user/crew";
 import { getCrew, listCrewLocations, updateCrewLocation, updateLocationSharing } from "@/src/utils/api/user/crew";
 import { getAccessToken } from "@/src/utils/auth/session";
 import { useActivePersona } from "@/src/hooks/use-active-persona";

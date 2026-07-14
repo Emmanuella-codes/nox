@@ -6,7 +6,7 @@ import type {
   JoinCrewRequest,
   UpdateLocationRequest,
   UpdateSharingRequest,
-} from "@/src/types/api/crew";
+} from "@/src/types/api/user/crew";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function createCrew(eventID: string, payload: CreateCrewRequest, token: string) {

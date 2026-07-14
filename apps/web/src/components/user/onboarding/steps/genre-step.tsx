@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import type { GenreStepProps } from "@/src/types/components/user/onboarding";
 
 const GENRE_OPTIONS = [
   "afrobeats",
@@ -20,15 +21,6 @@ const GENRE_OPTIONS = [
   "techno",
   "soul",
 ];
-
-interface GenreStepProps {
-  selected: string[];
-  loading: boolean;
-  error: string;
-  onChange: (tags: string[]) => void;
-  onContinue: () => void;
-  onBack: () => void;
-}
 
 export function GenreStep({
   selected,

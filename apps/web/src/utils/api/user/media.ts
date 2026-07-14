@@ -3,7 +3,7 @@ import type {
   ConfirmPostMediaUploadRequest,
   InitiatePostMediaUploadRequest,
   MediaAsset,
-} from "@/src/types/api/media";
+} from "@/src/types/api/user/media";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function initiatePostMediaUpload(payload: InitiatePostMediaUploadRequest, token: string) {

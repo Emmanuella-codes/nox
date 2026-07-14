@@ -1,4 +1,4 @@
-import type { Conversation } from "@/src/types/api/messaging";
+import type { Conversation } from "@/src/types/api/user/messaging";
 
 export function otherMemberID(conversation: Conversation, activePersonaID: string) {
   return conversation.members.find((member) => member.persona_id !== activePersonaID)?.persona_id ?? "";

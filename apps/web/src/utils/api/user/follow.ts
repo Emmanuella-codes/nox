@@ -1,4 +1,4 @@
-import type { FollowListResponse, FollowStatus } from "@/src/types/api/persona";
+import type { FollowListResponse, FollowStatus } from "@/src/types/api/user/persona";
 import { apiRequest } from "@/src/utils/api/api";
 
 interface FollowPayload {

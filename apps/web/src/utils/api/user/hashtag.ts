@@ -1,4 +1,4 @@
-import type { Hashtag, HashtagDetail, HashtagPostsResponse } from "@/src/types/api/hashtag";
+import type { Hashtag, HashtagDetail, HashtagPostsResponse } from "@/src/types/api/user/hashtag";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function getTrendingHashtags(limit = 20) {

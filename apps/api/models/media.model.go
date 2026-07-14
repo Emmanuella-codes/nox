@@ -25,7 +25,7 @@ type MediaAsset struct {
 	OwnerUserID      uuid.UUID             `json:"-"`
 	OwnerPersonaID   uuid.UUID             `json:"owner_persona_id"`
 	MediaKind        MediaKind             `json:"media_kind"`
-	StorageKey       string                `json:"storage_key"`
+	StorageKey       string                `json:"-"`
 	PlaybackURL      string                `json:"playback_url"`
 	ThumbnailURL     string                `json:"thumbnail_url"`
 	MimeType         string                `json:"mime_type"`

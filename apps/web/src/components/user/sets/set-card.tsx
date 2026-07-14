@@ -2,7 +2,7 @@
 
 import { Eye, Heart, Play, Timer } from "lucide-react";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Set } from "@/src/types/api/set";
+import type { Set } from "@/src/types/api/user/set";
 
 interface SetCardProps {
   set: Set;

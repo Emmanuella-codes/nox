@@ -1,4 +1,4 @@
-import type { MediaAsset } from "@/src/types/api/set";
+import type { MediaAsset } from "@/src/types/api/user/set";
 
 export type StoryContributionMode = "public" | "private";
 export type StoryPostingMode = "public" | "anonymous";

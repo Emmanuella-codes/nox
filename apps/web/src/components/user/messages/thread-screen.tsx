@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { Avatar } from "@/src/components/user/shared/avatar";
-import type { Conversation, Message } from "@/src/types/api/messaging";
+import type { Conversation, Message } from "@/src/types/api/user/messaging";
 import { confirmPostMediaUpload, initiatePostMediaUpload, uploadToCloudinary } from "@/src/utils/api/user/media";
 import { deleteMessage, getConversation, listMessages, markConversationRead, sendMessage } from "@/src/utils/api/user/messaging";
 import { getAccessToken } from "@/src/utils/auth/session";

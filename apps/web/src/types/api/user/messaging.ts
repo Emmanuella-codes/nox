@@ -1,4 +1,4 @@
-import type { MediaAsset } from "@/src/types/api/media";
+import type { MediaAsset } from "@/src/types/api/user/media";
 
 export type ConversationType = "direct" | "group";
 export type ConversationRole = "member" | "admin";

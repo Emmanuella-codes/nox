@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { useMemo, useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { AuthField } from "@/src/components/user/auth/auth-field";
-import type { LoginFormProps } from "@/src/types/components/auth";
+import type { LoginFormProps } from "@/src/types/components/user/auth";
 import { login } from "@/src/utils/api/user/auth";
 import { ApiRequestError } from "@/src/utils/api/api";
 import { useRouter } from "next/navigation";

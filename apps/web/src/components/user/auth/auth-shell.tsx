@@ -1,4 +1,4 @@
-import type { AuthShellProps } from "@/src/types/components/auth";
+import type { AuthShellProps } from "@/src/types/components/user/auth";
 import { authThemeVars } from "@/src/components/user/auth/auth-theme";
 
 export function AuthShell({ theme, children, sidePanel }: AuthShellProps) {

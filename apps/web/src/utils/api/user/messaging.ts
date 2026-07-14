@@ -7,7 +7,7 @@ import type {
   Message,
   RemoveMemberRequest,
   SendMessageRequest,
-} from "@/src/types/api/messaging";
+} from "@/src/types/api/user/messaging";
 import { apiRequest } from "@/src/utils/api/api";
 
 export function createDirectConversation(payload: CreateDirectConversationRequest, token: string) {

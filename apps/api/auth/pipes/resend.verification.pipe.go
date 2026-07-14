@@ -27,10 +27,6 @@ func (p *AuthPipe) ResendVerificationPipe(ctx context.Context, dto dtos.ResendVe
 	}
 
 	return shared.PipeSuccess(messages.Verification_Sent, &VerificationResponse{
-		User: UserResponse{
-			ID:    foundUser.ID,
-			Email: foundUser.Email,
-		},
 		ExpiresInSeconds: int64(p.cfg.EmailOTPTTL.Seconds()),
 	})
 }

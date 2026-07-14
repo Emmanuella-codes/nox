@@ -14,9 +14,9 @@ import { followPersona, unfollowPersona } from "@/src/utils/api/user/follow";
 import { likePost, unlikePost } from "@/src/utils/api/user/post";
 import { useActivePersona } from "@/src/hooks/use-active-persona";
 import { getAccessToken } from "@/src/utils/auth/session";
-import type { SearchResponse } from "@/src/types/api/search";
-import type { Post } from "@/src/types/api/post";
-import type { Persona } from "@/src/types/api/persona";
+import type { SearchResponse } from "@/src/types/api/user/search";
+import type { Post } from "@/src/types/api/user/post";
+import type { Persona } from "@/src/types/api/user/persona";
 
 const GENRE_FILTERS = [
   "all", "afrobeats", "amapiano", "afro-house", "afro-tech", "alt-R&B", "hip-hop", "dancehall", "electronic",

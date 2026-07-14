@@ -4,8 +4,9 @@ import { ChevronLeft, Ticket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FeedShell } from "@/src/components/user/feed/feed-shell";
 import { TabBar } from "@/src/components/user/feed/tab-bar";
+import type { PaymentHistoryItem } from "@/src/types/components/user/settings";
 
-const SAMPLE_HISTORY = [
+const SAMPLE_HISTORY: PaymentHistoryItem[] = [
   { id: "p1", event: "Warehouse Sessions Vol. 3", amount: 5000, qty: 1, date: "2026-06-08", ref: "NOX-A1B2C3", status: "success" },
   { id: "p2", event: "Afro Roots All Night", amount: 0, qty: 1, date: "2026-05-21", ref: "NOX-D4E5F6", status: "success" },
   { id: "p3", event: "Lagos Jazz Collective", amount: 3500, qty: 2, date: "2026-04-14", ref: "NOX-G7H8I9", status: "refunded" },

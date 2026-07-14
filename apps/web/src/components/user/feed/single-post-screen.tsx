@@ -11,8 +11,8 @@ import { createComment, getPostComments } from "@/src/utils/api/user/comment";
 import { getMyPersonas } from "@/src/utils/api/user/persona";
 import { getAccessToken, getActivePersonaID, setActivePersonaID } from "@/src/utils/auth/session";
 import { ApiRequestError } from "@/src/utils/api/api";
-import type { Post } from "@/src/types/api/post";
-import type { Comment } from "@/src/types/api/comment";
+import type { Post } from "@/src/types/api/user/post";
+import type { Comment } from "@/src/types/api/user/comment";
 
 interface SinglePostScreenProps {
   postId: string;

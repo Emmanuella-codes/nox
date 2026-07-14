@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPin, Ticket } from "lucide-react";
-import type { Event } from "@/src/types/api/event";
+import type { Event } from "@/src/types/api/user/event";
 
 interface EventCardProps {
   event: Event;

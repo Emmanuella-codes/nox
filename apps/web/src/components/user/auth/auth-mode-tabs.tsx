@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthMode } from "@/src/types/components/auth";
+import type { AuthMode } from "@/src/types/components/user/auth";
 
 interface AuthModeTabsProps {
   mode: AuthMode;

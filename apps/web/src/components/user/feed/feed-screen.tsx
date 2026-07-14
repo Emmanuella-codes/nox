@@ -11,7 +11,7 @@ import { PersonaSwitcher } from "@/src/components/user/shared/persona-switcher";
 import { getPersonaFeed, getFollowingFeed, likePost, unlikePost } from "@/src/utils/api/user/post";
 import { useActivePersona } from "@/src/hooks/use-active-persona";
 import { getAccessToken } from "@/src/utils/auth/session";
-import type { Post } from "@/src/types/api/post";
+import type { Post } from "@/src/types/api/user/post";
 
 export function FeedScreen() {
   const router = useRouter();

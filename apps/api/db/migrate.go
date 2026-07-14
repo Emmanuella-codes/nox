@@ -14,6 +14,8 @@ import (
 var migrationsFS embed.FS
 
 func RunMigrations(databaseURL string) error {
+	databaseURL = normalizeDatabaseURL(databaseURL)
+
 	sourceDriver, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
 		return err

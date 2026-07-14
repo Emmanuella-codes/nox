@@ -1,10 +1,9 @@
-import type { Persona } from "@/src/types/api/persona";
+import type { Persona } from "@/src/types/api/user/persona";
 
 export interface MediaAsset {
   id: string;
   owner_persona_id: string;
   media_kind: "video";
-  storage_key: string;
   playback_url: string;
   thumbnail_url: string;
   mime_type: string;
