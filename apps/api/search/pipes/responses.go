@@ -11,12 +11,14 @@ type SearchResponse struct {
 	Query      string                  `json:"query"`
 	Limit      int                     `json:"limit"`
 	Offset     int                     `json:"offset"`
+	Scope      string                  `json:"scope"`
 	HasMore    bool                    `json:"has_more"`
 	NextOffset *int                    `json:"next_offset,omitempty"`
 	Personas   []SearchPersonaResponse `json:"personas"`
 	Posts      []SearchPostResponse    `json:"posts"`
 	Events     []SearchEventResponse   `json:"events"`
 	Hashtags   []SearchHashtagResponse `json:"hashtags"`
+	Sets       []SearchSetResponse     `json:"sets"`
 }
 
 type SearchPersonaResponse struct {
@@ -95,6 +97,23 @@ type SearchHashtagResponse struct {
 	Tag       string    `json:"tag"`
 	PostCount int       `json:"post_count"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type SearchSetResponse struct {
+	ID              string             `json:"id"`
+	PersonaID       string             `json:"persona_id"`
+	Title           string             `json:"title"`
+	Description     string             `json:"description"`
+	GenreTags       []string           `json:"genre_tags"`
+	DurationSeconds int                `json:"duration_seconds"`
+	LikeCount       int                `json:"like_count"`
+	CommentCount    int                `json:"comment_count"`
+	PlayCount       int                `json:"play_count"`
+	IsLiked         bool               `json:"is_liked"`
+	CreatedAt       time.Time          `json:"created_at"`
+	UpdatedAt       time.Time          `json:"updated_at"`
+	Persona         *models.Persona    `json:"persona,omitempty"`
+	MediaAsset      *models.MediaAsset `json:"media_asset,omitempty"`
 }
 
 // personaResponses maps public profiles into the search response shape.
@@ -206,6 +225,30 @@ func hashtagResponses(hashtags []*models.Hashtag) []SearchHashtagResponse {
 			Tag:       hashtag.Tag,
 			PostCount: hashtag.PostCount,
 			CreatedAt: hashtag.CreatedAt,
+		})
+	}
+	return responses
+}
+
+// setResponses maps matched sets into the search response shape.
+func setResponses(sets []*models.Set) []SearchSetResponse {
+	responses := make([]SearchSetResponse, 0, len(sets))
+	for _, set := range sets {
+		responses = append(responses, SearchSetResponse{
+			ID:              set.ID.String(),
+			PersonaID:       set.PersonaID.String(),
+			Title:           set.Title,
+			Description:     set.Description,
+			GenreTags:       set.GenreTags,
+			DurationSeconds: set.DurationSeconds,
+			LikeCount:       set.LikeCount,
+			CommentCount:    set.CommentCount,
+			PlayCount:       set.PlayCount,
+			IsLiked:         false,
+			CreatedAt:       set.CreatedAt,
+			UpdatedAt:       set.UpdatedAt,
+			Persona:         set.Persona,
+			MediaAsset:      set.MediaAsset,
 		})
 	}
 	return responses

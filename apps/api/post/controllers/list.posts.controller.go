@@ -94,7 +94,7 @@ func (c *PostController) GetFeed(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.GetFeedPipe(ctx.Context(), personaID, queryLimit(ctx, 20))
+	res := c.pipe.GetFeedPipe(ctx.Context(), personaID, queryLimit(ctx, 20), ctx.Query("cursor"))
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
@@ -108,7 +108,7 @@ func (c *PostController) GetFollowingFeed(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.GetFollowingFeedPipe(ctx.Context(), personaID, queryLimit(ctx, 20))
+	res := c.pipe.GetFollowingFeedPipe(ctx.Context(), personaID, queryLimit(ctx, 20), ctx.Query("cursor"))
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

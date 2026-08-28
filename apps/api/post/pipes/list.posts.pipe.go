@@ -109,46 +109,117 @@ func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID u
 	return res
 }
 
-// GetFeedPipe fetches the base feed with liked state.
-func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+// GetFeedPipe fetches the base feed with cursor pagination and liked state.
+func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int, cursor string) *shared.PipeRes[PostListResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[PostListResponse](messages.Persona_Not_Found)
 		}
-		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_feed")
+		return pipeInternalError[PostListResponse](err, "post.find_persona_for_feed")
 	}
-	posts, err := p.postRepo.FindFeedPosts(ctx, personaID, limit)
+	options, err := p.feedOptions(limit, cursor)
 	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.feed")
+		return shared.PipeError[PostListResponse](messages.Invalid_Payload)
 	}
-	res := p.postsResponse(ctx, posts, messages.Feed_Listed)
-	if !res.Success || res.Data == nil || p.likeRepo == nil {
-		return res
+	if cached := p.cachedFeedResponse(ctx, "all", personaID, options, messages.Feed_Listed); cached != nil {
+		return cached
 	}
-	if err := p.hydrateLikedState(ctx, personaID, *res.Data); err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
+	posts, err := p.postRepo.FindFeedPosts(ctx, personaID, options)
+	if err != nil {
+		return pipeInternalError[PostListResponse](err, "post.feed")
 	}
-	return res
+	response, pipeRes := p.feedResponse(ctx, posts, personaID, options.Limit, messages.Feed_Listed)
+	if pipeRes != nil {
+		return pipeRes
+	}
+	if err := p.storeFeedCache(ctx, "all", personaID.String(), options.Limit, cursor, response); err != nil {
+		return pipeInternalError[PostListResponse](err, "post.feed_cache_store")
+	}
+	return shared.PipeSuccess(messages.Feed_Listed, response)
 }
 
-// GetFollowingFeedPipe fetches the following feed with liked state.
-func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+// GetFollowingFeedPipe fetches the following feed with cursor pagination and liked state.
+func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID, limit int, cursor string) *shared.PipeRes[PostListResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[PostListResponse](messages.Persona_Not_Found)
 		}
-		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_following_feed")
+		return pipeInternalError[PostListResponse](err, "post.find_persona_for_following_feed")
 	}
-	posts, err := p.postRepo.FindFollowingFeedPosts(ctx, personaID, limit)
+	options, err := p.feedOptions(limit, cursor)
 	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.following_feed")
+		return shared.PipeError[PostListResponse](messages.Invalid_Payload)
 	}
-	res := p.postsResponse(ctx, posts, messages.Feed_Listed)
-	if !res.Success || res.Data == nil || p.likeRepo == nil {
-		return res
+	if cached := p.cachedFeedResponse(ctx, "following", personaID, options, messages.Feed_Listed); cached != nil {
+		return cached
+	}
+	posts, err := p.postRepo.FindFollowingFeedPosts(ctx, personaID, options)
+	if err != nil {
+		return pipeInternalError[PostListResponse](err, "post.following_feed")
+	}
+	response, pipeRes := p.feedResponse(ctx, posts, personaID, options.Limit, messages.Feed_Listed)
+	if pipeRes != nil {
+		return pipeRes
+	}
+	if err := p.storeFeedCache(ctx, "following", personaID.String(), options.Limit, cursor, response); err != nil {
+		return pipeInternalError[PostListResponse](err, "post.following_feed_cache_store")
+	}
+	return shared.PipeSuccess(messages.Feed_Listed, response)
+}
+
+// feedOptions builds validated feed options from incoming request parameters.
+func (p *PostPipe) feedOptions(limit int, cursor string) (post_repo.FeedOptions, error) {
+	decodedCursor, err := decodeFeedCursor(cursor)
+	if err != nil {
+		return post_repo.FeedOptions{}, err
+	}
+	return post_repo.NormalizeFeedOptions(post_repo.FeedOptions{Limit: limit, Cursor: decodedCursor}), nil
+}
+
+// cachedFeedResponse returns one cached feed response when available.
+func (p *PostPipe) cachedFeedResponse(ctx context.Context, kind string, personaID uuid.UUID, options post_repo.FeedOptions, message shared.PipeMessage) *shared.PipeRes[PostListResponse] {
+	var cached PostListResponse
+	cursor := ""
+	if options.Cursor != nil {
+		var err error
+		cursor, err = encodeFeedCursor(PostResponse{ID: options.Cursor.ID.String(), CreatedAt: options.Cursor.CreatedAt})
+		if err != nil {
+			return pipeInternalError[PostListResponse](err, "post.feed_cache_cursor")
+		}
+	}
+	hit, err := p.loadFeedCache(ctx, kind, personaID.String(), options.Limit, cursor, &cached)
+	if err != nil {
+		return pipeInternalError[PostListResponse](err, "post.feed_cache_load")
+	}
+	if !hit {
+		return nil
+	}
+	return shared.PipeSuccess(message, &cached)
+}
+
+// feedResponse maps one feed page into a cursor-paginated response body.
+func (p *PostPipe) feedResponse(ctx context.Context, posts []*models.Post, personaID uuid.UUID, limit int, message shared.PipeMessage) (*PostListResponse, *shared.PipeRes[PostListResponse]) {
+	hasMore := len(posts) > limit
+	if hasMore {
+		posts = posts[:limit]
+	}
+	res := p.postsResponse(ctx, posts, message)
+	if !res.Success || res.Data == nil {
+		if res.Success {
+			return nil, shared.PipeSuccess(message, &PostListResponse{Limit: limit, HasMore: false, Posts: []PostResponse{}})
+		}
+		return nil, &shared.PipeRes[PostListResponse]{Success: false, Message: res.Message}
 	}
 	if err := p.hydrateLikedState(ctx, personaID, *res.Data); err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.following_feed_like_status")
+		return nil, pipeInternalError[PostListResponse](err, "post.feed_like_status")
 	}
-	return res
+	response := &PostListResponse{Limit: limit, HasMore: hasMore, Posts: *res.Data}
+	if hasMore && len(response.Posts) > 0 {
+		cursor, err := encodeFeedCursor(response.Posts[len(response.Posts)-1])
+		if err != nil {
+			return nil, pipeInternalError[PostListResponse](err, "post.feed_next_cursor")
+		}
+		response.NextCursor = &cursor
+	}
+	return response, nil
 }

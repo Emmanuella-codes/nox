@@ -2,6 +2,7 @@ package post
 
 import (
 	"context"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
@@ -50,30 +51,73 @@ func (r *pgRepository) FindPostsByAuthorUserID(ctx context.Context, authorUserID
 }
 
 // FindFeedPosts fetches the mixed public and anonymous feed.
-func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, options FeedOptions) ([]*models.Post, error) {
+	options = NormalizeFeedOptions(options)
+	limit := options.Limit + 1
+	cursorCreatedAt, cursorID := nullableFeedCursor(options.Cursor)
 	return r.findPosts(ctx, `
+		WITH viewer AS (
+			SELECT user_id FROM personas WHERE id = $1
+		)
 		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
 		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
 		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
 		FROM posts p
-		WHERE p.posting_mode = 'anonymous' OR p.persona_id = $1 OR p.posting_mode = 'public'
-		ORDER BY p.created_at DESC
-		LIMIT $2
-	`, personaID, normalizeLimit(limit))
+		LEFT JOIN persona_follows pf
+		  ON pf.follower_id = $1 AND pf.following_id = p.persona_id
+		CROSS JOIN viewer v
+		WHERE (
+			p.posting_mode = 'public'
+			OR p.posting_mode = 'anonymous'
+			OR p.author_user_id = v.user_id
+		)
+		  AND (
+			$2::timestamptz IS NULL
+			OR p.created_at < $2
+			OR (p.created_at = $2 AND p.id < $3)
+		  )
+		ORDER BY
+		  CASE
+		    WHEN p.author_user_id = v.user_id THEN 0
+		    WHEN pf.follower_id IS NOT NULL THEN 1
+		    WHEN p.posting_mode = 'public' THEN 2
+		    ELSE 3
+		  END ASC,
+		  p.created_at DESC,
+		  p.id DESC
+		LIMIT $4
+	`, personaID, cursorCreatedAt, cursorID, limit)
 }
 
 // FindFollowingFeedPosts fetches followed public-profile posts.
-func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, options FeedOptions) ([]*models.Post, error) {
+	options = NormalizeFeedOptions(options)
+	limit := options.Limit + 1
+	cursorCreatedAt, cursorID := nullableFeedCursor(options.Cursor)
 	return r.findPosts(ctx, `
+		WITH viewer AS (
+			SELECT user_id FROM personas WHERE id = $1
+		)
 		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
 		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
 		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
-		FROM persona_follows pf
-		INNER JOIN posts p ON p.persona_id = pf.following_id
-		WHERE pf.follower_id = $1 AND p.posting_mode = 'public'
-		ORDER BY p.created_at DESC
-		LIMIT $2
-	`, personaID, normalizeLimit(limit))
+		FROM posts p
+		LEFT JOIN persona_follows pf
+		  ON pf.follower_id = $1 AND pf.following_id = p.persona_id
+		CROSS JOIN viewer v
+		WHERE p.posting_mode = 'public'
+		  AND (pf.follower_id IS NOT NULL OR p.author_user_id = v.user_id)
+		  AND (
+			$2::timestamptz IS NULL
+			OR p.created_at < $2
+			OR (p.created_at = $2 AND p.id < $3)
+		  )
+		ORDER BY
+		  CASE WHEN p.author_user_id = v.user_id THEN 0 ELSE 1 END ASC,
+		  p.created_at DESC,
+		  p.id DESC
+		LIMIT $4
+	`, personaID, cursorCreatedAt, cursorID, limit)
 }
 
 // findPosts executes a repeated post list query.
@@ -95,4 +139,14 @@ func (r *pgRepository) findPosts(ctx context.Context, sql string, args ...any) (
 		return nil, err
 	}
 	return posts, nil
+}
+
+// nullableFeedCursor maps one optional feed cursor into nullable SQL arguments.
+func nullableFeedCursor(cursor *FeedCursor) (*time.Time, *uuid.UUID) {
+	if cursor == nil {
+		return nil, nil
+	}
+	createdAt := cursor.CreatedAt
+	id := cursor.ID
+	return &createdAt, &id
 }

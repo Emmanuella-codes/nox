@@ -26,9 +26,9 @@ type PostRepository interface {
 	// FindPostsByAuthorUserID fetches all posts for one owner, including anonymous posts.
 	FindPostsByAuthorUserID(ctx context.Context, authorUserID uuid.UUID, limit int) ([]*models.Post, error)
 	// FindFeedPosts fetches the mixed public and anonymous feed.
-	FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
+	FindFeedPosts(ctx context.Context, personaID uuid.UUID, options FeedOptions) ([]*models.Post, error)
 	// FindFollowingFeedPosts fetches followed public-profile posts.
-	FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error)
+	FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, options FeedOptions) ([]*models.Post, error)
 	// EnsureAnonymousThreadIdentity creates or reuses one anonymous identity per thread owner.
 	EnsureAnonymousThreadIdentity(ctx context.Context, threadID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, anonymousHandle string, anonymousAvatarKey string) (*models.AnonymousThreadIdentity, error)
 	// FindAnonymousThreadIdentities fetches thread identities for the supplied users.

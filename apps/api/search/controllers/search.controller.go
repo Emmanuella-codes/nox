@@ -10,7 +10,7 @@ import (
 
 func (c *SearchController) Search(ctx *fiber.Ctx) error {
 	var res *shared.PipeRes[pipes.SearchResponse]
-	options := pipes.SearchOptions{Limit: queryLimit(ctx, 10), Offset: queryOffset(ctx)}
+	options := pipes.SearchOptions{Limit: queryLimit(ctx, 10), Offset: queryOffset(ctx), Scope: ctx.Query("scope")}
 	viewerPersonaID := ctx.Query("viewer_persona_id")
 	if viewerPersonaID != "" {
 		userID, ok := middleware.CurrentUserID(ctx)

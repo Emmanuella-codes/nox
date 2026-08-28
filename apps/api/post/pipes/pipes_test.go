@@ -236,17 +236,17 @@ func TestGetFeedPipeHydratesLikedState(t *testing.T) {
 		likedPostIDs: map[uuid.UUID]bool{likedPostID: true},
 	})
 
-	res := pipe.GetFeedPipe(context.Background(), viewerPersonaID, 20)
+	res := pipe.GetFeedPipe(context.Background(), viewerPersonaID, 20, "")
 	if !res.Success {
 		t.Fatalf("expected feed success, got %q", res.Message)
 	}
-	if len(*res.Data) != 2 {
-		t.Fatalf("expected 2 posts, got %d", len(*res.Data))
+	if len(res.Data.Posts) != 2 {
+		t.Fatalf("expected 2 posts, got %d", len(res.Data.Posts))
 	}
-	if !(*res.Data)[0].IsLiked {
+	if !res.Data.Posts[0].IsLiked {
 		t.Fatal("expected first post to be liked")
 	}
-	if (*res.Data)[1].IsLiked {
+	if res.Data.Posts[1].IsLiked {
 		t.Fatal("expected second post not to be liked")
 	}
 }
@@ -388,12 +388,12 @@ func (r *postTestRepo) FindPostsByAuthorUserID(ctx context.Context, authorUserID
 }
 
 // FindFeedPosts returns the feed posts from the fixture.
-func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, options post_repo.FeedOptions) ([]*models.Post, error) {
 	return r.feedPosts, nil
 }
 
 // FindFollowingFeedPosts returns the following feed posts from the fixture.
-func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, options post_repo.FeedOptions) ([]*models.Post, error) {
 	return r.followingFeedPosts, nil
 }
 
@@ -406,11 +406,11 @@ func (r *postTestRepo) EnsureAnonymousThreadIdentity(ctx context.Context, thread
 		return identity, nil
 	}
 	identity := &models.AnonymousThreadIdentity{
-		ID:              uuid.New(),
-		ThreadID:        threadID,
-		UserID:          userID,
-		PersonaID:       personaID,
-		AnonymousHandle: anonymousHandle,
+		ID:                 uuid.New(),
+		ThreadID:           threadID,
+		UserID:             userID,
+		PersonaID:          personaID,
+		AnonymousHandle:    anonymousHandle,
 		AnonymousAvatarKey: anonymousAvatarKey,
 	}
 	r.identities[threadID] = identity

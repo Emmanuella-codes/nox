@@ -2,10 +2,8 @@ package search
 
 import (
 	"context"
-	"time"
 
 	"github.com/emmanuella-codes/nox/models"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,39 +18,40 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 func (r *pgRepository) Search(ctx context.Context, query string, options Options) (*Results, error) {
 	normalizedOptions := NormalizeOptions(options)
 	fetchLimit := normalizedOptions.Limit + 1
-
-	personas, err := r.searchPersonas(ctx, query, fetchLimit, normalizedOptions.Offset)
-	if err != nil {
-		return nil, err
+	results := &Results{}
+	var err error
+	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "personas" {
+		results.Personas, err = r.searchPersonas(ctx, query, fetchLimit, normalizedOptions.Offset)
+		if err != nil {
+			return nil, err
+		}
 	}
-	posts, err := r.searchPosts(ctx, query, fetchLimit, normalizedOptions.Offset)
-	if err != nil {
-		return nil, err
+	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "posts" {
+		results.Posts, err = r.searchPosts(ctx, query, fetchLimit, normalizedOptions.Offset)
+		if err != nil {
+			return nil, err
+		}
 	}
-	events, err := r.searchEvents(ctx, query, fetchLimit, normalizedOptions.Offset)
-	if err != nil {
-		return nil, err
+	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "events" {
+		results.Events, err = r.searchEvents(ctx, query, fetchLimit, normalizedOptions.Offset)
+		if err != nil {
+			return nil, err
+		}
 	}
-	hashtags, err := r.searchHashtags(ctx, query, fetchLimit, normalizedOptions.Offset)
-	if err != nil {
-		return nil, err
+	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "hashtags" {
+		results.Hashtags, err = r.searchHashtags(ctx, query, fetchLimit, normalizedOptions.Offset)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	hasMore := len(personas) > normalizedOptions.Limit || len(posts) > normalizedOptions.Limit || len(events) > normalizedOptions.Limit || len(hashtags) > normalizedOptions.Limit
-	if len(personas) > normalizedOptions.Limit {
-		personas = personas[:normalizedOptions.Limit]
+	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "sets" {
+		results.Sets, err = r.searchSets(ctx, query, fetchLimit, normalizedOptions.Offset)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if len(posts) > normalizedOptions.Limit {
-		posts = posts[:normalizedOptions.Limit]
-	}
-	if len(events) > normalizedOptions.Limit {
-		events = events[:normalizedOptions.Limit]
-	}
-	if len(hashtags) > normalizedOptions.Limit {
-		hashtags = hashtags[:normalizedOptions.Limit]
-	}
-
-	return &Results{Personas: personas, Posts: posts, Events: events, Hashtags: hashtags, HasMore: hasMore}, nil
+	results.HasMore = trimResults(results, normalizedOptions.Limit)
+	return results, nil
 }
 
 func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int, offset int) ([]*models.Persona, error) {
@@ -74,7 +73,8 @@ func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit i
 		  CASE WHEN handle ILIKE $4 THEN 0 ELSE 1 END,
 		  GREATEST(similarity(handle, $3), similarity(display_name, $3), similarity(COALESCE(bio, ''), $3)) DESC,
 		  follower_count DESC,
-		  created_at DESC
+		  created_at DESC,
+		  id DESC
 		LIMIT $5 OFFSET $6
 	`, textMatchParam(query), tagMatchParam(query), query, prefixMatchParam(query), limit, offset)
 	if err != nil {
@@ -133,7 +133,8 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int,
 		  CASE WHEN p.body ILIKE $4 THEN 0 ELSE 1 END,
 		  GREATEST(similarity(p.body, $3), similarity(COALESCE(p.location, ''), $3)) DESC,
 		  (p.like_count + p.comment_count + p.repost_count) DESC,
-		  p.created_at DESC
+		  p.created_at DESC,
+		  p.id DESC
 		LIMIT $5 OFFSET $6
 	`, textMatchParam(query), tagMatchParam(query), query, prefixMatchParam(query), limit, offset)
 	if err != nil {
@@ -170,7 +171,8 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		  CASE WHEN title ILIKE $4 THEN 0 ELSE 1 END,
 		  GREATEST(similarity(title, $3), similarity(venue, $3), similarity(location, $3), similarity(COALESCE(description, ''), $3)) DESC,
 		  CASE WHEN event_date >= now() THEN 0 ELSE 1 END,
-		  event_date ASC
+		  event_date ASC,
+		  id DESC
 		LIMIT $5 OFFSET $6
 	`, textMatchParam(query), tagMatchParam(query), query, prefixMatchParam(query), limit, offset)
 	if err != nil {
@@ -236,76 +238,28 @@ func (r *pgRepository) searchHashtags(ctx context.Context, query string, limit i
 	return hashtags, rows.Err()
 }
 
-type postResultScanner interface {
-	Scan(dest ...any) error
-}
-
-func scanPostResult(scanner postResultScanner) (*PostResult, error) {
-	var post models.Post
-	var persona models.Persona
-	var personaID uuid.NullUUID
-	var eventID uuid.NullUUID
-	var repostOf uuid.NullUUID
-	var joinedPersonaID uuid.NullUUID
-	var joinedPersonaUserID uuid.NullUUID
-	var joinedPersonaCreatedAt time.Time
-	var joinedPersonaUpdatedAt time.Time
-
-	err := scanner.Scan(
-		&post.ID,
-		&post.AuthorUserID,
-		&personaID,
-		&post.PostingMode,
-		&eventID,
-		&post.Body,
-		&post.PostType,
-		&post.MediaURL,
-		&post.MediaType,
-		&post.Location,
-		&post.LikeCount,
-		&post.CommentCount,
-		&post.RepostCount,
-		&post.IsRepost,
-		&repostOf,
-		&post.CreatedAt,
-		&joinedPersonaID,
-		&joinedPersonaUserID,
-		&persona.Handle,
-		&persona.DisplayName,
-		&persona.Bio,
-		&persona.AvatarURL,
-		&persona.CoverURL,
-		&persona.PersonaType,
-		&persona.Category,
-		&persona.GenreTags,
-		&persona.FollowerCount,
-		&persona.FollowingCount,
-		&persona.PostCount,
-		&joinedPersonaCreatedAt,
-		&joinedPersonaUpdatedAt,
-	)
-	if err != nil {
-		return nil, err
+// trimResults truncates grouped results to the requested limit and reports whether more rows exist.
+func trimResults(results *Results, limit int) bool {
+	hasMore := false
+	if len(results.Personas) > limit {
+		results.Personas = results.Personas[:limit]
+		hasMore = true
 	}
-
-	if personaID.Valid {
-		post.PersonaID = &personaID.UUID
+	if len(results.Posts) > limit {
+		results.Posts = results.Posts[:limit]
+		hasMore = true
 	}
-	if eventID.Valid {
-		post.EventID = &eventID.UUID
+	if len(results.Events) > limit {
+		results.Events = results.Events[:limit]
+		hasMore = true
 	}
-	if repostOf.Valid {
-		post.RepostOf = &repostOf.UUID
+	if len(results.Hashtags) > limit {
+		results.Hashtags = results.Hashtags[:limit]
+		hasMore = true
 	}
-
-	var joinedPersona *models.Persona
-	if joinedPersonaID.Valid {
-		persona.ID = joinedPersonaID.UUID
-		persona.UserID = joinedPersonaUserID.UUID
-		persona.CreatedAt = joinedPersonaCreatedAt
-		persona.UpdatedAt = joinedPersonaUpdatedAt
-		joinedPersona = &persona
+	if len(results.Sets) > limit {
+		results.Sets = results.Sets[:limit]
+		hasMore = true
 	}
-
-	return &PostResult{Post: &post, Persona: joinedPersona}, nil
+	return hasMore
 }

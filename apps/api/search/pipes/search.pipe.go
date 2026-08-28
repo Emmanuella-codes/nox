@@ -51,6 +51,18 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 		return shared.PipeError[SearchResponse](searchmessages.Invalid_Query)
 	}
 	options = searchrepo.NormalizeOptions(options)
+	viewerKey := "public"
+	if viewerPersonaID != nil {
+		viewerKey = viewerPersonaID.String()
+	}
+	var cached SearchResponse
+	hit, err := p.loadSearchCache(ctx, query, options, viewerKey, &cached)
+	if err != nil {
+		return pipeInternalError[SearchResponse](err, "search.cache_load")
+	}
+	if hit {
+		return shared.PipeSuccess(searchmessages.Search_Listed, &cached)
+	}
 
 	results, err := p.repo.Search(ctx, query, options)
 	if err != nil {
@@ -61,12 +73,14 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 		Query:      query,
 		Limit:      options.Limit,
 		Offset:     options.Offset,
+		Scope:      options.Scope,
 		HasMore:    results.HasMore,
 		NextOffset: nextOffset(options, results.HasMore),
 		Personas:   personaResponses(results.Personas),
 		Posts:      postResponses(results.Posts),
 		Events:     eventResponses(results.Events),
 		Hashtags:   hashtagResponses(results.Hashtags),
+		Sets:       setResponses(results.Sets),
 	}
 	if viewerPersonaID != nil && p.likeRepo != nil {
 		if err := p.hydrateLikedState(ctx, *viewerPersonaID, response.Posts); err != nil {
@@ -78,6 +92,11 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 			return pipeInternalError[SearchResponse](err, "search.follow_status")
 		}
 	}
+	if viewerPersonaID != nil {
+		if err := p.hydrateSetLikedState(ctx, *viewerPersonaID, response.Sets); err != nil {
+			return pipeInternalError[SearchResponse](err, "search.set_like_status")
+		}
+	}
 	if err := p.hydrateHashtags(ctx, response.Posts); err != nil {
 		return pipeInternalError[SearchResponse](err, "search.hashtags")
 	}
@@ -86,6 +105,9 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 	}
 	if err := p.hydrateAnonymousAuthors(ctx, results.Posts, response.Posts); err != nil {
 		return pipeInternalError[SearchResponse](err, "search.anonymous_authors")
+	}
+	if err := p.storeSearchCache(ctx, query, options, viewerKey, &response); err != nil {
+		return pipeInternalError[SearchResponse](err, "search.cache_store")
 	}
 	return shared.PipeSuccess(searchmessages.Search_Listed, &response)
 }

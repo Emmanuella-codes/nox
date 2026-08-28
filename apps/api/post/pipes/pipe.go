@@ -14,6 +14,7 @@ import (
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 var errInvalidPostMedia = errors.New("invalid post media")
@@ -24,6 +25,7 @@ type PostPipe struct {
 	likeRepo    like_repo.LikeRepository
 	hashtagRepo hashtag_repo.HashtagRepository
 	mediaRepo   media_repo.MediaRepository
+	cacheClient *redis.Client
 }
 
 type PostResponse struct {
@@ -64,11 +66,19 @@ type PostAnonymousAuthor struct {
 	AvatarKey string `json:"avatar_key"`
 }
 
+type PostListResponse struct {
+	Limit      int            `json:"limit"`
+	HasMore    bool           `json:"has_more"`
+	NextCursor *string        `json:"next_cursor,omitempty"`
+	Posts      []PostResponse `json:"posts"`
+}
+
 // NewPostPipe builds the post orchestration layer from repositories.
 func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *PostPipe {
 	var likes like_repo.LikeRepository
 	var hashtags hashtag_repo.HashtagRepository
 	var media media_repo.MediaRepository
+	var cacheClient *redis.Client
 	for _, dep := range deps {
 		switch typed := dep.(type) {
 		case like_repo.LikeRepository:
@@ -77,9 +87,11 @@ func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.Per
 			hashtags = typed
 		case media_repo.MediaRepository:
 			media = typed
+		case *redis.Client:
+			cacheClient = typed
 		}
 	}
-	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags, mediaRepo: media}
+	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags, mediaRepo: media, cacheClient: cacheClient}
 }
 
 // pipeInternalError maps internal post errors to pipe responses.
