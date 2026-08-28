@@ -7,14 +7,19 @@ import (
 	"github.com/emmanuella-codes/nox/follow/messages"
 	"github.com/emmanuella-codes/nox/models"
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 )
 
 type FollowPipe struct {
-	followRepo  follow_repo.FollowRepository
-	personaRepo persona_repo.PersonaRepository
+	followRepo            follow_repo.FollowRepository
+	personaRepo           persona_repo.PersonaRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+	}
 }
 
 type FollowStatusResponse struct {
@@ -48,27 +53,38 @@ type FollowPersonaResponse struct {
 }
 
 // NewFollowPipe builds the follow orchestration layer from repositories.
-func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository) *FollowPipe {
-	return &FollowPipe{followRepo: followRepo, personaRepo: personaRepo}
+func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *FollowPipe {
+	pipe := &FollowPipe{followRepo: followRepo, personaRepo: personaRepo}
+	for _, dep := range deps {
+		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
+			pipe.notificationRepo = repo
+		}
+		if publisher, ok := dep.(interface {
+			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+		}); ok {
+			pipe.notificationPublisher = publisher
+		}
+	}
+	return pipe
 }
 
 // validateFollowAction checks the follower and target public profiles before a follow action.
-func (p *FollowPipe) validateFollowAction(ctx context.Context, userID uuid.UUID, followerPersonaID uuid.UUID, targetPersonaID uuid.UUID) *shared.PipeRes[any] {
+func (p *FollowPipe) validateFollowAction(ctx context.Context, userID uuid.UUID, followerPersonaID uuid.UUID, targetPersonaID uuid.UUID) (*models.Persona, *models.Persona, *shared.PipeRes[any]) {
 	followerPersona, res := p.validateOwnedProfile(ctx, userID, followerPersonaID)
 	if res != nil {
-		return res
+		return nil, nil, res
 	}
 
 	targetPersona, res := p.findProfile(ctx, targetPersonaID)
 	if res != nil {
-		return res
+		return nil, nil, res
 	}
 
 	if followerPersona.ID == targetPersona.ID {
-		return shared.PipeError[any](messages.Self_Follow_Not_Allowed)
+		return nil, nil, shared.PipeError[any](messages.Self_Follow_Not_Allowed)
 	}
 
-	return nil
+	return followerPersona, targetPersona, nil
 }
 
 // validateOwnedProfile checks that the current user owns the acting public profile.

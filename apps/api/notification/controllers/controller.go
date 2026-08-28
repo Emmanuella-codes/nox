@@ -7,16 +7,18 @@ import (
 	"github.com/emmanuella-codes/nox/notification/pipes"
 	"github.com/emmanuella-codes/nox/shared"
 	sharedapi "github.com/emmanuella-codes/nox/shared/api"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/gofiber/fiber/v2"
 )
 
 type NotificationController struct {
-	pipe *pipes.NotificationPipe
+	pipe        *pipes.NotificationPipe
+	realtimeHub *realtime.Hub
 }
 
 // NewNotificationController builds the notification HTTP controller.
-func NewNotificationController(pipe *pipes.NotificationPipe) *NotificationController {
-	return &NotificationController{pipe: pipe}
+func NewNotificationController(pipe *pipes.NotificationPipe, realtimeHub *realtime.Hub) *NotificationController {
+	return &NotificationController{pipe: pipe, realtimeHub: realtimeHub}
 }
 
 // parseAndValidate binds and validates one request payload.

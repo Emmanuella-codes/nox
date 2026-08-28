@@ -24,6 +24,23 @@ func (c *NotificationController) ListNotifications(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 }
 
+// GetUnreadCount returns the unread notification count for one owned persona.
+func (c *NotificationController) GetUnreadCount(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+	personaID, err := uuid.Parse(ctx.Query("persona_id"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+	res := c.pipe.GetUnreadCountPipe(ctx.Context(), userID, personaID)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
+}
+
 // MarkNotificationRead marks one notification as read.
 func (c *NotificationController) MarkNotificationRead(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)

@@ -19,12 +19,15 @@ import (
 )
 
 type MessagingPipe struct {
-	messagingRepo    messaging_repo.MessagingRepository
-	personaRepo      persona_repo.PersonaRepository
-	mediaRepo        media_repo.MediaRepository
-	followRepo       follow_repo.FollowRepository
-	notificationRepo notification_repo.NotificationRepository
-	realtimeHub      *realtime.Hub
+	messagingRepo         messaging_repo.MessagingRepository
+	personaRepo           persona_repo.PersonaRepository
+	mediaRepo             media_repo.MediaRepository
+	followRepo            follow_repo.FollowRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+	}
+	realtimeHub *realtime.Hub
 }
 
 // NewMessagingPipe builds the messaging orchestration layer from repositories.
@@ -36,6 +39,11 @@ func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaR
 		}
 		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
 			pipe.notificationRepo = repo
+		}
+		if publisher, ok := dep.(interface {
+			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+		}); ok {
+			pipe.notificationPublisher = publisher
 		}
 	}
 	return pipe

@@ -95,6 +95,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		Config:       cfg,
 	})
 	realtimeHub := realtime.NewHub()
+	notificationHub := realtime.NewHub()
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok", "time": time.Now().Format(time.RFC3339)})
@@ -103,16 +104,17 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	authController := controllers.NewAuthController(authPipe)
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona))
 	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media))
-	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
+	notificationPipe := notification_pipes.NewNotificationPipe(repos.Notification, repos.Persona, notificationHub)
+	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post, repos.Notification, notificationPipe))
 	crewController := crew_controllers.NewCrewController(crew_pipes.NewCrewPipe(repos.Crew, repos.Event, repos.Persona))
-	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
+	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post, repos.Notification, notificationPipe))
 	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
 	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow, repos.Post))
-	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
+	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona, repos.Notification, notificationPipe))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like, repos.Post))
 	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
-	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification), repos.Messaging, realtimeHub)
-	notificationController := notification_controllers.NewNotificationController(notification_pipes.NewNotificationPipe(repos.Notification, repos.Persona))
+	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification, notificationPipe), repos.Messaging, realtimeHub)
+	notificationController := notification_controllers.NewNotificationController(notificationPipe, notificationHub)
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 

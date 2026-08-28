@@ -1,12 +1,14 @@
 package pipes
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/emmanuella-codes/nox/comment/messages"
 	"github.com/emmanuella-codes/nox/models"
 	comment_repo "github.com/emmanuella-codes/nox/repositories/comment"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
@@ -14,9 +16,13 @@ import (
 )
 
 type CommentPipe struct {
-	commentRepo comment_repo.CommentRepository
-	personaRepo persona_repo.PersonaRepository
-	postRepo    post_repo.PostRepository
+	commentRepo           comment_repo.CommentRepository
+	personaRepo           persona_repo.PersonaRepository
+	postRepo              post_repo.PostRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+	}
 }
 
 type CommentResponse struct {
@@ -48,8 +54,19 @@ type CommentAnonymousAuthor struct {
 }
 
 // NewCommentPipe builds the comment orchestration layer from repositories.
-func NewCommentPipe(commentRepo comment_repo.CommentRepository, personaRepo persona_repo.PersonaRepository, postRepo post_repo.PostRepository) *CommentPipe {
-	return &CommentPipe{commentRepo: commentRepo, personaRepo: personaRepo, postRepo: postRepo}
+func NewCommentPipe(commentRepo comment_repo.CommentRepository, personaRepo persona_repo.PersonaRepository, postRepo post_repo.PostRepository, deps ...any) *CommentPipe {
+	pipe := &CommentPipe{commentRepo: commentRepo, personaRepo: personaRepo, postRepo: postRepo}
+	for _, dep := range deps {
+		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
+			pipe.notificationRepo = repo
+		}
+		if publisher, ok := dep.(interface {
+			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+		}); ok {
+			pipe.notificationPublisher = publisher
+		}
+	}
+	return pipe
 }
 
 // pipeInternalError maps internal comment errors to pipe responses.

@@ -8,6 +8,7 @@ import (
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/google/uuid"
 )
 
@@ -16,6 +17,7 @@ const timeFormat = "2006-01-02T15:04:05.999999999Z07:00"
 type NotificationPipe struct {
 	notificationRepo notification_repo.NotificationRepository
 	personaRepo      persona_repo.PersonaRepository
+	realtimeHub      *realtime.Hub
 }
 
 type ActorPersonaResponse struct {
@@ -25,24 +27,53 @@ type ActorPersonaResponse struct {
 	AvatarURL   string `json:"avatar_url"`
 }
 
+type ActorAnonymousResponse struct {
+	Handle    string `json:"handle"`
+	AvatarKey string `json:"avatar_key"`
+}
+
+type NotificationActorResponse struct {
+	Mode      models.PostingMode      `json:"mode"`
+	Persona   *ActorPersonaResponse   `json:"persona,omitempty"`
+	Anonymous *ActorAnonymousResponse `json:"anonymous,omitempty"`
+}
+
 type NotificationResponse struct {
-	ID               string                  `json:"id"`
-	PersonaID        string                  `json:"persona_id"`
-	ActorPersonaID   string                  `json:"actor_persona_id"`
-	ActorPersona     *ActorPersonaResponse   `json:"actor_persona,omitempty"`
-	ConversationID   *string                 `json:"conversation_id,omitempty"`
-	MessageID        *string                 `json:"message_id,omitempty"`
-	PostID           *string                 `json:"post_id,omitempty"`
-	CommentID        *string                 `json:"comment_id,omitempty"`
-	IsRead           bool                    `json:"is_read"`
-	ReadAt           *string                 `json:"read_at,omitempty"`
-	NotificationType models.NotificationType `json:"notification_type"`
-	CreatedAt        string                  `json:"created_at"`
+	ID               string                    `json:"id"`
+	PersonaID        string                    `json:"persona_id"`
+	Actor            NotificationActorResponse `json:"actor"`
+	ConversationID   *string                   `json:"conversation_id,omitempty"`
+	MessageID        *string                   `json:"message_id,omitempty"`
+	PostID           *string                   `json:"post_id,omitempty"`
+	CommentID        *string                   `json:"comment_id,omitempty"`
+	IsRead           bool                      `json:"is_read"`
+	ReadAt           *string                   `json:"read_at,omitempty"`
+	NotificationType models.NotificationType   `json:"notification_type"`
+	CreatedAt        string                    `json:"created_at"`
+}
+
+type NotificationListResponse struct {
+	Limit         int                    `json:"limit"`
+	Offset        int                    `json:"offset"`
+	HasMore       bool                   `json:"has_more"`
+	NextOffset    *int                   `json:"next_offset,omitempty"`
+	UnreadCount   int                    `json:"unread_count"`
+	Notifications []NotificationResponse `json:"notifications"`
+}
+
+type NotificationUnreadCountResponse struct {
+	UnreadCount int `json:"unread_count"`
 }
 
 // NewNotificationPipe builds the notification orchestration layer from repositories.
-func NewNotificationPipe(notificationRepo notification_repo.NotificationRepository, personaRepo persona_repo.PersonaRepository) *NotificationPipe {
-	return &NotificationPipe{notificationRepo: notificationRepo, personaRepo: personaRepo}
+func NewNotificationPipe(notificationRepo notification_repo.NotificationRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *NotificationPipe {
+	pipe := &NotificationPipe{notificationRepo: notificationRepo, personaRepo: personaRepo}
+	for _, dep := range deps {
+		if hub, ok := dep.(*realtime.Hub); ok {
+			pipe.realtimeHub = hub
+		}
+	}
+	return pipe
 }
 
 // pipeInternalError maps internal notification errors to pipe responses.
@@ -95,7 +126,7 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 	response := NotificationResponse{
 		ID:               notification.ID.String(),
 		PersonaID:        notification.RecipientPersonaID.String(),
-		ActorPersonaID:   notification.ActorPersonaID.String(),
+		Actor:            NotificationActorResponse{Mode: notification.ActorPostingMode},
 		ConversationID:   conversationID,
 		MessageID:        messageID,
 		PostID:           postID,
@@ -105,9 +136,19 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 		NotificationType: notification.NotificationType,
 		CreatedAt:        notification.CreatedAt.Format(timeFormat),
 	}
-	persona, err := p.personaRepo.FindPersonaByID(ctx, notification.ActorPersonaID)
+	if notification.ActorPostingMode == models.AnonymousPostingMode {
+		response.Actor.Anonymous = &ActorAnonymousResponse{
+			Handle:    notification.ActorAnonymousHandle,
+			AvatarKey: notification.ActorAnonymousAvatarKey,
+		}
+		return response
+	}
+	if notification.ActorPersonaID == nil {
+		return response
+	}
+	persona, err := p.personaRepo.FindPersonaByID(ctx, *notification.ActorPersonaID)
 	if err == nil {
-		response.ActorPersona = &ActorPersonaResponse{
+		response.Actor.Persona = &ActorPersonaResponse{
 			ID:          persona.ID.String(),
 			Handle:      persona.Handle,
 			DisplayName: persona.DisplayName,

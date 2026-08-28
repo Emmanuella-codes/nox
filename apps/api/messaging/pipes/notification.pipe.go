@@ -25,7 +25,8 @@ func (p *MessagingPipe) createMessageNotifications(ctx context.Context, conversa
 		inputs = append(inputs, notification_repo.CreateNotificationInput{
 			RecipientUserID:    member.UserID,
 			RecipientPersonaID: member.PersonaID,
-			ActorPersonaID:     message.SenderPersonaID,
+			ActorPersonaID:     &message.SenderPersonaID,
+			ActorPostingMode:   models.PublicPostingMode,
 			ConversationID:     &conversation.ID,
 			MessageID:          &message.ID,
 			NotificationType:   messageNotificationType(conversation.ConversationType),
@@ -34,7 +35,13 @@ func (p *MessagingPipe) createMessageNotifications(ctx context.Context, conversa
 	if len(inputs) == 0 {
 		return
 	}
-	_, _ = p.notificationRepo.CreateNotifications(ctx, inputs)
+	created, err := p.notificationRepo.CreateNotifications(ctx, inputs)
+	if err != nil || p.notificationPublisher == nil {
+		return
+	}
+	for _, notification := range created {
+		p.notificationPublisher.PublishCreatedNotification(ctx, notification)
+	}
 }
 
 // markConversationNotificationsRead marks conversation message notifications as read through one cursor.

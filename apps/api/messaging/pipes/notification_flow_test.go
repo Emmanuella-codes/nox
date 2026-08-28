@@ -41,6 +41,11 @@ func (r *notificationRepoStub) FindPersonaNotifications(ctx context.Context, use
 	return nil, nil
 }
 
+// CountUnreadPersonaNotifications is unused in these tests.
+func (r *notificationRepoStub) CountUnreadPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (int, error) {
+	return 0, nil
+}
+
 // MarkNotificationRead is unused in these tests.
 func (r *notificationRepoStub) MarkNotificationRead(ctx context.Context, notificationID uuid.UUID, userID uuid.UUID, personaID uuid.UUID) (*models.Notification, error) {
 	return nil, nil

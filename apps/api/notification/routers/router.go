@@ -18,6 +18,12 @@ func NotificationRoutes(controller *controllers.NotificationController, cfg *con
 			Handler:     controller.ListNotifications,
 		},
 		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/notifications/unread-count",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.GetUnreadCount,
+		},
+		{
 			RouteMethod: api.RouteMethod("POST"),
 			Path:        "/notifications/read-all",
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
@@ -28,6 +34,12 @@ func NotificationRoutes(controller *controllers.NotificationController, cfg *con
 			Path:        "/notifications/:notificationID/read",
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
 			Handler:     controller.MarkNotificationRead,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/notifications/realtime/stream",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.StreamNotifications,
 		},
 	}
 }

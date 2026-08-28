@@ -13,14 +13,16 @@ func (r *pgRepository) CreateNotifications(ctx context.Context, inputs []CreateN
 	for _, input := range inputs {
 		row := r.db.QueryRow(ctx, `
 			INSERT INTO notifications (
-				recipient_user_id, recipient_persona_id, actor_persona_id, conversation_id,
+				recipient_user_id, recipient_persona_id, actor_persona_id, actor_posting_mode,
+				actor_anonymous_handle, actor_anonymous_avatar_key, conversation_id,
 				message_id, post_id, comment_id, notification_type
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (recipient_persona_id, message_id, notification_type) DO NOTHING
-			RETURNING id, recipient_user_id, recipient_persona_id, actor_persona_id, conversation_id,
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			ON CONFLICT DO NOTHING
+			RETURNING id, recipient_user_id, recipient_persona_id, actor_persona_id, actor_posting_mode,
+			          actor_anonymous_handle, actor_anonymous_avatar_key, conversation_id,
 			          message_id, post_id, comment_id, is_read, read_at, notification_type, created_at
-		`, input.RecipientUserID, input.RecipientPersonaID, input.ActorPersonaID, input.ConversationID, input.MessageID, input.PostID, input.CommentID, input.NotificationType)
+		`, input.RecipientUserID, input.RecipientPersonaID, input.ActorPersonaID, input.ActorPostingMode, input.ActorAnonymousHandle, input.ActorAnonymousAvatarKey, input.ConversationID, input.MessageID, input.PostID, input.CommentID, input.NotificationType)
 		notification, err := scanNotification(row)
 		if err != nil {
 			if err == ErrNotificationNotFound {
@@ -36,7 +38,8 @@ func (r *pgRepository) CreateNotifications(ctx context.Context, inputs []CreateN
 // FindPersonaNotifications lists one persona's notifications.
 func (r *pgRepository) FindPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*models.Notification, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, recipient_user_id, recipient_persona_id, actor_persona_id, conversation_id,
+		SELECT id, recipient_user_id, recipient_persona_id, actor_persona_id, actor_posting_mode,
+		       actor_anonymous_handle, actor_anonymous_avatar_key, conversation_id,
 		       message_id, post_id, comment_id, is_read, read_at, notification_type, created_at
 		FROM notifications
 		WHERE recipient_user_id = $1 AND recipient_persona_id = $2
@@ -50,6 +53,17 @@ func (r *pgRepository) FindPersonaNotifications(ctx context.Context, userID uuid
 	return scanNotifications(rows)
 }
 
+// CountUnreadPersonaNotifications returns the unread notification count for one persona.
+func (r *pgRepository) CountUnreadPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM notifications
+		WHERE recipient_user_id = $1 AND recipient_persona_id = $2 AND is_read = FALSE
+	`, userID, personaID).Scan(&count)
+	return count, err
+}
+
 // MarkNotificationRead marks one notification as read.
 func (r *pgRepository) MarkNotificationRead(ctx context.Context, notificationID uuid.UUID, userID uuid.UUID, personaID uuid.UUID) (*models.Notification, error) {
 	row := r.db.QueryRow(ctx, `
@@ -57,7 +71,8 @@ func (r *pgRepository) MarkNotificationRead(ctx context.Context, notificationID 
 		SET is_read = TRUE,
 		    read_at = COALESCE(read_at, now())
 		WHERE id = $1 AND recipient_user_id = $2 AND recipient_persona_id = $3
-		RETURNING id, recipient_user_id, recipient_persona_id, actor_persona_id, conversation_id,
+		RETURNING id, recipient_user_id, recipient_persona_id, actor_persona_id, actor_posting_mode,
+		          actor_anonymous_handle, actor_anonymous_avatar_key, conversation_id,
 		          message_id, post_id, comment_id, is_read, read_at, notification_type, created_at
 	`, notificationID, userID, personaID)
 	return scanNotification(row)

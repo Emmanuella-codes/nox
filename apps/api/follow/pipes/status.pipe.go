@@ -9,7 +9,7 @@ import (
 )
 
 func (p *FollowPipe) FollowStatusPipe(ctx context.Context, userID uuid.UUID, followerPersonaID uuid.UUID, targetPersonaID uuid.UUID) *shared.PipeRes[FollowStatusResponse] {
-	if res := p.validateFollowAction(ctx, userID, followerPersonaID, targetPersonaID); res != nil {
+	if _, _, res := p.validateFollowAction(ctx, userID, followerPersonaID, targetPersonaID); res != nil {
 		return &shared.PipeRes[FollowStatusResponse]{Success: false, Message: res.Message}
 	}
 
