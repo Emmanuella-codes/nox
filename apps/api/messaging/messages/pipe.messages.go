@@ -22,4 +22,5 @@ const (
 	Member_Role_Updated  shared.PipeMessage = "member_role_updated_successfully"
 	Message_Deleted      shared.PipeMessage = "message_deleted_successfully"
 	Message_Updated      shared.PipeMessage = "message_updated_successfully"
+	Typing_Updated       shared.PipeMessage = "typing_updated_successfully"
 )

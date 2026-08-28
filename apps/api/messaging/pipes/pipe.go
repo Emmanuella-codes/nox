@@ -13,6 +13,7 @@ import (
 	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/google/uuid"
 )
 
@@ -21,11 +22,18 @@ type MessagingPipe struct {
 	personaRepo   persona_repo.PersonaRepository
 	mediaRepo     media_repo.MediaRepository
 	followRepo    follow_repo.FollowRepository
+	realtimeHub   *realtime.Hub
 }
 
 // NewMessagingPipe builds the messaging orchestration layer from repositories.
-func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository, followRepo follow_repo.FollowRepository) *MessagingPipe {
-	return &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo, followRepo: followRepo}
+func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository, followRepo follow_repo.FollowRepository, deps ...any) *MessagingPipe {
+	pipe := &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo, followRepo: followRepo}
+	for _, dep := range deps {
+		if hub, ok := dep.(*realtime.Hub); ok {
+			pipe.realtimeHub = hub
+		}
+	}
+	return pipe
 }
 
 // pipeInternalError maps internal messaging errors to pipe responses.

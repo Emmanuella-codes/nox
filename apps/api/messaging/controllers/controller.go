@@ -5,18 +5,22 @@ import (
 
 	"github.com/emmanuella-codes/nox/messaging/messages"
 	"github.com/emmanuella-codes/nox/messaging/pipes"
+	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
 	"github.com/emmanuella-codes/nox/shared"
 	sharedapi "github.com/emmanuella-codes/nox/shared/api"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/gofiber/fiber/v2"
 )
 
 type MessagingController struct {
-	pipe *pipes.MessagingPipe
+	pipe          *pipes.MessagingPipe
+	messagingRepo messaging_repo.MessagingRepository
+	realtimeHub   *realtime.Hub
 }
 
 // NewMessagingController builds the messaging HTTP controller.
-func NewMessagingController(pipe *pipes.MessagingPipe) *MessagingController {
-	return &MessagingController{pipe: pipe}
+func NewMessagingController(pipe *pipes.MessagingPipe, messagingRepo messaging_repo.MessagingRepository, realtimeHub *realtime.Hub) *MessagingController {
+	return &MessagingController{pipe: pipe, messagingRepo: messagingRepo, realtimeHub: realtimeHub}
 }
 
 // parseAndValidate binds and validates one request payload.

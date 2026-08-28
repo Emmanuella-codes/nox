@@ -358,6 +358,16 @@ func (r *messagingTestRepo) FindConversationMembers(ctx context.Context, convers
 	return r.membersByConversation[conversationID], nil
 }
 
+// FindConversationMemberUserIDs is unused in these tests.
+func (r *messagingTestRepo) FindConversationMemberUserIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error) {
+	return nil, nil
+}
+
+// FindRelatedConversationUserIDs is unused in these tests.
+func (r *messagingTestRepo) FindRelatedConversationUserIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	return nil, nil
+}
+
 // FindMember returns the configured member fixture for one conversation profile pair.
 func (r *messagingTestRepo) FindMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, error) {
 	member, ok := r.memberByConversationPersona[memberKey(conversationID, personaID)]

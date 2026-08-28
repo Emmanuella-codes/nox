@@ -49,6 +49,7 @@ import (
 	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
 	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
@@ -90,6 +91,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		Redis:        redisClient,
 		Config:       cfg,
 	})
+	realtimeHub := realtime.NewHub()
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok", "time": time.Now().Format(time.RFC3339)})
@@ -106,7 +108,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like, repos.Post))
 	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
-	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow))
+	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub), repos.Messaging, realtimeHub)
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 

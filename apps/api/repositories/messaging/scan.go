@@ -70,7 +70,7 @@ func insertMember(ctx context.Context, db execQuerier, conversationID uuid.UUID,
 		INSERT INTO conversation_members (conversation_id, user_id, persona_id, role)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (conversation_id, persona_id)
-		DO UPDATE SET left_at = NULL
+		DO UPDATE SET left_at = NULL, joined_at = now(), last_read_message_id = NULL, role = EXCLUDED.role
 		RETURNING conversation_id, user_id, persona_id, role, last_read_message_id, joined_at, left_at
 	`, conversationID, userID, personaID, role)
 	return scanMember(row)
@@ -170,4 +170,17 @@ func scanMessageAttachmentAsset(scanner conversationScanner, messageID *uuid.UUI
 		return nil, err
 	}
 	return &asset, nil
+}
+
+// scanUUIDs scans one-column uuid row sets into a slice.
+func scanUUIDs(rows pgx.Rows) ([]uuid.UUID, error) {
+	ids := make([]uuid.UUID, 0)
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

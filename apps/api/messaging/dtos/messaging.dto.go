@@ -50,3 +50,8 @@ type UpdateMemberRoleDTO struct {
 	AdminPersonaID uuid.UUID                     `json:"admin_persona_id" validate:"required"`
 	Role           models.ConversationMemberRole `json:"role" validate:"required"`
 }
+
+type TypingDTO struct {
+	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
+	Active    bool      `json:"active"`
+}

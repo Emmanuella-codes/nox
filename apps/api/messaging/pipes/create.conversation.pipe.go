@@ -52,6 +52,7 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 		return pipeInternalError[ConversationResponse](err, "messaging.direct_member_personas")
 	}
 	response := p.conversationResponse(ctx, conversation, members, personas, nil, 0)
+	p.publishConversationEvent(ctx, conversation.ID, "conversation.created", response)
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 
@@ -96,6 +97,7 @@ func (p *MessagingPipe) CreateGroupConversationPipe(ctx context.Context, userID 
 		return pipeInternalError[ConversationResponse](err, "messaging.group_member_personas")
 	}
 	response := p.conversationResponse(ctx, conversation, members, personas, nil, 0)
+	p.publishConversationEvent(ctx, conversation.ID, "conversation.created", response)
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 

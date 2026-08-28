@@ -54,6 +54,8 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 		return pipeInternalError[MessageResponse](err, "messaging.send_message")
 	}
 	response := p.messageResponse(ctx, created)
+	p.publishMessageEvent(ctx, "message.created", created)
+	p.publishTypingEvent(ctx, conversationID, dto.SenderPersonaID, false)
 	return shared.PipeSuccess(messages.Message_Sent, &response)
 }
 
@@ -101,6 +103,7 @@ func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conv
 		return pipeInternalError[MemberResponse](err, "messaging.mark_read_persona")
 	}
 	response := memberResponses([]*models.ConversationMember{member}, personas)[0]
+	p.publishConversationEvent(ctx, conversationID, "conversation.read", response)
 	return shared.PipeSuccess(messages.Conversation_Read, &response)
 }
 
@@ -128,6 +131,7 @@ func (p *MessagingPipe) EditMessagePipe(ctx context.Context, userID uuid.UUID, m
 		return pipeInternalError[MessageResponse](err, "messaging.edit_message")
 	}
 	response := p.messageResponse(ctx, updated)
+	p.publishMessageEvent(ctx, "message.updated", updated)
 	return shared.PipeSuccess(messages.Message_Updated, &response)
 }
 
@@ -148,6 +152,7 @@ func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID,
 		return pipeInternalError[MessageResponse](err, "messaging.delete_message")
 	}
 	response := p.messageResponse(ctx, deleted)
+	p.publishMessageEvent(ctx, "message.deleted", deleted)
 	return shared.PipeSuccess(messages.Message_Deleted, &response)
 }
 
@@ -197,4 +202,13 @@ func normalizedMessageType(messageType models.MessageType, body string, hasAttac
 		return models.TextMessageType
 	}
 	return attachmentType
+}
+
+// UpdateTypingPipe broadcasts typing state for one active conversation member.
+func (p *MessagingPipe) UpdateTypingPipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, dto dtos.TypingDTO) *shared.PipeRes[any] {
+	if _, message := p.requireMember(ctx, userID, conversationID, dto.PersonaID); message != "" {
+		return shared.PipeError[any](message)
+	}
+	p.publishTypingEvent(ctx, conversationID, dto.PersonaID, dto.Active)
+	return shared.PipeSuccess[any](messages.Typing_Updated, nil)
 }

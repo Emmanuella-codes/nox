@@ -22,6 +22,38 @@ func (r *pgRepository) FindConversationMembers(ctx context.Context, conversation
 	return scanMembers(rows)
 }
 
+// FindConversationMemberUserIDs fetches active member user ids for one conversation.
+func (r *pgRepository) FindConversationMemberUserIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT user_id
+		FROM conversation_members
+		WHERE conversation_id = $1 AND left_at IS NULL
+	`, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanUUIDs(rows)
+}
+
+// FindRelatedConversationUserIDs fetches users who share active conversations with one user.
+func (r *pgRepository) FindRelatedConversationUserIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT peers.user_id
+		FROM conversation_members mine
+		JOIN conversation_members peers ON peers.conversation_id = mine.conversation_id
+		WHERE mine.user_id = $1
+		  AND mine.left_at IS NULL
+		  AND peers.left_at IS NULL
+		  AND peers.user_id <> $1
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanUUIDs(rows)
+}
+
 // fetches one active conversation member by profile id.
 func (r *pgRepository) FindMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, error) {
 	row := r.db.QueryRow(ctx, `
