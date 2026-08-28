@@ -52,13 +52,13 @@ const FEATURES: Feature[] = [
 
 function FeatureCard({ icon: Icon, title, body, tag }: Feature) {
   return (
-    <div className="flex min-h-[240px] flex-col gap-3.5 bg-[var(--l-bg)] px-8 py-9">
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--l-accent-line)] bg-[var(--l-accent-soft)] text-[var(--l-accent)]">
+    <div className="flex min-h-60 flex-col gap-3.5 bg-(--l-bg) px-8 py-9">
+      <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-(--l-accent-line) bg-(--l-accent-soft) text-(--l-accent)">
         <Icon size={20} strokeWidth={1.6} />
       </div>
-      <h3 className="text-[20px] font-semibold text-[var(--l-ink)]">{title}</h3>
-      <p className="text-[14.5px] leading-[1.55] text-[var(--l-ink-mid)]">{body}</p>
-      <span className="mt-auto font-mono text-[10.5px] font-medium uppercase text-[var(--l-ink-soft)]">
+      <h3 className="text-[20px] font-semibold text-(--l-ink)">{title}</h3>
+      <p className="text-[14.5px] leading-[1.55] text-(--l-ink-mid)">{body}</p>
+      <span className="mt-auto font-mono text-[10.5px] font-medium uppercase text-(--l-ink-soft)">
         {tag}
       </span>
     </div>
@@ -67,15 +67,15 @@ function FeatureCard({ icon: Icon, title, body, tag }: Feature) {
 
 export function LandingFeatures() {
   return (
-    <section id="what" className="relative py-[100px]">
-      <div className="mx-auto max-w-[1240px] px-8">
+    <section id="what" className="relative py-25">
+      <div className="mx-auto max-w-310 px-8">
         <SectionHead
           eyebrow="what nox does"
           title={<>Built for the people,<br />not the feed.</>}
           body="Every other social app smooths the city out. nox keeps the texture — the inside jokes, the slow nights, the friend-of-a-friend who runs the door, the rooms only forty people know about."
         />
         <div
-          className="landing-features grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-[var(--l-border)] bg-[var(--l-border)]"
+          className="landing-features grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-(--l-border) bg-(--l-border)"
         >
           {FEATURES.map((f) => (
             <FeatureCard key={f.tag} {...f} />

@@ -3,7 +3,6 @@ package pipes
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/emmanuella-codes/nox/models"
@@ -25,23 +24,6 @@ type PostPipe struct {
 	likeRepo    like_repo.LikeRepository
 	hashtagRepo hashtag_repo.HashtagRepository
 	mediaRepo   media_repo.MediaRepository
-}
-
-func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *PostPipe {
-	var likes like_repo.LikeRepository
-	var hashtags hashtag_repo.HashtagRepository
-	var media media_repo.MediaRepository
-	for _, dep := range deps {
-		switch typed := dep.(type) {
-		case like_repo.LikeRepository:
-			likes = typed
-		case hashtag_repo.HashtagRepository:
-			hashtags = typed
-		case media_repo.MediaRepository:
-			media = typed
-		}
-	}
-	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags, mediaRepo: media}
 }
 
 type PostResponse struct {
@@ -78,17 +60,39 @@ type PostPersonaAuthor struct {
 }
 
 type PostAnonymousAuthor struct {
-	Handle string `json:"handle"`
+	Handle    string `json:"handle"`
+	AvatarKey string `json:"avatar_key"`
 }
 
+// NewPostPipe builds the post orchestration layer from repositories.
+func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *PostPipe {
+	var likes like_repo.LikeRepository
+	var hashtags hashtag_repo.HashtagRepository
+	var media media_repo.MediaRepository
+	for _, dep := range deps {
+		switch typed := dep.(type) {
+		case like_repo.LikeRepository:
+			likes = typed
+		case hashtag_repo.HashtagRepository:
+			hashtags = typed
+		case media_repo.MediaRepository:
+			media = typed
+		}
+	}
+	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags, mediaRepo: media}
+}
+
+// pipeInternalError maps internal post errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "post", operation, messages.Internal_Error)
 }
 
+// validPostingMode validates the supported post publishing modes.
 func validPostingMode(mode models.PostingMode) bool {
 	return mode == models.PublicPostingMode || mode == models.AnonymousPostingMode
 }
 
+// postResponse maps one post model into the API response shape.
 func postResponse(post *models.Post, persona *models.Persona, anonymousIdentity *models.AnonymousThreadIdentity) PostResponse {
 	res := PostResponse{
 		ID:           post.ID.String(),
@@ -123,29 +127,15 @@ func postResponse(post *models.Post, persona *models.Persona, anonymousIdentity 
 		}
 	}
 	if post.PostingMode == models.AnonymousPostingMode {
-		handle := "anonymous"
-		if anonymousIdentity != nil && anonymousIdentity.AnonymousHandle != "" {
-			handle = anonymousIdentity.AnonymousHandle
+		res.Author.Anonymous = &PostAnonymousAuthor{
+			Handle:    anonymousHandleValue(anonymousIdentity),
+			AvatarKey: anonymousAvatarValue(anonymousIdentity),
 		}
-		res.Author.Anonymous = &PostAnonymousAuthor{Handle: handle}
 	}
 	return res
 }
 
-func postResponses(posts []*models.Post, personas map[string]*models.Persona, anonymousIdentities map[uuid.UUID]*models.AnonymousThreadIdentity, mediaByPost map[uuid.UUID][]*models.MediaAsset) []PostResponse {
-	responses := make([]PostResponse, 0, len(posts))
-	for _, post := range posts {
-		var persona *models.Persona
-		if post.PersonaID != nil {
-			persona = personas[post.PersonaID.String()]
-		}
-		response := postResponse(post, persona, anonymousIdentities[post.ID])
-		response.Media = mediaByPost[post.ID]
-		responses = append(responses, response)
-	}
-	return responses
-}
-
+// postIDs returns the ids for a slice of posts.
 func postIDs(posts []*models.Post) []uuid.UUID {
 	ids := make([]uuid.UUID, 0, len(posts))
 	for _, post := range posts {
@@ -154,11 +144,7 @@ func postIDs(posts []*models.Post) []uuid.UUID {
 	return ids
 }
 
-func anonymousHandle() string {
-	id := uuid.NewString()
-	return fmt.Sprintf("ghost_%s", id[:8])
-}
-
+// validatePostMedia checks that attached media belongs to the current user profile and is ready.
 func (p *PostPipe) validatePostMedia(ctx context.Context, userID uuid.UUID, ownerPersonaID uuid.UUID, mediaAssetIDs []uuid.UUID) error {
 	if len(mediaAssetIDs) == 0 {
 		return nil
@@ -176,10 +162,10 @@ func (p *PostPipe) validatePostMedia(ctx context.Context, userID uuid.UUID, owne
 		if err != nil {
 			return err
 		}
-		if asset.OwnerUserID != userID ||
-			asset.OwnerPersonaID != ownerPersonaID ||
-			asset.ProcessingStatus != models.ReadyMediaStatus ||
-			(asset.MediaKind != models.ImageMediaKind && asset.MediaKind != models.VideoMediaKind) {
+		if asset.OwnerUserID != userID || asset.OwnerPersonaID != ownerPersonaID || asset.ProcessingStatus != models.ReadyMediaStatus {
+			return errInvalidPostMedia
+		}
+		if asset.MediaKind != models.ImageMediaKind && asset.MediaKind != models.VideoMediaKind {
 			return errInvalidPostMedia
 		}
 	}

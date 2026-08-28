@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/emmanuella-codes/nox/like/messages"
-	"github.com/emmanuella-codes/nox/models"
 	like_repo "github.com/emmanuella-codes/nox/repositories/like"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
@@ -18,10 +17,12 @@ type LikePipe struct {
 	postRepo    post_repo.PostRepository
 }
 
+// NewLikePipe builds the like orchestration layer from repositories.
 func NewLikePipe(likeRepo like_repo.LikeRepository, personaRepo persona_repo.PersonaRepository, postRepo post_repo.PostRepository) *LikePipe {
 	return &LikePipe{likeRepo: likeRepo, personaRepo: personaRepo, postRepo: postRepo}
 }
 
+// validatePersonaAndPost checks the acting profile and target post before a like action.
 func (p *LikePipe) validatePersonaAndPost(ctx context.Context, userID uuid.UUID, postID uuid.UUID, personaID uuid.UUID) *shared.PipeRes[any] {
 	if _, err := p.postRepo.FindPostByID(ctx, postID); err != nil {
 		if err == post_repo.ErrPostNotFound {
@@ -37,13 +38,14 @@ func (p *LikePipe) validatePersonaAndPost(ctx context.Context, userID uuid.UUID,
 		}
 		return pipeInternalError[any](err, "like.find_persona")
 	}
-	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+	if persona.UserID != userID {
 		return shared.PipeError[any](messages.Forbidden)
 	}
 
 	return nil
 }
 
+// pipeInternalError maps internal like errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "like", operation, messages.Internal_Error)
 }

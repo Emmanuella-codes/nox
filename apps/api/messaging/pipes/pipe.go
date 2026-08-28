@@ -20,10 +20,12 @@ type MessagingPipe struct {
 	mediaRepo     media_repo.MediaRepository
 }
 
+// NewMessagingPipe builds the messaging orchestration layer from repositories.
 func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository) *MessagingPipe {
 	return &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo}
 }
 
+// pipeInternalError maps internal messaging errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "messaging", operation, messages.Internal_Error)
 }
@@ -69,6 +71,7 @@ type MessageResponse struct {
 	EditedAt        *string            `json:"edited_at,omitempty"`
 }
 
+// conversationResponse maps one conversation and its related state into the API response shape.
 func (p *MessagingPipe) conversationResponse(ctx context.Context, conversation *models.Conversation, members []*models.ConversationMember, personas map[uuid.UUID]*models.Persona, lastMessage *models.Message, unreadCount int) ConversationResponse {
 	var lastMessageID *string
 	if conversation.LastMessageID != nil {
@@ -93,6 +96,7 @@ func (p *MessagingPipe) conversationResponse(ctx context.Context, conversation *
 	return response
 }
 
+// memberResponses maps conversation members into the API response shape.
 func memberResponses(members []*models.ConversationMember, personas map[uuid.UUID]*models.Persona) []MemberResponse {
 	responses := make([]MemberResponse, 0, len(members))
 	for _, member := range members {
@@ -121,6 +125,7 @@ func memberResponses(members []*models.ConversationMember, personas map[uuid.UUI
 	return responses
 }
 
+// memberPersonas hydrates the public profiles referenced by conversation members.
 func (p *MessagingPipe) memberPersonas(ctx context.Context, members []*models.ConversationMember) (map[uuid.UUID]*models.Persona, error) {
 	personas := make(map[uuid.UUID]*models.Persona, len(members))
 	for _, member := range members {
@@ -136,6 +141,7 @@ func (p *MessagingPipe) memberPersonas(ctx context.Context, members []*models.Co
 	return personas, nil
 }
 
+// messageResponse maps one message into the API response shape.
 func (p *MessagingPipe) messageResponse(ctx context.Context, message *models.Message) MessageResponse {
 	var mediaAssetID *string
 	var media *models.MediaAsset
@@ -172,6 +178,7 @@ func (p *MessagingPipe) messageResponse(ctx context.Context, message *models.Mes
 	}
 }
 
+// messageResponses maps a slice of messages into API response shape.
 func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*models.Message) []MessageResponse {
 	responses := make([]MessageResponse, 0, len(messageModels))
 	for _, message := range messageModels {
@@ -180,7 +187,8 @@ func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*m
 	return responses
 }
 
-func (p *MessagingPipe) visiblePersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, requireOwner bool) (*models.Persona, shared.PipeMessage) {
+// profilePersona validates that a messaging participant is a real public profile.
+func (p *MessagingPipe) profilePersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, requireOwner bool) (*models.Persona, shared.PipeMessage) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
 		if errors.Is(err, persona_repo.ErrPersonaNotFound) {
@@ -188,14 +196,15 @@ func (p *MessagingPipe) visiblePersona(ctx context.Context, userID uuid.UUID, pe
 		}
 		return nil, messages.Internal_Error
 	}
-	if persona.PersonaType != models.VisiblePersonaType || (requireOwner && persona.UserID != userID) {
+	if requireOwner && persona.UserID != userID {
 		return nil, messages.Forbidden
 	}
 	return persona, ""
 }
 
+// requireMember validates that the current user owns the supplied profile and belongs to the conversation.
 func (p *MessagingPipe) requireMember(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, shared.PipeMessage) {
-	persona, message := p.visiblePersona(ctx, userID, personaID, true)
+	persona, message := p.profilePersona(ctx, userID, personaID, true)
 	if message != "" {
 		return nil, message
 	}
@@ -212,10 +221,12 @@ func (p *MessagingPipe) requireMember(ctx context.Context, userID uuid.UUID, con
 	return member, ""
 }
 
+// validMessageType validates the supported message payload types.
 func validMessageType(messageType models.MessageType) bool {
 	return messageType == models.TextMessageType || messageType == models.ImageMessageType || messageType == models.VideoMessageType
 }
 
+// normalizeMessageBody trims whitespace from message bodies.
 func normalizeMessageBody(body string) string {
 	return strings.TrimSpace(body)
 }

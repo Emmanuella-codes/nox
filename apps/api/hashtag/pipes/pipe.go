@@ -11,6 +11,7 @@ import (
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/anonymousidentity"
 	"github.com/google/uuid"
 )
 
@@ -21,6 +22,7 @@ type HashtagPipe struct {
 	postRepo    post_repo.PostRepository
 }
 
+// NewHashtagPipe builds the hashtag orchestration layer from repositories.
 func NewHashtagPipe(repo hashtag_repo.HashtagRepository, deps ...any) *HashtagPipe {
 	var personas persona_repo.PersonaRepository
 	var likes like_repo.LikeRepository
@@ -38,10 +40,12 @@ func NewHashtagPipe(repo hashtag_repo.HashtagRepository, deps ...any) *HashtagPi
 	return &HashtagPipe{repo: repo, personaRepo: personas, likeRepo: likes, postRepo: posts}
 }
 
+// pipeInternalError maps internal hashtag errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "hashtag", operation, messages.Internal_Error)
 }
 
+// postResponses hydrates hashtag posts with public or anonymous author state.
 func (p *HashtagPipe) postResponses(ctx context.Context, posts []*models.Post) ([]post_pipes.PostResponse, error) {
 	personas := make(map[string]*models.Persona)
 	if p.personaRepo != nil {
@@ -91,6 +95,7 @@ func (p *HashtagPipe) postResponses(ctx context.Context, posts []*models.Post) (
 	return responses, nil
 }
 
+// hydrateLikedState attaches viewer-specific like state to hashtag post results.
 func (p *HashtagPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, responses []post_pipes.PostResponse) error {
 	if p.likeRepo == nil || len(responses) == 0 {
 		return nil
@@ -115,6 +120,7 @@ func (p *HashtagPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uui
 	return nil
 }
 
+// FindViewerPersona verifies that a public profile belongs to the current user.
 func (p *HashtagPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	if p.personaRepo == nil {
 		return nil, messages.Internal_Error
@@ -127,19 +133,28 @@ func (p *HashtagPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, p
 		}
 		return nil, messages.Internal_Error
 	}
-	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+	if persona.UserID != userID {
 		return nil, messages.Forbidden
 	}
 	return persona, ""
 }
 
+// anonymousPostIdentity ensures a per-thread anonymous identity for one hashtag post owner.
 func (p *HashtagPipe) anonymousPostIdentity(ctx context.Context, post *models.Post) (*models.AnonymousThreadIdentity, error) {
 	if p.postRepo == nil || post.PostingMode != models.AnonymousPostingMode || post.PersonaID == nil {
 		return nil, nil
 	}
-	return p.postRepo.EnsureAnonymousThreadIdentity(ctx, post.ID, post.AuthorUserID, *post.PersonaID, anonymousHandle())
+	return p.postRepo.EnsureAnonymousThreadIdentity(
+		ctx,
+		post.ID,
+		post.AuthorUserID,
+		*post.PersonaID,
+		anonymousidentity.GenerateHandle(),
+		anonymousidentity.GenerateAvatarKey(),
+	)
 }
 
+// postResponse maps one hashtag post into the shared post response shape.
 func postResponse(post *models.Post, personas map[string]*models.Persona, identity *models.AnonymousThreadIdentity) post_pipes.PostResponse {
 	response := post_pipes.PostResponse{
 		ID:           post.ID.String(),
@@ -176,20 +191,31 @@ func postResponse(post *models.Post, personas map[string]*models.Persona, identi
 		}
 	}
 	if post.PostingMode == models.AnonymousPostingMode {
-		handle := "anonymous"
-		if identity != nil && identity.AnonymousHandle != "" {
-			handle = identity.AnonymousHandle
+		response.Author.Anonymous = &post_pipes.PostAnonymousAuthor{
+			Handle:    anonymousHandleValue(identity),
+			AvatarKey: anonymousAvatarValue(identity),
 		}
-		response.Author.Anonymous = &post_pipes.PostAnonymousAuthor{Handle: handle}
 	}
 	return response
 }
 
-func anonymousHandle() string {
-	id := uuid.NewString()
-	return "ghost_" + id[:8]
+// anonymousHandleValue extracts the anonymous handle or returns the default label.
+func anonymousHandleValue(identity *models.AnonymousThreadIdentity) string {
+	if identity == nil || identity.AnonymousHandle == "" {
+		return "anonymous"
+	}
+	return identity.AnonymousHandle
 }
 
+// anonymousAvatarValue extracts the anonymous avatar key or returns the default key.
+func anonymousAvatarValue(identity *models.AnonymousThreadIdentity) string {
+	if identity == nil || identity.AnonymousAvatarKey == "" {
+		return "mask_01"
+	}
+	return identity.AnonymousAvatarKey
+}
+
+// postIDs extracts ids from a slice of posts.
 func postIDs(posts []*models.Post) []uuid.UUID {
 	ids := make([]uuid.UUID, 0, len(posts))
 	for _, post := range posts {

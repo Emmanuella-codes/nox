@@ -13,15 +13,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// CreateDirectConversationPipe creates or reuses a direct conversation between two public profiles.
 func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreateDirectConversationDTO) *shared.PipeRes[ConversationResponse] {
 	if dto.SenderPersonaID == dto.RecipientPersonaID {
 		return shared.PipeError[ConversationResponse](messages.Invalid_Payload)
 	}
-	sender, message := p.visiblePersona(ctx, userID, dto.SenderPersonaID, true)
+	sender, message := p.profilePersona(ctx, userID, dto.SenderPersonaID, true)
 	if message != "" {
 		return shared.PipeError[ConversationResponse](message)
 	}
-	recipient, message := p.visiblePersona(ctx, userID, dto.RecipientPersonaID, false)
+	recipient, message := p.profilePersona(ctx, userID, dto.RecipientPersonaID, false)
 	if message != "" {
 		return shared.PipeError[ConversationResponse](message)
 	}
@@ -52,12 +53,13 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 
+// CreateGroupConversationPipe creates a group conversation for one owner profile and invited profiles.
 func (p *MessagingPipe) CreateGroupConversationPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreateGroupConversationDTO) *shared.PipeRes[ConversationResponse] {
 	dto.Title = strings.TrimSpace(dto.Title)
 	if dto.Title == "" {
 		return shared.PipeError[ConversationResponse](messages.Invalid_Payload)
 	}
-	creator, message := p.visiblePersona(ctx, userID, dto.CreatorPersonaID, true)
+	creator, message := p.profilePersona(ctx, userID, dto.CreatorPersonaID, true)
 	if message != "" {
 		return shared.PipeError[ConversationResponse](message)
 	}
@@ -92,6 +94,7 @@ func (p *MessagingPipe) CreateGroupConversationPipe(ctx context.Context, userID 
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 
+// visiblePersonas fetches and deduplicates profile participants for a group conversation.
 func (p *MessagingPipe) visiblePersonas(ctx context.Context, userID uuid.UUID, personaIDs []uuid.UUID) ([]*models.Persona, shared.PipeMessage) {
 	seen := map[uuid.UUID]bool{}
 	personas := make([]*models.Persona, 0, len(personaIDs))
@@ -99,7 +102,7 @@ func (p *MessagingPipe) visiblePersonas(ctx context.Context, userID uuid.UUID, p
 		if personaID == uuid.Nil || seen[personaID] {
 			continue
 		}
-		persona, message := p.visiblePersona(ctx, userID, personaID, false)
+		persona, message := p.profilePersona(ctx, userID, personaID, false)
 		if message != "" {
 			return nil, message
 		}

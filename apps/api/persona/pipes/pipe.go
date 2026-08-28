@@ -14,18 +14,22 @@ type PersonaPipe struct {
 	repo persona_repo.PersonaRepository
 }
 
+// NewPersonaPipe builds the public-profile orchestration layer from the repository.
 func NewPersonaPipe(repo persona_repo.PersonaRepository) *PersonaPipe {
 	return &PersonaPipe{repo: repo}
 }
 
+// pipeInternalError maps internal profile errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "persona", operation, messages.Internal_Error)
 }
 
+// validPersonaType accepts the single supported public profile type for now.
 func validPersonaType(personaType models.PersonaType) bool {
-	return personaType == models.VisiblePersonaType
+	return personaType == "" || personaType == models.VisiblePersonaType
 }
 
+// validPersonaCategory validates the supported public profile categories.
 func validPersonaCategory(category models.PersonaCategory) bool {
 	switch category {
 	case models.PatronPersonaCategory, models.DJPersonaCategory, models.OrganizerPersonaCategory:
@@ -35,6 +39,7 @@ func validPersonaCategory(category models.PersonaCategory) bool {
 	}
 }
 
+// ensureOwnedPersona fetches one public profile and verifies ownership.
 func (p *PersonaPipe) ensureOwnedPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[models.Persona]) {
 	persona, err := p.repo.FindPersonaByID(ctx, personaID)
 	if err != nil {

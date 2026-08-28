@@ -15,10 +15,12 @@ type pgRepository struct {
 	db *pgxpool.Pool
 }
 
+// newPgRepository builds the Postgres-backed comment repository.
 func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
+// CreateComment inserts one comment row and increments the parent post count.
 func (r *pgRepository) CreateComment(ctx context.Context, postID uuid.UUID, dto dtos.CreateCommentDTO) (*models.Comment, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -27,10 +29,10 @@ func (r *pgRepository) CreateComment(ctx context.Context, postID uuid.UUID, dto 
 	defer tx.Rollback(ctx)
 
 	row := tx.QueryRow(ctx, `
-		INSERT INTO comments (persona_id, post_id, posting_mode, body, parent_id)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
-	`, dto.PersonaID, postID, dto.PostingMode, dto.Body, dto.ParentID)
+		INSERT INTO comments (author_user_id, persona_id, post_id, posting_mode, body, parent_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING author_user_id, id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
+	`, dto.AuthorUserID, dto.PersonaID, postID, dto.PostingMode, dto.Body, dto.ParentID)
 
 	comment, err := scanComment(row)
 	if err != nil {
@@ -48,9 +50,10 @@ func (r *pgRepository) CreateComment(ctx context.Context, postID uuid.UUID, dto 
 	return comment, nil
 }
 
+// FindCommentsByPostID fetches comments for one post in ascending order.
 func (r *pgRepository) FindCommentsByPostID(ctx context.Context, postID uuid.UUID, limit int) ([]*models.Comment, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
+		SELECT author_user_id, id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
 		FROM comments
 		WHERE post_id = $1
 		ORDER BY created_at ASC
@@ -72,9 +75,10 @@ func (r *pgRepository) FindCommentsByPostID(ctx context.Context, postID uuid.UUI
 	return comments, rows.Err()
 }
 
+// FindCommentByID fetches one comment by id.
 func (r *pgRepository) FindCommentByID(ctx context.Context, commentID uuid.UUID) (*models.Comment, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
+		SELECT author_user_id, id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
 		FROM comments
 		WHERE id = $1
 	`, commentID)
@@ -86,6 +90,7 @@ func (r *pgRepository) FindCommentByID(ctx context.Context, commentID uuid.UUID)
 	return comment, nil
 }
 
+// DeleteComment removes one comment row and decrements the parent post count.
 func (r *pgRepository) DeleteComment(ctx context.Context, commentID uuid.UUID) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -109,10 +114,12 @@ type commentScanner interface {
 	Scan(dest ...any) error
 }
 
+// scanComment maps one comment row.
 func scanComment(scanner commentScanner) (*models.Comment, error) {
 	var comment models.Comment
 	var parentID uuid.NullUUID
 	err := scanner.Scan(
+		&comment.AuthorUserID,
 		&comment.ID,
 		&comment.PersonaID,
 		&comment.PostID,
@@ -131,6 +138,7 @@ func scanComment(scanner commentScanner) (*models.Comment, error) {
 	return &comment, nil
 }
 
+// mapCommentError maps not-found database errors to repository errors.
 func mapCommentError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrCommentNotFound
@@ -138,6 +146,7 @@ func mapCommentError(err error) error {
 	return err
 }
 
+// normalizeLimit clamps comment list limits.
 func normalizeLimit(limit int) int {
 	if limit <= 0 {
 		return 50

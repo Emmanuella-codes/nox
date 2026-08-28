@@ -9,19 +9,23 @@ import (
 	searchrepo "github.com/emmanuella-codes/nox/repositories/search"
 	searchmessages "github.com/emmanuella-codes/nox/search/messages"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/anonymousidentity"
 	"github.com/google/uuid"
 )
 
 type SearchOptions = searchrepo.Options
 
+// Search runs search without viewer-specific state hydration.
 func (p *SearchPipe) Search(ctx context.Context, query string, options SearchOptions) *shared.PipeRes[SearchResponse] {
 	return p.search(ctx, query, options, nil)
 }
 
+// SearchForViewer runs search with viewer-specific like/follow state hydration.
 func (p *SearchPipe) SearchForViewer(ctx context.Context, query string, options SearchOptions, viewerPersonaID uuid.UUID) *shared.PipeRes[SearchResponse] {
 	return p.search(ctx, query, options, &viewerPersonaID)
 }
 
+// FindViewerPersona verifies that a public profile belongs to the current user.
 func (p *SearchPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	if p.personaRepo == nil {
 		return nil, searchmessages.Internal_Error
@@ -34,12 +38,13 @@ func (p *SearchPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, pe
 		}
 		return nil, searchmessages.Internal_Error
 	}
-	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
+	if persona.UserID != userID {
 		return nil, searchmessages.Forbidden
 	}
 	return persona, ""
 }
 
+// search executes repository search and hydrates response-only state.
 func (p *SearchPipe) search(ctx context.Context, query string, options SearchOptions, viewerPersonaID *uuid.UUID) *shared.PipeRes[SearchResponse] {
 	query = strings.TrimSpace(query)
 	if len(query) < 2 || len(query) > 80 {
@@ -85,6 +90,7 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 	return shared.PipeSuccess(searchmessages.Search_Listed, &response)
 }
 
+// nextOffset calculates the next offset when more results are available.
 func nextOffset(options SearchOptions, hasMore bool) *int {
 	if !hasMore {
 		return nil
@@ -93,6 +99,7 @@ func nextOffset(options SearchOptions, hasMore bool) *int {
 	return &next
 }
 
+// hydrateLikedState attaches viewer-specific post like state.
 func (p *SearchPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, posts []SearchPostResponse) error {
 	if len(posts) == 0 {
 		return nil
@@ -117,6 +124,7 @@ func (p *SearchPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid
 	return nil
 }
 
+// hydrateHashtags attaches hashtags to searched posts.
 func (p *SearchPipe) hydrateHashtags(ctx context.Context, posts []SearchPostResponse) error {
 	if p.hashtagRepo == nil || len(posts) == 0 {
 		return nil
@@ -141,6 +149,7 @@ func (p *SearchPipe) hydrateHashtags(ctx context.Context, posts []SearchPostResp
 	return nil
 }
 
+// hydrateMedia attaches media assets to searched posts.
 func (p *SearchPipe) hydrateMedia(ctx context.Context, posts []SearchPostResponse) error {
 	if p.postRepo == nil || len(posts) == 0 {
 		return nil
@@ -168,6 +177,7 @@ func (p *SearchPipe) hydrateMedia(ctx context.Context, posts []SearchPostRespons
 	return nil
 }
 
+// hydrateAnonymousAuthors attaches thread-scoped anonymous display identities to searched posts.
 func (p *SearchPipe) hydrateAnonymousAuthors(ctx context.Context, results []*searchrepo.PostResult, posts []SearchPostResponse) error {
 	if p.postRepo == nil || len(results) == 0 {
 		return nil
@@ -176,17 +186,28 @@ func (p *SearchPipe) hydrateAnonymousAuthors(ctx context.Context, results []*sea
 		if i >= len(posts) || result.Post.PostingMode != models.AnonymousPostingMode || result.Post.PersonaID == nil {
 			continue
 		}
-		identity, err := p.postRepo.EnsureAnonymousThreadIdentity(ctx, result.Post.ID, result.Post.AuthorUserID, *result.Post.PersonaID, anonymousHandle())
+		identity, err := p.postRepo.EnsureAnonymousThreadIdentity(
+			ctx,
+			result.Post.ID,
+			result.Post.AuthorUserID,
+			*result.Post.PersonaID,
+			anonymousidentity.GenerateHandle(),
+			anonymousidentity.GenerateAvatarKey(),
+		)
 		if err != nil {
 			return err
 		}
 		if identity != nil && identity.AnonymousHandle != "" {
-			posts[i].Author.Anonymous = &SearchPostAnonymous{Handle: identity.AnonymousHandle}
+			posts[i].Author.Anonymous = &SearchPostAnonymous{
+				Handle:    identity.AnonymousHandle,
+				AvatarKey: identity.AnonymousAvatarKey,
+			}
 		}
 	}
 	return nil
 }
 
+// hydrateFollowingState attaches viewer-specific follow state to searched profiles.
 func (p *SearchPipe) hydrateFollowingState(ctx context.Context, viewerPersonaID uuid.UUID, personas []SearchPersonaResponse) error {
 	if len(personas) == 0 {
 		return nil

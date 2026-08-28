@@ -12,5 +12,6 @@ type AnonymousThreadIdentity struct {
 	UserID          uuid.UUID `json:"-"`
 	PersonaID       uuid.UUID `json:"-"`
 	AnonymousHandle string    `json:"anonymous_handle"`
+	AnonymousAvatarKey string `json:"anonymous_avatar_key"`
 	CreatedAt       time.Time `json:"created_at"`
 }

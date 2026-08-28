@@ -40,3 +40,8 @@ type Persona struct {
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
+
+// IsOwnedBy reports whether this public profile belongs to the given user.
+func (p *Persona) IsOwnedBy(userID uuid.UUID) bool {
+	return p != nil && p.UserID == userID
+}

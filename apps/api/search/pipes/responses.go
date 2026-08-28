@@ -71,7 +71,8 @@ type SearchPostPersona struct {
 }
 
 type SearchPostAnonymous struct {
-	Handle string `json:"handle"`
+	Handle    string `json:"handle"`
+	AvatarKey string `json:"avatar_key"`
 }
 
 type SearchEventResponse struct {
@@ -96,6 +97,7 @@ type SearchHashtagResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// personaResponses maps public profiles into the search response shape.
 func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 	responses := make([]SearchPersonaResponse, 0, len(personas))
 	for _, persona := range personas {
@@ -120,6 +122,7 @@ func personaResponses(personas []*models.Persona) []SearchPersonaResponse {
 	return responses
 }
 
+// postResponses maps matched posts into the search response shape.
 func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 	responses := make([]SearchPostResponse, 0, len(posts))
 	for _, result := range posts {
@@ -154,10 +157,11 @@ func postResponses(posts []*searchrepo.PostResult) []SearchPostResponse {
 	return responses
 }
 
+// postAuthor maps one post result author into public or anonymous response shape.
 func postAuthor(result *searchrepo.PostResult) SearchPostAuthor {
 	author := SearchPostAuthor{Mode: result.Post.PostingMode}
 	if result.Post.PostingMode == models.AnonymousPostingMode {
-		author.Anonymous = &SearchPostAnonymous{Handle: "anonymous"}
+		author.Anonymous = &SearchPostAnonymous{Handle: "anonymous", AvatarKey: "mask_01"}
 		return author
 	}
 	if result.Post.PostingMode == models.PublicPostingMode && result.Persona != nil {
@@ -171,6 +175,7 @@ func postAuthor(result *searchrepo.PostResult) SearchPostAuthor {
 	return author
 }
 
+// eventResponses maps events into the search response shape.
 func eventResponses(events []*models.Event) []SearchEventResponse {
 	responses := make([]SearchEventResponse, 0, len(events))
 	for _, event := range events {
@@ -192,6 +197,7 @@ func eventResponses(events []*models.Event) []SearchEventResponse {
 	return responses
 }
 
+// hashtagResponses maps hashtags into the search response shape.
 func hashtagResponses(hashtags []*models.Hashtag) []SearchHashtagResponse {
 	responses := make([]SearchHashtagResponse, 0, len(hashtags))
 	for _, hashtag := range hashtags {

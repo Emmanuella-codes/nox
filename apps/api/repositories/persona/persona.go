@@ -13,6 +13,7 @@ import (
 var (
 	ErrPersonaNotFound         = errors.New("persona not found")
 	ErrHandleAlreadyTaken      = errors.New("handle already taken")
+	ErrProfileAlreadyExists    = errors.New("profile already exists for user")
 	ErrGhostPersonaAlreadyUsed = errors.New("ghost persona already exists for user")
 )
 

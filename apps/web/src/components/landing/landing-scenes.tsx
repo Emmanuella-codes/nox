@@ -11,8 +11,8 @@ const SCENES = [
 
 export function LandingScenes() {
   return (
-    <section id="scenes" className="pb-[100px] pt-10">
-      <div className="mx-auto max-w-[1240px] px-8">
+    <section id="scenes" className="pb-25 pt-10">
+      <div className="mx-auto max-w-310 px-8">
         <SectionHead
           eyebrow="scenes on nox"
           title={<>The city has more<br />than one sound.</>}
@@ -22,7 +22,7 @@ export function LandingScenes() {
           {SCENES.map(({ tag, title, sub, color }) => (
             <div
               key={tag}
-              className="flex flex-col justify-between overflow-hidden rounded-lg p-[18px] text-white"
+              className="flex flex-col justify-between overflow-hidden rounded-lg p-4.5 text-white"
               style={{ aspectRatio: "9/16", background: color }}
             >
               <span className="self-start rounded font-mono text-[10px] uppercase px-2 py-1" style={{ background: "rgba(0,0,0,.32)" }}>
