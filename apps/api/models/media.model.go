@@ -12,6 +12,7 @@ type MediaProcessingStatus string
 const (
 	ImageMediaKind MediaKind = "image"
 	VideoMediaKind MediaKind = "video"
+	AudioMediaKind MediaKind = "audio"
 )
 
 const (

@@ -27,6 +27,7 @@ type MediaCleanupResponse struct {
 	DeletedCount int64 `json:"deleted_count"`
 }
 
+// InitiateSetVideoUploadPipe validates ownership and creates a pending set video asset.
 func (p *MediaPipe) InitiateSetVideoUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateSetVideoUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
 	if !validSetVideoMime(dto.MimeType) || dto.SizeBytes <= 0 {
@@ -55,6 +56,7 @@ func (p *MediaPipe) InitiateSetVideoUploadPipe(ctx context.Context, userID uuid.
 	})
 }
 
+// InitiateStoryVideoUploadPipe validates ownership and creates a pending story video asset.
 func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateStoryVideoUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
 	if !validSetVideoMime(dto.MimeType) || dto.SizeBytes <= 0 {
@@ -83,6 +85,7 @@ func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uui
 	})
 }
 
+// InitiatePostMediaUploadPipe signs a direct upload for post and messaging media assets.
 func (p *MediaPipe) InitiatePostMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiatePostMediaUploadDTO) *shared.PipeRes[CloudinaryPostUploadResponse] {
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
 	if p.cloudinaryClient == nil || !p.cloudinaryClient.Configured() || !validPostMedia(dto.MediaKind, dto.MimeType, dto.SizeBytes, 0) {
@@ -106,6 +109,7 @@ func (p *MediaPipe) InitiatePostMediaUploadPipe(ctx context.Context, userID uuid
 	return shared.PipeSuccess(messages.Media_Upload_Initiated, &upload)
 }
 
+// ConfirmPostMediaUploadPipe stores a ready media asset after upload completion.
 func (p *MediaPipe) ConfirmPostMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) *shared.PipeRes[models.MediaAsset] {
 	dto.PublicID = strings.TrimSpace(dto.PublicID)
 	dto.SecureURL = strings.TrimSpace(dto.SecureURL)
@@ -117,7 +121,7 @@ func (p *MediaPipe) ConfirmPostMediaUploadPipe(ctx context.Context, userID uuid.
 	if dto.MediaKind == models.ImageMediaKind && dto.DurationSeconds <= 0 {
 		dto.DurationSeconds = 1
 	}
-	if dto.MediaKind == models.VideoMediaKind && dto.DurationSeconds <= 0 {
+	if (dto.MediaKind == models.VideoMediaKind || dto.MediaKind == models.AudioMediaKind) && dto.DurationSeconds <= 0 {
 		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
 	}
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
@@ -137,6 +141,7 @@ func (p *MediaPipe) ConfirmPostMediaUploadPipe(ctx context.Context, userID uuid.
 	return shared.PipeSuccess(messages.Media_Asset_Created, asset)
 }
 
+// CompleteMediaProcessingPipe marks one pending set media asset as ready.
 func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {
 	dto.PlaybackURL = strings.TrimSpace(dto.PlaybackURL)
 	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
@@ -154,6 +159,7 @@ func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetI
 	return shared.PipeSuccess(messages.Media_Processing_Updated, asset)
 }
 
+// CompleteStoryMediaProcessingPipe marks one pending story media asset as ready.
 func (p *MediaPipe) CompleteStoryMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {
 	dto.PlaybackURL = strings.TrimSpace(dto.PlaybackURL)
 	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
@@ -171,6 +177,7 @@ func (p *MediaPipe) CompleteStoryMediaProcessingPipe(ctx context.Context, mediaA
 	return shared.PipeSuccess(messages.Media_Processing_Updated, asset)
 }
 
+// FailMediaProcessingPipe marks one pending media asset as failed.
 func (p *MediaPipe) FailMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID) *shared.PipeRes[models.MediaAsset] {
 	asset, err := p.mediaRepo.MarkMediaAssetFailed(ctx, mediaAssetID)
 	if err != nil {
@@ -182,6 +189,7 @@ func (p *MediaPipe) FailMediaProcessingPipe(ctx context.Context, mediaAssetID uu
 	return shared.PipeSuccess(messages.Media_Processing_Updated, asset)
 }
 
+// CleanupOrphanedMediaAssetsPipe removes old failed or pending media that is no longer referenced.
 func (p *MediaPipe) CleanupOrphanedMediaAssetsPipe(ctx context.Context, olderThan time.Duration, limit int) *shared.PipeRes[MediaCleanupResponse] {
 	if olderThan <= 0 {
 		olderThan = 24 * time.Hour

@@ -16,6 +16,7 @@ type execQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
+// insertConversation inserts one conversation and returns the created row.
 func insertConversation(ctx context.Context, db execQuerier, conversationType models.ConversationType, title string, createdBy uuid.UUID) (*models.Conversation, error) {
 	row := db.QueryRow(ctx, `
 		INSERT INTO conversations (conversation_type, title, created_by)
@@ -25,6 +26,7 @@ func insertConversation(ctx context.Context, db execQuerier, conversationType mo
 	return scanConversation(row)
 }
 
+// scanConversation scans one conversation row into the model shape.
 func scanConversation(scanner conversationScanner) (*models.Conversation, error) {
 	var conversation models.Conversation
 	err := scanner.Scan(
@@ -42,6 +44,7 @@ func scanConversation(scanner conversationScanner) (*models.Conversation, error)
 	return &conversation, nil
 }
 
+// scanConversationListItem scans one conversation row with unread metadata.
 func scanConversationListItem(scanner conversationScanner) (*models.Conversation, int, error) {
 	var conversation models.Conversation
 	var unreadCount int
@@ -61,6 +64,7 @@ func scanConversationListItem(scanner conversationScanner) (*models.Conversation
 	return &conversation, unreadCount, nil
 }
 
+// insertMember inserts or reactivates one conversation member row.
 func insertMember(ctx context.Context, db execQuerier, conversationID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, role models.ConversationMemberRole) (*models.ConversationMember, error) {
 	row := db.QueryRow(ctx, `
 		INSERT INTO conversation_members (conversation_id, user_id, persona_id, role)
@@ -72,6 +76,7 @@ func insertMember(ctx context.Context, db execQuerier, conversationID uuid.UUID,
 	return scanMember(row)
 }
 
+// scanMember scans one conversation member row into the model shape.
 func scanMember(scanner conversationScanner) (*models.ConversationMember, error) {
 	var member models.ConversationMember
 	err := scanner.Scan(
@@ -89,6 +94,7 @@ func scanMember(scanner conversationScanner) (*models.ConversationMember, error)
 	return &member, nil
 }
 
+// scanMembers scans many conversation member rows into model values.
 func scanMembers(rows pgx.Rows) ([]*models.ConversationMember, error) {
 	members := make([]*models.ConversationMember, 0)
 	for rows.Next() {
@@ -104,6 +110,7 @@ func scanMembers(rows pgx.Rows) ([]*models.ConversationMember, error) {
 	return members, nil
 }
 
+// scanMessage scans one message row into the model shape.
 func scanMessage(scanner conversationScanner) (*models.Message, error) {
 	var message models.Message
 	err := scanner.Scan(
@@ -124,6 +131,7 @@ func scanMessage(scanner conversationScanner) (*models.Message, error) {
 	return &message, nil
 }
 
+// scanMessages scans many message rows into model values.
 func scanMessages(rows pgx.Rows) ([]*models.Message, error) {
 	messages := make([]*models.Message, 0)
 	for rows.Next() {
@@ -137,4 +145,29 @@ func scanMessages(rows pgx.Rows) ([]*models.Message, error) {
 		return nil, err
 	}
 	return messages, nil
+}
+
+// scanMessageAttachmentAsset scans one attachment join row into a media asset.
+func scanMessageAttachmentAsset(scanner conversationScanner, messageID *uuid.UUID) (*models.MediaAsset, error) {
+	var asset models.MediaAsset
+	err := scanner.Scan(
+		messageID,
+		&asset.ID,
+		&asset.OwnerUserID,
+		&asset.OwnerPersonaID,
+		&asset.MediaKind,
+		&asset.StorageKey,
+		&asset.PlaybackURL,
+		&asset.ThumbnailURL,
+		&asset.MimeType,
+		&asset.DurationSeconds,
+		&asset.SizeBytes,
+		&asset.ProcessingStatus,
+		&asset.CreatedAt,
+		&asset.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
 }

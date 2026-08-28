@@ -60,6 +60,9 @@ func (p *MessagingPipe) GetConversationPipe(ctx context.Context, userID uuid.UUI
 		if err != nil {
 			return pipeInternalError[ConversationResponse](err, "messaging.get_last_message")
 		}
+		if lastMessage.DeletedAt != nil {
+			lastMessage = nil
+		}
 	}
 	response := p.conversationResponse(ctx, conversation, members, personas, lastMessage, 0)
 	return shared.PipeSuccess(messages.Conversation_Fetched, &response)

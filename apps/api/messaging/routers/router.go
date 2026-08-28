@@ -8,6 +8,7 @@ import (
 	"github.com/emmanuella-codes/nox/typings"
 )
 
+// MessagingRoutes returns the messaging HTTP route definitions.
 func MessagingRoutes(controller *controllers.MessagingController, cfg *config.Config) []api.RouterSchema {
 	return []api.RouterSchema{
 		{
@@ -63,6 +64,24 @@ func MessagingRoutes(controller *controllers.MessagingController, cfg *config.Co
 			Path:        "/conversations/:conversationID/members/:personaID",
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
 			Handler:     controller.RemoveMember,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/conversations/:conversationID/leave",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.LeaveConversation,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/conversations/:conversationID/members/:personaID/role",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.UpdateMemberRole,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/messages/:messageID",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.EditMessage,
 		},
 		{
 			RouteMethod: api.RouteMethod("DELETE"),

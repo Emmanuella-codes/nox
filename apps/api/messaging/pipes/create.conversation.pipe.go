@@ -15,9 +15,6 @@ import (
 
 // CreateDirectConversationPipe creates or reuses a direct conversation between two public profiles.
 func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreateDirectConversationDTO) *shared.PipeRes[ConversationResponse] {
-	if dto.SenderPersonaID == dto.RecipientPersonaID {
-		return shared.PipeError[ConversationResponse](messages.Invalid_Payload)
-	}
 	sender, message := p.profilePersona(ctx, userID, dto.SenderPersonaID, true)
 	if message != "" {
 		return shared.PipeError[ConversationResponse](message)
@@ -25,6 +22,11 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 	recipient, message := p.profilePersona(ctx, userID, dto.RecipientPersonaID, false)
 	if message != "" {
 		return shared.PipeError[ConversationResponse](message)
+	}
+	if sender.ID != recipient.ID {
+		if message := p.requireMutualFollow(ctx, sender.ID, recipient.ID); message != "" {
+			return shared.PipeError[ConversationResponse](message)
+		}
 	}
 
 	conversation, err := p.messagingRepo.FindDirectConversationBetweenPersonas(ctx, sender.ID, recipient.ID)
@@ -65,6 +67,9 @@ func (p *MessagingPipe) CreateGroupConversationPipe(ctx context.Context, userID 
 	}
 	memberPersonas, message := p.visiblePersonas(ctx, userID, dto.MemberPersonaIDs)
 	if message != "" {
+		return shared.PipeError[ConversationResponse](message)
+	}
+	if message := p.requireMutualFollows(ctx, creator.ID, memberPersonas); message != "" {
 		return shared.PipeError[ConversationResponse](message)
 	}
 	hasOtherMember := false

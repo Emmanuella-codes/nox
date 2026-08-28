@@ -14,10 +14,12 @@ type pgRepository struct {
 	db *pgxpool.Pool
 }
 
+// newPgRepository builds the postgres-backed media repository.
 func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
+// CreateMediaAsset stores one ready media asset row.
 func (r *pgRepository) CreateMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.CreateMediaAssetDTO) (*models.MediaAsset, error) {
 	mediaKind := dto.MediaKind
 	if mediaKind == "" {
@@ -36,6 +38,7 @@ func (r *pgRepository) CreateMediaAsset(ctx context.Context, ownerUserID uuid.UU
 	return scanMediaAsset(row)
 }
 
+// CreatePostMediaAsset stores one ready uploaded post or messaging media asset row.
 func (r *pgRepository) CreatePostMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
@@ -50,14 +53,17 @@ func (r *pgRepository) CreatePostMediaAsset(ctx context.Context, ownerUserID uui
 	return scanMediaAsset(row)
 }
 
+// CreatePendingMediaAsset stores one pending set video asset row.
 func (r *pgRepository) CreatePendingMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateSetVideoUploadDTO) (*models.MediaAsset, error) {
 	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
 }
 
+// CreatePendingStoryMediaAsset stores one pending story video asset row.
 func (r *pgRepository) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryVideoUploadDTO) (*models.MediaAsset, error) {
 	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
 }
 
+// createPendingVideoAsset stores one pending video asset row.
 func (r *pgRepository) createPendingVideoAsset(ctx context.Context, ownerUserID uuid.UUID, ownerPersonaID uuid.UUID, storageKey string, playbackURL string, mimeType string, sizeBytes int64) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
@@ -72,6 +78,7 @@ func (r *pgRepository) createPendingVideoAsset(ctx context.Context, ownerUserID 
 	return scanMediaAsset(row)
 }
 
+// FindMediaAssetByID fetches one media asset by id.
 func (r *pgRepository) FindMediaAssetByID(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
@@ -84,6 +91,7 @@ func (r *pgRepository) FindMediaAssetByID(ctx context.Context, mediaAssetID uuid
 	return scanMediaAsset(row)
 }
 
+// MarkMediaAssetReady updates one pending asset into the ready state.
 func (r *pgRepository) MarkMediaAssetReady(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE media_assets
@@ -103,6 +111,7 @@ func (r *pgRepository) MarkMediaAssetReady(ctx context.Context, mediaAssetID uui
 	return scanMediaAsset(row)
 }
 
+// MarkMediaAssetFailed updates one pending asset into the failed state.
 func (r *pgRepository) MarkMediaAssetFailed(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE media_assets
@@ -117,6 +126,7 @@ func (r *pgRepository) MarkMediaAssetFailed(ctx context.Context, mediaAssetID uu
 	return scanMediaAsset(row)
 }
 
+// DeleteOrphanedMediaAssets removes failed or pending assets with no remaining references.
 func (r *pgRepository) DeleteOrphanedMediaAssets(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
 	if limit <= 0 {
 		limit = 100
@@ -133,10 +143,12 @@ func (r *pgRepository) DeleteOrphanedMediaAssets(ctx context.Context, olderThan 
 			LEFT JOIN story_items ON story_items.media_asset_id = media_assets.id
 			LEFT JOIN post_media_assets ON post_media_assets.media_asset_id = media_assets.id
 			LEFT JOIN messages ON messages.media_asset_id = media_assets.id
+			LEFT JOIN message_attachments ON message_attachments.media_asset_id = media_assets.id
 			WHERE sets.id IS NULL
 			  AND story_items.id IS NULL
 			  AND post_media_assets.post_id IS NULL
 			  AND messages.id IS NULL
+			  AND message_attachments.message_id IS NULL
 			  AND media_assets.processing_status IN ('pending', 'failed')
 			  AND media_assets.created_at < $1
 			ORDER BY media_assets.created_at ASC
@@ -153,6 +165,7 @@ type mediaAssetScanner interface {
 	Scan(dest ...any) error
 }
 
+// scanMediaAsset scans one media asset row into the model shape.
 func scanMediaAsset(scanner mediaAssetScanner) (*models.MediaAsset, error) {
 	var asset models.MediaAsset
 	err := scanner.Scan(
@@ -176,6 +189,7 @@ func scanMediaAsset(scanner mediaAssetScanner) (*models.MediaAsset, error) {
 	return &asset, nil
 }
 
+// emptyToNil converts empty strings into sql null inputs.
 func emptyToNil(value string) any {
 	if value == "" {
 		return nil

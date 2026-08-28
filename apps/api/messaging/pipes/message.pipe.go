@@ -3,6 +3,7 @@ package pipes
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/emmanuella-codes/nox/messaging/dtos"
 	"github.com/emmanuella-codes/nox/messaging/messages"
@@ -13,18 +14,16 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// SendMessagePipe validates membership, payload shape, and attachments before persisting one message.
 func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, dto dtos.SendMessageDTO) *shared.PipeRes[MessageResponse] {
 	dto.Body = normalizeMessageBody(dto.Body)
-	if dto.MessageType == "" {
-		dto.MessageType = models.TextMessageType
-	}
-	if !validMessageType(dto.MessageType) || (dto.Body == "" && dto.MediaAssetID == nil) {
+	attachmentIDs := normalizeAttachmentIDs(dto.MediaAssetID, dto.MediaAssetIDs)
+	dto.MediaAssetID = nil
+	dto.MediaAssetIDs = attachmentIDs
+	if dto.Body == "" && len(attachmentIDs) == 0 {
 		return shared.PipeError[MessageResponse](messages.Invalid_Payload)
 	}
-	if dto.MediaAssetID == nil && dto.MessageType != models.TextMessageType {
-		return shared.PipeError[MessageResponse](messages.Invalid_Payload)
-	}
-	if dto.MediaAssetID != nil && dto.MessageType == models.TextMessageType {
+	if len(attachmentIDs) > 5 {
 		return shared.PipeError[MessageResponse](messages.Invalid_Payload)
 	}
 	member, message := p.requireMember(ctx, userID, conversationID, dto.SenderPersonaID)
@@ -38,10 +37,17 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	if inactiveCrew {
 		return shared.PipeError[MessageResponse](messages.Forbidden)
 	}
-	if dto.MediaAssetID != nil {
-		if message := p.validateMessageMedia(ctx, userID, member.PersonaID, dto); message != "" {
-			return shared.PipeError[MessageResponse](message)
+	attachmentType := models.TextMessageType
+	if len(attachmentIDs) > 0 {
+		var mediaMessage shared.PipeMessage
+		attachmentType, mediaMessage = p.validateMessageMedia(ctx, userID, member.PersonaID, attachmentIDs)
+		if mediaMessage != "" {
+			return shared.PipeError[MessageResponse](mediaMessage)
 		}
+	}
+	dto.MessageType = normalizedMessageType(dto.MessageType, dto.Body, len(attachmentIDs) > 0, attachmentType)
+	if !validMessageType(dto.MessageType) {
+		return shared.PipeError[MessageResponse](messages.Invalid_Payload)
 	}
 	created, err := p.messagingRepo.CreateMessage(ctx, conversationID, userID, dto)
 	if err != nil {
@@ -51,6 +57,7 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	return shared.PipeSuccess(messages.Message_Sent, &response)
 }
 
+// ListMessagesPipe lists visible messages for one conversation member.
 func (p *MessagingPipe) ListMessagesPipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, personaID uuid.UUID, limit int, offset int) *shared.PipeRes[[]MessageResponse] {
 	if _, message := p.requireMember(ctx, userID, conversationID, personaID); message != "" {
 		return shared.PipeError[[]MessageResponse](message)
@@ -67,6 +74,7 @@ func (p *MessagingPipe) ListMessagesPipe(ctx context.Context, userID uuid.UUID, 
 	return shared.PipeSuccess(messages.Messages_Listed, &responses)
 }
 
+// MarkReadPipe advances the current member read cursor to a visible message.
 func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, dto dtos.MarkReadDTO) *shared.PipeRes[MemberResponse] {
 	if _, message := p.requireMember(ctx, userID, conversationID, dto.PersonaID); message != "" {
 		return shared.PipeError[MemberResponse](message)
@@ -81,6 +89,9 @@ func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conv
 	if messageModel.ConversationID != conversationID {
 		return shared.PipeError[MemberResponse](messages.Message_Not_Found)
 	}
+	if messageModel.DeletedAt != nil {
+		return shared.PipeError[MemberResponse](messages.Message_Not_Found)
+	}
 	member, err := p.messagingRepo.MarkConversationRead(ctx, conversationID, dto.PersonaID, dto.MessageID)
 	if err != nil {
 		return pipeInternalError[MemberResponse](err, "messaging.mark_read")
@@ -93,6 +104,34 @@ func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conv
 	return shared.PipeSuccess(messages.Conversation_Read, &response)
 }
 
+// EditMessagePipe updates the body of a sender-owned message within the mutation window.
+func (p *MessagingPipe) EditMessagePipe(ctx context.Context, userID uuid.UUID, messageID uuid.UUID, dto dtos.EditMessageDTO) *shared.PipeRes[MessageResponse] {
+	dto.Body = normalizeMessageBody(dto.Body)
+	if dto.Body == "" {
+		return shared.PipeError[MessageResponse](messages.Invalid_Payload)
+	}
+	messageModel, err := p.messagingRepo.FindMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, messaging_repo.ErrMessageNotFound) {
+			return shared.PipeError[MessageResponse](messages.Message_Not_Found)
+		}
+		return pipeInternalError[MessageResponse](err, "messaging.find_edit_message")
+	}
+	if messageModel.SenderUserID != userID || messageModel.DeletedAt != nil || !canMutateMessage(messageModel, time.Now()) {
+		return shared.PipeError[MessageResponse](messages.Forbidden)
+	}
+	updated, err := p.messagingRepo.UpdateMessageBody(ctx, messageID, dto.Body)
+	if err != nil {
+		if errors.Is(err, messaging_repo.ErrMessageNotFound) {
+			return shared.PipeError[MessageResponse](messages.Message_Not_Found)
+		}
+		return pipeInternalError[MessageResponse](err, "messaging.edit_message")
+	}
+	response := p.messageResponse(ctx, updated)
+	return shared.PipeSuccess(messages.Message_Updated, &response)
+}
+
+// DeleteMessagePipe hides a sender-owned message for all members within the mutation window.
 func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID, messageID uuid.UUID) *shared.PipeRes[MessageResponse] {
 	messageModel, err := p.messagingRepo.FindMessageByID(ctx, messageID)
 	if err != nil {
@@ -101,7 +140,7 @@ func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID,
 		}
 		return pipeInternalError[MessageResponse](err, "messaging.find_delete_message")
 	}
-	if messageModel.SenderUserID != userID {
+	if messageModel.SenderUserID != userID || messageModel.DeletedAt != nil || !canMutateMessage(messageModel, time.Now()) {
 		return shared.PipeError[MessageResponse](messages.Forbidden)
 	}
 	deleted, err := p.messagingRepo.SoftDeleteMessage(ctx, messageID)
@@ -112,25 +151,50 @@ func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID,
 	return shared.PipeSuccess(messages.Message_Deleted, &response)
 }
 
-func (p *MessagingPipe) validateMessageMedia(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, dto dtos.SendMessageDTO) shared.PipeMessage {
-	if p.mediaRepo == nil || dto.MediaAssetID == nil {
-		return messages.Invalid_Payload
+// validateMessageMedia verifies that all supplied attachments belong to the sender and are chat-safe.
+func (p *MessagingPipe) validateMessageMedia(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, attachmentIDs []uuid.UUID) (models.MessageType, shared.PipeMessage) {
+	if p.mediaRepo == nil || len(attachmentIDs) == 0 {
+		return "", messages.Invalid_Payload
 	}
-	asset, err := p.mediaRepo.FindMediaAssetByID(ctx, *dto.MediaAssetID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return messages.Invalid_Payload
+	messageType := models.TextMessageType
+	for _, attachmentID := range attachmentIDs {
+		asset, err := p.mediaRepo.FindMediaAssetByID(ctx, attachmentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return "", messages.Invalid_Payload
+			}
+			return "", messages.Internal_Error
 		}
-		return messages.Internal_Error
+		if asset.OwnerUserID != userID || asset.OwnerPersonaID != personaID || asset.ProcessingStatus != models.ReadyMediaStatus {
+			return "", messages.Forbidden
+		}
+		switch asset.MediaKind {
+		case models.ImageMediaKind:
+			if messageType == models.TextMessageType {
+				messageType = models.ImageMessageType
+			}
+		case models.VideoMediaKind:
+			if messageType == models.TextMessageType {
+				messageType = models.VideoMessageType
+			}
+		case models.AudioMediaKind:
+			if messageType == models.TextMessageType {
+				messageType = models.AudioMessageType
+			}
+		default:
+			return "", messages.Invalid_Payload
+		}
 	}
-	if asset.OwnerUserID != userID || asset.OwnerPersonaID != personaID || asset.ProcessingStatus != models.ReadyMediaStatus {
-		return messages.Forbidden
+	return messageType, ""
+}
+
+// normalizedMessageType derives a stable message type from the payload and attachments.
+func normalizedMessageType(messageType models.MessageType, body string, hasAttachments bool, attachmentType models.MessageType) models.MessageType {
+	if messageType != "" {
+		return messageType
 	}
-	if dto.MessageType == models.ImageMessageType && asset.MediaKind != models.ImageMediaKind {
-		return messages.Invalid_Payload
+	if body != "" || !hasAttachments {
+		return models.TextMessageType
 	}
-	if dto.MessageType == models.VideoMessageType && asset.MediaKind != models.VideoMediaKind {
-		return messages.Invalid_Payload
-	}
-	return ""
+	return attachmentType
 }

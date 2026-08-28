@@ -21,6 +21,7 @@ type SendMessageDTO struct {
 	Body            string             `json:"body" validate:"max=2000"`
 	MessageType     models.MessageType `json:"message_type"`
 	MediaAssetID    *uuid.UUID         `json:"media_asset_id"`
+	MediaAssetIDs   []uuid.UUID        `json:"media_asset_ids" validate:"max=5"`
 }
 
 type AddMembersDTO struct {
@@ -35,4 +36,17 @@ type RemoveMemberDTO struct {
 type MarkReadDTO struct {
 	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
 	MessageID uuid.UUID `json:"message_id" validate:"required"`
+}
+
+type EditMessageDTO struct {
+	Body string `json:"body" validate:"required,max=2000"`
+}
+
+type LeaveConversationDTO struct {
+	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
+}
+
+type UpdateMemberRoleDTO struct {
+	AdminPersonaID uuid.UUID                     `json:"admin_persona_id" validate:"required"`
+	Role           models.ConversationMemberRole `json:"role" validate:"required"`
 }

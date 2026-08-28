@@ -24,6 +24,7 @@ const (
 	TextMessageType   MessageType = "text"
 	ImageMessageType  MessageType = "image"
 	VideoMessageType  MessageType = "video"
+	AudioMessageType  MessageType = "audio"
 	SystemMessageType MessageType = "system"
 )
 
@@ -58,4 +59,11 @@ type Message struct {
 	CreatedAt       time.Time   `json:"created_at"`
 	EditedAt        *time.Time  `json:"edited_at,omitempty"`
 	DeletedAt       *time.Time  `json:"deleted_at,omitempty"`
+}
+
+type MessageAttachment struct {
+	MessageID    uuid.UUID `json:"message_id"`
+	MediaAssetID uuid.UUID `json:"media_asset_id"`
+	Position     int       `json:"position"`
+	CreatedAt    time.Time `json:"created_at"`
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// SendMessage handles message creation for one conversation member.
 func (c *MessagingController) SendMessage(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
@@ -27,6 +28,7 @@ func (c *MessagingController) SendMessage(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
 }
 
+// ListMessages lists visible messages for one conversation member.
 func (c *MessagingController) ListMessages(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
@@ -47,6 +49,7 @@ func (c *MessagingController) ListMessages(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 }
 
+// MarkRead advances the conversation read cursor for one member.
 func (c *MessagingController) MarkRead(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
@@ -67,6 +70,28 @@ func (c *MessagingController) MarkRead(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 }
 
+// EditMessage updates the body of one sender-owned message.
+func (c *MessagingController) EditMessage(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+	messageID, err := uuid.Parse(ctx.Params("messageID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_message_id")
+	}
+	var dto dtos.EditMessageDTO
+	if err := parseAndValidate(ctx, &dto); err != nil {
+		return validationError(ctx, err)
+	}
+	res := c.pipe.EditMessagePipe(ctx.Context(), userID, messageID, dto)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
+}
+
+// DeleteMessage deletes one sender-owned message for every member.
 func (c *MessagingController) DeleteMessage(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {

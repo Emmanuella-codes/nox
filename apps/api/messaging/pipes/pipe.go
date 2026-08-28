@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/emmanuella-codes/nox/messaging/messages"
 	"github.com/emmanuella-codes/nox/models"
+	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
@@ -18,11 +20,12 @@ type MessagingPipe struct {
 	messagingRepo messaging_repo.MessagingRepository
 	personaRepo   persona_repo.PersonaRepository
 	mediaRepo     media_repo.MediaRepository
+	followRepo    follow_repo.FollowRepository
 }
 
 // NewMessagingPipe builds the messaging orchestration layer from repositories.
-func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository) *MessagingPipe {
-	return &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo}
+func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository, followRepo follow_repo.FollowRepository) *MessagingPipe {
+	return &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo, followRepo: followRepo}
 }
 
 // pipeInternalError maps internal messaging errors to pipe responses.
@@ -59,16 +62,18 @@ type MemberPersonaResponse struct {
 }
 
 type MessageResponse struct {
-	ID              string             `json:"id"`
-	ConversationID  string             `json:"conversation_id"`
-	SenderPersonaID string             `json:"sender_persona_id"`
-	Body            string             `json:"body"`
-	MessageType     models.MessageType `json:"message_type"`
-	MediaAssetID    *string            `json:"media_asset_id,omitempty"`
-	Media           *models.MediaAsset `json:"media,omitempty"`
-	Deleted         bool               `json:"deleted"`
-	CreatedAt       string             `json:"created_at"`
-	EditedAt        *string            `json:"edited_at,omitempty"`
+	ID              string               `json:"id"`
+	ConversationID  string               `json:"conversation_id"`
+	SenderPersonaID string               `json:"sender_persona_id"`
+	Body            string               `json:"body"`
+	MessageType     models.MessageType   `json:"message_type"`
+	Attachments     []*models.MediaAsset `json:"attachments"`
+	MediaAssetID    *string              `json:"media_asset_id,omitempty"`
+	Media           *models.MediaAsset   `json:"media,omitempty"`
+	Deleted         bool                 `json:"deleted"`
+	Edited          bool                 `json:"edited"`
+	CreatedAt       string               `json:"created_at"`
+	EditedAt        *string              `json:"edited_at,omitempty"`
 }
 
 // conversationResponse maps one conversation and its related state into the API response shape.
@@ -143,48 +148,65 @@ func (p *MessagingPipe) memberPersonas(ctx context.Context, members []*models.Co
 
 // messageResponse maps one message into the API response shape.
 func (p *MessagingPipe) messageResponse(ctx context.Context, message *models.Message) MessageResponse {
+	attachments := p.messageAttachments(ctx, []uuid.UUID{message.ID})
+	return messageResponseWithAttachments(message, attachments[message.ID])
+}
+
+// messageResponses maps a slice of messages into API response shape.
+func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*models.Message) []MessageResponse {
+	messageIDs := make([]uuid.UUID, 0, len(messageModels))
+	for _, message := range messageModels {
+		messageIDs = append(messageIDs, message.ID)
+	}
+	attachments := p.messageAttachments(ctx, messageIDs)
+	responses := make([]MessageResponse, 0, len(messageModels))
+	for _, message := range messageModels {
+		responses = append(responses, messageResponseWithAttachments(message, attachments[message.ID]))
+	}
+	return responses
+}
+
+// messageAttachments loads attachments for the supplied message ids.
+func (p *MessagingPipe) messageAttachments(ctx context.Context, messageIDs []uuid.UUID) map[uuid.UUID][]*models.MediaAsset {
+	attachments := make(map[uuid.UUID][]*models.MediaAsset, len(messageIDs))
+	if p.messagingRepo == nil || len(messageIDs) == 0 {
+		return attachments
+	}
+	loaded, err := p.messagingRepo.FindMessageAttachmentsByMessageIDs(ctx, messageIDs)
+	if err != nil {
+		return attachments
+	}
+	return loaded
+}
+
+// messageResponseWithAttachments maps one message and its attachments into the API response shape.
+func messageResponseWithAttachments(message *models.Message, attachments []*models.MediaAsset) MessageResponse {
 	var mediaAssetID *string
 	var media *models.MediaAsset
-	if message.MediaAssetID != nil {
-		value := message.MediaAssetID.String()
+	if len(attachments) > 0 {
+		value := attachments[0].ID.String()
 		mediaAssetID = &value
-		if p.mediaRepo != nil && message.DeletedAt == nil {
-			asset, err := p.mediaRepo.FindMediaAssetByID(ctx, *message.MediaAssetID)
-			if err == nil {
-				media = asset
-			}
-		}
+		media = attachments[0]
 	}
 	var editedAt *string
 	if message.EditedAt != nil {
 		value := message.EditedAt.Format(timeFormat)
 		editedAt = &value
 	}
-	body := message.Body
-	if message.DeletedAt != nil {
-		body = ""
-	}
 	return MessageResponse{
 		ID:              message.ID.String(),
 		ConversationID:  message.ConversationID.String(),
 		SenderPersonaID: message.SenderPersonaID.String(),
-		Body:            body,
+		Body:            message.Body,
 		MessageType:     message.MessageType,
+		Attachments:     attachmentsOrEmpty(attachments),
 		MediaAssetID:    mediaAssetID,
 		Media:           media,
 		Deleted:         message.DeletedAt != nil,
+		Edited:          message.EditedAt != nil,
 		CreatedAt:       message.CreatedAt.Format(timeFormat),
 		EditedAt:        editedAt,
 	}
-}
-
-// messageResponses maps a slice of messages into API response shape.
-func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*models.Message) []MessageResponse {
-	responses := make([]MessageResponse, 0, len(messageModels))
-	for _, message := range messageModels {
-		responses = append(responses, p.messageResponse(ctx, message))
-	}
-	return responses
 }
 
 // profilePersona validates that a messaging participant is a real public profile.
@@ -223,7 +245,7 @@ func (p *MessagingPipe) requireMember(ctx context.Context, userID uuid.UUID, con
 
 // validMessageType validates the supported message payload types.
 func validMessageType(messageType models.MessageType) bool {
-	return messageType == models.TextMessageType || messageType == models.ImageMessageType || messageType == models.VideoMessageType
+	return messageType == models.TextMessageType || messageType == models.ImageMessageType || messageType == models.VideoMessageType || messageType == models.AudioMessageType
 }
 
 // normalizeMessageBody trims whitespace from message bodies.
@@ -231,4 +253,36 @@ func normalizeMessageBody(body string) string {
 	return strings.TrimSpace(body)
 }
 
+// normalizeAttachmentIDs merges legacy and multi-attachment payload inputs.
+func normalizeAttachmentIDs(legacy *uuid.UUID, attachmentIDs []uuid.UUID) []uuid.UUID {
+	normalized := make([]uuid.UUID, 0, len(attachmentIDs)+1)
+	seen := map[uuid.UUID]bool{}
+	if legacy != nil && *legacy != uuid.Nil {
+		seen[*legacy] = true
+		normalized = append(normalized, *legacy)
+	}
+	for _, attachmentID := range attachmentIDs {
+		if attachmentID == uuid.Nil || seen[attachmentID] {
+			continue
+		}
+		seen[attachmentID] = true
+		normalized = append(normalized, attachmentID)
+	}
+	return normalized
+}
+
+// attachmentsOrEmpty normalizes nil attachment slices into empty response arrays.
+func attachmentsOrEmpty(attachments []*models.MediaAsset) []*models.MediaAsset {
+	if attachments == nil {
+		return []*models.MediaAsset{}
+	}
+	return attachments
+}
+
+// canMutateMessage reports whether a message is still inside the one-hour mutation window.
+func canMutateMessage(message *models.Message, now time.Time) bool {
+	return now.Before(message.CreatedAt.Add(messageMutationWindow))
+}
+
 const timeFormat = "2006-01-02T15:04:05.999999999Z07:00"
+const messageMutationWindow = time.Hour
