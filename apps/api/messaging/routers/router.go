@@ -8,7 +8,6 @@ import (
 	"github.com/emmanuella-codes/nox/typings"
 )
 
-// MessagingRoutes returns the messaging HTTP route definitions.
 func MessagingRoutes(controller *controllers.MessagingController, cfg *config.Config) []api.RouterSchema {
 	return []api.RouterSchema{
 		{

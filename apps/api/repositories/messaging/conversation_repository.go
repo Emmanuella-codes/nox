@@ -133,14 +133,22 @@ func (r *pgRepository) FindPersonaConversations(ctx context.Context, userID uuid
 		           AND unread.deleted_at IS NULL
 		           AND unread.sender_user_id <> $1
 		           AND (
-		             cm.last_read_message_id IS NULL
-		             OR unread.created_at > COALESCE((SELECT created_at FROM messages WHERE id = cm.last_read_message_id), cm.joined_at)
+		             (cm.last_read_message_id IS NULL AND unread.created_at >= cm.joined_at)
+		             OR EXISTS (
+		               SELECT 1
+		               FROM messages last_read
+		               WHERE last_read.id = cm.last_read_message_id
+		                 AND (
+		                   unread.created_at > last_read.created_at
+		                   OR (unread.created_at = last_read.created_at AND unread.id::text > last_read.id::text)
+		                 )
+		             )
 		           )
 		       )::INT AS unread_count
 		FROM conversation_members cm
 		JOIN conversations c ON c.id = cm.conversation_id
 		WHERE cm.user_id = $1 AND cm.persona_id = $2 AND cm.left_at IS NULL
-		ORDER BY c.updated_at DESC
+		ORDER BY c.updated_at DESC, c.id DESC
 		LIMIT $3 OFFSET $4
 	`, userID, personaID, limit, offset)
 	if err != nil {

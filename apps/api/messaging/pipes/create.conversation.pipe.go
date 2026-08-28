@@ -30,6 +30,7 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 	}
 
 	conversation, err := p.messagingRepo.FindDirectConversationBetweenPersonas(ctx, sender.ID, recipient.ID)
+	createdNew := false
 	if err != nil && !errors.Is(err, messaging_repo.ErrConversationNotFound) {
 		return pipeInternalError[ConversationResponse](err, "messaging.find_direct")
 	}
@@ -40,6 +41,8 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 			if err != nil {
 				return pipeInternalError[ConversationResponse](err, "messaging.create_direct")
 			}
+		} else {
+			createdNew = true
 		}
 	}
 
@@ -52,7 +55,9 @@ func (p *MessagingPipe) CreateDirectConversationPipe(ctx context.Context, userID
 		return pipeInternalError[ConversationResponse](err, "messaging.direct_member_personas")
 	}
 	response := p.conversationResponse(ctx, conversation, members, personas, nil, 0)
-	p.publishConversationEvent(ctx, conversation.ID, "conversation.created", response)
+	if createdNew {
+		p.publishConversationEvent(ctx, conversation.ID, userID, "conversation.created", nil, response)
+	}
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 
@@ -97,7 +102,7 @@ func (p *MessagingPipe) CreateGroupConversationPipe(ctx context.Context, userID 
 		return pipeInternalError[ConversationResponse](err, "messaging.group_member_personas")
 	}
 	response := p.conversationResponse(ctx, conversation, members, personas, nil, 0)
-	p.publishConversationEvent(ctx, conversation.ID, "conversation.created", response)
+	p.publishConversationEvent(ctx, conversation.ID, userID, "conversation.created", nil, response)
 	return shared.PipeSuccess(messages.Conversation_Created, &response)
 }
 

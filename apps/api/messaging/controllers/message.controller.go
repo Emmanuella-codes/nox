@@ -21,6 +21,9 @@ func (c *MessagingController) SendMessage(ctx *fiber.Ctx) error {
 	if err := parseAndValidate(ctx, &dto); err != nil {
 		return validationError(ctx, err)
 	}
+	if dto.IdempotencyKey == "" {
+		dto.IdempotencyKey = ctx.Get("Idempotency-Key")
+	}
 	res := c.pipe.SendMessagePipe(ctx.Context(), userID, conversationID, dto)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)

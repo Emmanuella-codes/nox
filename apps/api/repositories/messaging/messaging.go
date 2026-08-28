@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/emmanuella-codes/nox/messaging/dtos"
@@ -52,8 +53,8 @@ type MessagingRepository interface {
 	UpdateConversationMemberRole(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, role models.ConversationMemberRole) (*models.ConversationMember, error)
 	// RemoveConversationMember marks one member as left and dissolves empty groups.
 	RemoveConversationMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) error
-	// CreateMessage persists one message and its attachments.
-	CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, error)
+	// CreateMessage persists one message and its attachments or reuses an idempotent send.
+	CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, bool, error)
 	// UpdateMessageBody edits one message body and marks it as edited.
 	UpdateMessageBody(ctx context.Context, messageID uuid.UUID, body string) (*models.Message, error)
 	// FindMessagesByConversationID lists visible messages in one conversation.
@@ -66,6 +67,10 @@ type MessagingRepository interface {
 	MarkConversationRead(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, messageID uuid.UUID) (*models.ConversationMember, error)
 	// SoftDeleteMessage hides one message from all members and refreshes conversation state.
 	SoftDeleteMessage(ctx context.Context, messageID uuid.UUID) (*models.Message, error)
+	// AppendConversationEvent stores one replayable conversation event.
+	AppendConversationEvent(ctx context.Context, conversationID uuid.UUID, actorUserID uuid.UUID, eventType string, messageID *uuid.UUID, payload json.RawMessage) (*models.ConversationEvent, error)
+	// FindConversationEventsAfter lists replayable conversation events for one active user after a cursor.
+	FindConversationEventsAfter(ctx context.Context, userID uuid.UUID, afterID int64, limit int) ([]*models.ConversationEvent, error)
 }
 
 // NewMessagingRepository builds the messaging repository from a database pool.

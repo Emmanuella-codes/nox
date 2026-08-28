@@ -3,9 +3,11 @@ package controllers
 import (
 	"bufio"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/emmanuella-codes/nox/middleware"
+	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -29,8 +31,17 @@ func (c *MessagingController) StreamRealtime(ctx *fiber.Ctx) error {
 	if !ok {
 		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
 	}
+	afterID, err := parseRealtimeCursor(ctx)
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_realtime_cursor")
+	}
 	sub, becameOnline := c.realtimeHub.Subscribe(userID)
 	relatedUserIDs, _ := c.messagingRepo.FindRelatedConversationUserIDs(ctx.Context(), userID)
+	replay, err := c.messagingRepo.FindConversationEventsAfter(ctx.Context(), userID, afterID, 250)
+	if err != nil {
+		c.cleanupRealtimeSubscription(sub, relatedUserIDs)
+		return pipeError(ctx, fiber.StatusInternalServerError, "internal_error")
+	}
 	if becameOnline {
 		c.publishPresence(relatedUserIDs, userID.String(), true)
 	}
@@ -41,17 +52,33 @@ func (c *MessagingController) StreamRealtime(ctx *fiber.Ctx) error {
 	ctx.Set("X-Accel-Buffering", "no")
 	ctx.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		defer c.cleanupRealtimeSubscription(sub, relatedUserIDs)
+		lastEventID := afterID
+		for _, event := range replay {
+			if c.writeReplayEvent(w, event) != nil {
+				return
+			}
+			lastEventID = event.ID
+		}
 		c.writePresenceSnapshot(w, relatedUserIDs)
 		ticker := time.NewTicker(20 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
-			case payload, ok := <-sub.Events:
-				if !ok || realtime.WriteSSE(w, payload) != nil {
+			case event, ok := <-sub.Events:
+				if !ok {
 					return
 				}
+				if eventCursor(event) <= lastEventID && eventCursor(event) != 0 {
+					continue
+				}
+				if realtime.WriteEvent(w, event) != nil {
+					return
+				}
+				if cursor := eventCursor(event); cursor > lastEventID {
+					lastEventID = cursor
+				}
 			case <-ticker.C:
-				if realtime.WriteSSEComment(w, "ping") != nil {
+				if realtime.WriteComment(w, "ping") != nil {
 					return
 				}
 			}
@@ -74,11 +101,7 @@ func (c *MessagingController) writePresenceSnapshot(w *bufio.Writer, relatedUser
 	for _, userID := range online {
 		onlineIDs = append(onlineIDs, userID.String())
 	}
-	payload, err := json.Marshal(realtime.Event{Type: "presence.snapshot", Data: presenceSnapshot{OnlineUserIDs: onlineIDs}})
-	if err != nil {
-		return
-	}
-	_ = realtime.WriteSSE(w, payload)
+	_ = realtime.WriteEvent(w, realtime.Event{Type: "presence.snapshot", Data: presenceSnapshot{OnlineUserIDs: onlineIDs}})
 }
 
 // broadcasts one presence update to the supplied users.
@@ -90,4 +113,38 @@ func (c *MessagingController) publishPresence(userIDs []uuid.UUID, actorUserID s
 		Type: "presence.updated",
 		Data: presenceUpdate{UserID: actorUserID, Online: online},
 	})
+}
+
+// writes one stored conversation event to the realtime stream.
+func (c *MessagingController) writeReplayEvent(w *bufio.Writer, event *models.ConversationEvent) error {
+	return realtime.WriteEvent(w, realtime.Event{
+		ID:        strconv.FormatInt(event.ID, 10),
+		Type:      event.EventType,
+		Data:      json.RawMessage(event.Payload),
+		CreatedAt: event.CreatedAt.Format(time.RFC3339Nano),
+	})
+}
+
+// resolves one reconnect cursor from query or SSE headers.
+func parseRealtimeCursor(ctx *fiber.Ctx) (int64, error) {
+	value := ctx.Query("after")
+	if value == "" {
+		value = ctx.Get("Last-Event-ID")
+	}
+	if value == "" {
+		return 0, nil
+	}
+	return strconv.ParseInt(value, 10, 64)
+}
+
+// extracts one numeric event cursor from a live realtime payload.
+func eventCursor(event realtime.Event) int64 {
+	if event.ID == "" {
+		return 0
+	}
+	cursor, err := strconv.ParseInt(event.ID, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return cursor
 }

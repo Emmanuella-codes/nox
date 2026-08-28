@@ -7,16 +7,27 @@ import (
 	"github.com/emmanuella-codes/nox/messaging/dtos"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// persists one message and its attachments.
-func (r *pgRepository) CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, error) {
+// persists one message and its attachments or reuses an idempotent send.
+func (r *pgRepository) CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, bool, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	idempotencyKey := normalizedIdempotencyKey(dto.IdempotencyKey)
+	if idempotencyKey != "" {
+		existing, err := findMessageByRequestKey(ctx, tx, conversationID, senderUserID, idempotencyKey)
+		if err == nil {
+			return existing, false, nil
+		}
+		if !errors.Is(err, ErrMessageNotFound) {
+			return nil, false, err
+		}
+	}
 	attachments := normalizedAttachmentIDs(dto)
 	row := tx.QueryRow(ctx, `
 		INSERT INTO messages (conversation_id, sender_user_id, sender_persona_id, body, message_type, media_asset_id)
@@ -26,18 +37,31 @@ func (r *pgRepository) CreateMessage(ctx context.Context, conversationID uuid.UU
 	`, conversationID, senderUserID, dto.SenderPersonaID, dto.Body, dto.MessageType, firstAttachmentID(attachments))
 	message, err := scanMessage(row)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if err := insertMessageAttachments(ctx, tx, message.ID, attachments); err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	if idempotencyKey != "" {
+		if err := storeMessageRequestKey(ctx, tx, conversationID, senderUserID, idempotencyKey, message.ID); err != nil {
+			var pgErr *pgconn.PgError
+			if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+				return nil, false, err
+			}
+			existing, existingErr := findMessageByRequestKey(ctx, r.db, conversationID, senderUserID, idempotencyKey)
+			if existingErr != nil {
+				return nil, false, existingErr
+			}
+			return existing, false, nil
+		}
 	}
 	if err := refreshConversationLastMessage(ctx, tx, conversationID); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return message, nil
+	return message, true, nil
 }
 
 // edits one message body and marks it as edited.
@@ -60,7 +84,7 @@ func (r *pgRepository) FindMessagesByConversationID(ctx context.Context, convers
 		       media_asset_id, created_at, edited_at, deleted_at
 		FROM messages
 		WHERE conversation_id = $1 AND deleted_at IS NULL
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT $2 OFFSET $3
 	`, conversationID, limit, offset)
 	if err != nil {
@@ -114,25 +138,33 @@ func (r *pgRepository) FindMessageAttachmentsByMessageIDs(ctx context.Context, m
 
 // advances the member read cursor for one conversation.
 func (r *pgRepository) MarkConversationRead(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, messageID uuid.UUID) (*models.ConversationMember, error) {
+	member, err := r.FindMember(ctx, conversationID, personaID)
+	if err != nil {
+		return nil, err
+	}
+	candidate, err := r.FindMessageByID(ctx, messageID)
+	if err != nil {
+		return nil, err
+	}
+	if candidate.ConversationID != conversationID || candidate.DeletedAt != nil {
+		return member, nil
+	}
+	if member.LastReadMessageID != nil {
+		current, err := r.FindMessageByID(ctx, *member.LastReadMessageID)
+		if err != nil && !errors.Is(err, ErrMessageNotFound) {
+			return nil, err
+		}
+		if err == nil && !messageCursorAfter(candidate, current) {
+			return member, nil
+		}
+	}
 	row := r.db.QueryRow(ctx, `
 		UPDATE conversation_members
 		SET last_read_message_id = $3
 		WHERE conversation_id = $1 AND persona_id = $2 AND left_at IS NULL
-		  AND (
-		    last_read_message_id IS NULL
-		    OR (SELECT created_at FROM messages WHERE id = $3 AND conversation_id = $1) >
-		       COALESCE((SELECT created_at FROM messages WHERE id = last_read_message_id), joined_at)
-		  )
 		RETURNING conversation_id, user_id, persona_id, role, last_read_message_id, joined_at, left_at
 	`, conversationID, personaID, messageID)
-	member, err := scanMember(row)
-	if err == nil {
-		return member, nil
-	}
-	if errors.Is(err, ErrMembershipNotFound) {
-		return r.FindMember(ctx, conversationID, personaID)
-	}
-	return nil, err
+	return scanMember(row)
 }
 
 // hides one message from all members and refreshes conversation state.

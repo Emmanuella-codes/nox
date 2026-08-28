@@ -288,6 +288,7 @@ type messagingTestRepo struct {
 	createGroupCalls            int
 	createdMessageDTO           messaging_dtos.SendMessageDTO
 	createMessageResult         *models.Message
+	createMessageCreated        bool
 	messages                    map[uuid.UUID]*models.Message
 	deletedMessageResult        *models.Message
 	attachmentsByMessage        map[uuid.UUID][]*models.MediaAsset
@@ -399,12 +400,12 @@ func (r *messagingTestRepo) RemoveConversationMember(ctx context.Context, conver
 }
 
 // CreateMessage records the outbound message payload and returns the configured message result.
-func (r *messagingTestRepo) CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto messaging_dtos.SendMessageDTO) (*models.Message, error) {
+func (r *messagingTestRepo) CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto messaging_dtos.SendMessageDTO) (*models.Message, bool, error) {
 	r.createdMessageDTO = dto
 	if r.createMessageResult != nil {
-		return r.createMessageResult, nil
+		return r.createMessageResult, r.createMessageCreated, nil
 	}
-	return &models.Message{ID: uuid.New(), ConversationID: conversationID, SenderUserID: senderUserID, SenderPersonaID: dto.SenderPersonaID, Body: dto.Body, MessageType: dto.MessageType, CreatedAt: time.Now()}, nil
+	return &models.Message{ID: uuid.New(), ConversationID: conversationID, SenderUserID: senderUserID, SenderPersonaID: dto.SenderPersonaID, Body: dto.Body, MessageType: dto.MessageType, CreatedAt: time.Now()}, true, nil
 }
 
 // UpdateMessageBody returns the updated message fixture for edit flows.

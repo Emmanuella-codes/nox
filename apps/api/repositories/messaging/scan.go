@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
@@ -183,4 +184,37 @@ func scanUUIDs(rows pgx.Rows) ([]uuid.UUID, error) {
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// scanConversationEvent scans one event-log row into the model shape.
+func scanConversationEvent(scanner conversationScanner) (*models.ConversationEvent, error) {
+	var event models.ConversationEvent
+	var payload []byte
+	err := scanner.Scan(
+		&event.ID,
+		&event.ConversationID,
+		&event.ActorUserID,
+		&event.EventType,
+		&event.MessageID,
+		&payload,
+		&event.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	event.Payload = json.RawMessage(payload)
+	return &event, nil
+}
+
+// scanConversationEvents scans many event-log rows into model values.
+func scanConversationEvents(rows pgx.Rows) ([]*models.ConversationEvent, error) {
+	events := make([]*models.ConversationEvent, 0)
+	for rows.Next() {
+		event, err := scanConversationEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, rows.Err()
 }

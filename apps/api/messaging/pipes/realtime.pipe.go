@@ -2,6 +2,8 @@ package pipes
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/shared/realtime"
@@ -24,8 +26,56 @@ type typingEventPayload struct {
 	Active         bool   `json:"active"`
 }
 
-// publishConversationEvent sends one realtime event to all active users in a conversation.
-func (p *MessagingPipe) publishConversationEvent(ctx context.Context, conversationID uuid.UUID, eventType string, data any) {
+// publishConversationEvent stores and broadcasts one replayable conversation event.
+func (p *MessagingPipe) publishConversationEvent(ctx context.Context, conversationID uuid.UUID, actorUserID uuid.UUID, eventType string, messageID *uuid.UUID, data any) {
+	if p.messagingRepo == nil {
+		return
+	}
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	stored, err := p.messagingRepo.AppendConversationEvent(ctx, conversationID, actorUserID, eventType, messageID, payload)
+	if err != nil {
+		return
+	}
+	if p.realtimeHub == nil {
+		return
+	}
+	userIDs, err := p.messagingRepo.FindConversationMemberUserIDs(ctx, conversationID)
+	if err != nil || len(userIDs) == 0 {
+		return
+	}
+	_ = p.realtimeHub.PublishUsers(userIDs, realtime.Event{
+		ID:        strconv.FormatInt(stored.ID, 10),
+		Type:      eventType,
+		Data:      data,
+		CreatedAt: stored.CreatedAt.Format(timeFormat),
+	})
+}
+
+// publishMessageEvent stores and broadcasts one replayable message event.
+func (p *MessagingPipe) publishMessageEvent(ctx context.Context, actorUserID uuid.UUID, eventType string, message *models.Message) {
+	p.publishConversationEvent(ctx, message.ConversationID, actorUserID, eventType, &message.ID, messageEventPayload{
+		ConversationID: message.ConversationID.String(),
+		Message:        p.messageResponse(ctx, message),
+	})
+}
+
+// publishMemberEvent stores and broadcasts one replayable member event.
+func (p *MessagingPipe) publishMemberEvent(ctx context.Context, actorUserID uuid.UUID, eventType string, member *models.ConversationMember) {
+	personas, err := p.memberPersonas(ctx, []*models.ConversationMember{member})
+	if err != nil {
+		return
+	}
+	p.publishConversationEvent(ctx, member.ConversationID, actorUserID, eventType, nil, memberEventPayload{
+		ConversationID: member.ConversationID.String(),
+		Member:         memberResponses([]*models.ConversationMember{member}, personas)[0],
+	})
+}
+
+// publishTypingEvent broadcasts one ephemeral typing event.
+func (p *MessagingPipe) publishTypingEvent(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, active bool) {
 	if p.realtimeHub == nil || p.messagingRepo == nil {
 		return
 	}
@@ -33,34 +83,12 @@ func (p *MessagingPipe) publishConversationEvent(ctx context.Context, conversati
 	if err != nil || len(userIDs) == 0 {
 		return
 	}
-	_ = p.realtimeHub.PublishUsers(userIDs, realtime.Event{Type: eventType, Data: data})
-}
-
-// publishMessageEvent sends one realtime message event to a conversation audience.
-func (p *MessagingPipe) publishMessageEvent(ctx context.Context, eventType string, message *models.Message) {
-	p.publishConversationEvent(ctx, message.ConversationID, eventType, messageEventPayload{
-		ConversationID: message.ConversationID.String(),
-		Message:        p.messageResponse(ctx, message),
-	})
-}
-
-// publishMemberEvent sends one realtime member event to a conversation audience.
-func (p *MessagingPipe) publishMemberEvent(ctx context.Context, eventType string, member *models.ConversationMember) {
-	personas, err := p.memberPersonas(ctx, []*models.ConversationMember{member})
-	if err != nil {
-		return
-	}
-	p.publishConversationEvent(ctx, member.ConversationID, eventType, memberEventPayload{
-		ConversationID: member.ConversationID.String(),
-		Member:         memberResponses([]*models.ConversationMember{member}, personas)[0],
-	})
-}
-
-// publishTypingEvent sends one realtime typing event to a conversation audience.
-func (p *MessagingPipe) publishTypingEvent(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, active bool) {
-	p.publishConversationEvent(ctx, conversationID, "typing.updated", typingEventPayload{
-		ConversationID: conversationID.String(),
-		PersonaID:      personaID.String(),
-		Active:         active,
+	_ = p.realtimeHub.PublishUsers(userIDs, realtime.Event{
+		Type: "typing.updated",
+		Data: typingEventPayload{
+			ConversationID: conversationID.String(),
+			PersonaID:      personaID.String(),
+			Active:         active,
+		},
 	})
 }

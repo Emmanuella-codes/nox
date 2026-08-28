@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -66,4 +67,14 @@ type MessageAttachment struct {
 	MediaAssetID uuid.UUID `json:"media_asset_id"`
 	Position     int       `json:"position"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type ConversationEvent struct {
+	ID             int64           `json:"id"`
+	ConversationID uuid.UUID       `json:"conversation_id"`
+	ActorUserID    uuid.UUID       `json:"actor_user_id"`
+	EventType      string          `json:"event_type"`
+	MessageID      *uuid.UUID      `json:"message_id,omitempty"`
+	Payload        json.RawMessage `json:"payload"`
+	CreatedAt      time.Time       `json:"created_at"`
 }

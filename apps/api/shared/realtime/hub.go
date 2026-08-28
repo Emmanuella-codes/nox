@@ -1,21 +1,22 @@
 package realtime
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/google/uuid"
 )
 
 type Event struct {
-	Type string `json:"type"`
-	Data any    `json:"data"`
+	ID        string `json:"id,omitempty"`
+	Type      string `json:"type"`
+	Data      any    `json:"data"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 type Subscription struct {
 	ID     uuid.UUID
 	UserID uuid.UUID
-	Events chan []byte
+	Events chan Event
 }
 
 type Hub struct {
@@ -37,7 +38,7 @@ func (h *Hub) Subscribe(userID uuid.UUID) (*Subscription, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	sub := &Subscription{ID: uuid.New(), UserID: userID, Events: make(chan []byte, 32)}
+	sub := &Subscription{ID: uuid.New(), UserID: userID, Events: make(chan Event, 32)}
 	if h.userSubs[userID] == nil {
 		h.userSubs[userID] = map[uuid.UUID]*Subscription{}
 	}
@@ -72,17 +73,12 @@ func (h *Hub) Unsubscribe(sub *Subscription) bool {
 
 // sends one event to all active subscriptions for the supplied users.
 func (h *Hub) PublishUsers(userIDs []uuid.UUID, event Event) error {
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for _, userID := range userIDs {
 		for _, sub := range h.userSubs[userID] {
 			select {
-			case sub.Events <- payload:
+			case sub.Events <- event:
 			default:
 			}
 		}

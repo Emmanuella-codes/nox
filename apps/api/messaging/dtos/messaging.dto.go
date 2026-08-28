@@ -22,6 +22,7 @@ type SendMessageDTO struct {
 	MessageType     models.MessageType `json:"message_type"`
 	MediaAssetID    *uuid.UUID         `json:"media_asset_id"`
 	MediaAssetIDs   []uuid.UUID        `json:"media_asset_ids" validate:"max=5"`
+	IdempotencyKey  string             `json:"idempotency_key" validate:"max=80"`
 }
 
 type AddMembersDTO struct {

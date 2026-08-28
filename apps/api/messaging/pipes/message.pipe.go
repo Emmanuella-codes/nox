@@ -3,6 +3,7 @@ package pipes
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/emmanuella-codes/nox/messaging/dtos"
@@ -17,6 +18,7 @@ import (
 // SendMessagePipe validates membership, payload shape, and attachments before persisting one message.
 func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, dto dtos.SendMessageDTO) *shared.PipeRes[MessageResponse] {
 	dto.Body = normalizeMessageBody(dto.Body)
+	dto.IdempotencyKey = strings.TrimSpace(dto.IdempotencyKey)
 	attachmentIDs := normalizeAttachmentIDs(dto.MediaAssetID, dto.MediaAssetIDs)
 	dto.MediaAssetID = nil
 	dto.MediaAssetIDs = attachmentIDs
@@ -49,13 +51,15 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	if !validMessageType(dto.MessageType) {
 		return shared.PipeError[MessageResponse](messages.Invalid_Payload)
 	}
-	created, err := p.messagingRepo.CreateMessage(ctx, conversationID, userID, dto)
+	created, createdNew, err := p.messagingRepo.CreateMessage(ctx, conversationID, userID, dto)
 	if err != nil {
 		return pipeInternalError[MessageResponse](err, "messaging.send_message")
 	}
 	response := p.messageResponse(ctx, created)
-	p.publishMessageEvent(ctx, "message.created", created)
-	p.publishTypingEvent(ctx, conversationID, dto.SenderPersonaID, false)
+	if createdNew {
+		p.publishMessageEvent(ctx, userID, "message.created", created)
+		p.publishTypingEvent(ctx, conversationID, dto.SenderPersonaID, false)
+	}
 	return shared.PipeSuccess(messages.Message_Sent, &response)
 }
 
@@ -78,7 +82,8 @@ func (p *MessagingPipe) ListMessagesPipe(ctx context.Context, userID uuid.UUID, 
 
 // MarkReadPipe advances the current member read cursor to a visible message.
 func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, dto dtos.MarkReadDTO) *shared.PipeRes[MemberResponse] {
-	if _, message := p.requireMember(ctx, userID, conversationID, dto.PersonaID); message != "" {
+	memberBefore, message := p.requireMember(ctx, userID, conversationID, dto.PersonaID)
+	if message != "" {
 		return shared.PipeError[MemberResponse](message)
 	}
 	messageModel, err := p.messagingRepo.FindMessageByID(ctx, dto.MessageID)
@@ -103,7 +108,9 @@ func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conv
 		return pipeInternalError[MemberResponse](err, "messaging.mark_read_persona")
 	}
 	response := memberResponses([]*models.ConversationMember{member}, personas)[0]
-	p.publishConversationEvent(ctx, conversationID, "conversation.read", response)
+	if member.LastReadMessageID != nil && (memberBefore.LastReadMessageID == nil || *memberBefore.LastReadMessageID != *member.LastReadMessageID) {
+		p.publishConversationEvent(ctx, conversationID, userID, "conversation.read", &messageModel.ID, response)
+	}
 	return shared.PipeSuccess(messages.Conversation_Read, &response)
 }
 
@@ -131,7 +138,7 @@ func (p *MessagingPipe) EditMessagePipe(ctx context.Context, userID uuid.UUID, m
 		return pipeInternalError[MessageResponse](err, "messaging.edit_message")
 	}
 	response := p.messageResponse(ctx, updated)
-	p.publishMessageEvent(ctx, "message.updated", updated)
+	p.publishMessageEvent(ctx, userID, "message.updated", updated)
 	return shared.PipeSuccess(messages.Message_Updated, &response)
 }
 
@@ -152,7 +159,7 @@ func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID,
 		return pipeInternalError[MessageResponse](err, "messaging.delete_message")
 	}
 	response := p.messageResponse(ctx, deleted)
-	p.publishMessageEvent(ctx, "message.deleted", deleted)
+	p.publishMessageEvent(ctx, userID, "message.deleted", deleted)
 	return shared.PipeSuccess(messages.Message_Deleted, &response)
 }
 

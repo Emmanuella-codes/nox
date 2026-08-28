@@ -45,7 +45,7 @@ func (p *MessagingPipe) AddMembersPipe(ctx context.Context, userID uuid.UUID, co
 	}
 	responses := memberResponses(added, personasByID)
 	for _, member := range added {
-		p.publishMemberEvent(ctx, "conversation.member_added", member)
+		p.publishMemberEvent(ctx, userID, "conversation.member_added", member)
 	}
 	return shared.PipeSuccess(messages.Members_Added, &responses)
 }
@@ -72,7 +72,7 @@ func (p *MessagingPipe) RemoveMemberPipe(ctx context.Context, userID uuid.UUID, 
 		}
 		return pipeInternalError[any](err, "messaging.remove_member")
 	}
-	p.publishConversationEvent(ctx, conversationID, "conversation.member_removed", map[string]string{
+	p.publishConversationEvent(ctx, conversationID, userID, "conversation.member_removed", nil, map[string]string{
 		"conversation_id": conversationID.String(),
 		"persona_id":      targetPersonaID.String(),
 	})
@@ -101,7 +101,7 @@ func (p *MessagingPipe) LeaveConversationPipe(ctx context.Context, userID uuid.U
 		}
 		return pipeInternalError[any](err, "messaging.leave_member")
 	}
-	p.publishConversationEvent(ctx, conversationID, "conversation.member_left", map[string]string{
+	p.publishConversationEvent(ctx, conversationID, userID, "conversation.member_left", nil, map[string]string{
 		"conversation_id": conversationID.String(),
 		"persona_id":      member.PersonaID.String(),
 	})
@@ -136,7 +136,7 @@ func (p *MessagingPipe) UpdateMemberRolePipe(ctx context.Context, userID uuid.UU
 		return pipeInternalError[MemberResponse](err, "messaging.update_member_role_persona")
 	}
 	response := memberResponses([]*models.ConversationMember{updated}, personas)[0]
-	p.publishMemberEvent(ctx, "conversation.member_role_updated", updated)
+	p.publishMemberEvent(ctx, userID, "conversation.member_role_updated", updated)
 	return shared.PipeSuccess(messages.Member_Role_Updated, &response)
 }
 
