@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateDirectConversation creates one direct conversation between two profiles.
+// creates one direct conversation between two profiles.
 func (r *pgRepository) CreateDirectConversation(ctx context.Context, creator *models.Persona, recipient *models.Persona) (*models.Conversation, error) {
 	personaAID, personaBID := orderedPersonaIDs(creator.ID, recipient.ID)
 	tx, err := r.db.Begin(ctx)
@@ -42,7 +42,7 @@ func (r *pgRepository) CreateDirectConversation(ctx context.Context, creator *mo
 	return conversation, nil
 }
 
-// FindDirectConversationBetweenPersonas finds the direct conversation for two profiles.
+// finds the direct conversation for two profiles.
 func (r *pgRepository) FindDirectConversationBetweenPersonas(ctx context.Context, personaAID uuid.UUID, personaBID uuid.UUID) (*models.Conversation, error) {
 	personaAID, personaBID = orderedPersonaIDs(personaAID, personaBID)
 	row := r.db.QueryRow(ctx, `
@@ -54,7 +54,7 @@ func (r *pgRepository) FindDirectConversationBetweenPersonas(ctx context.Context
 	return scanConversation(row)
 }
 
-// CreateGroupConversation creates one group conversation for the creator and invited members.
+// creates one group conversation for the creator and invited members.
 func (r *pgRepository) CreateGroupConversation(ctx context.Context, creator *models.Persona, members []*models.Persona, dto dtos.CreateGroupConversationDTO) (*models.Conversation, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -83,7 +83,7 @@ func (r *pgRepository) CreateGroupConversation(ctx context.Context, creator *mod
 	return conversation, nil
 }
 
-// FindConversationByID fetches one conversation by id.
+// fetches one conversation by id.
 func (r *pgRepository) FindConversationByID(ctx context.Context, conversationID uuid.UUID) (*models.Conversation, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, conversation_type, title, created_by, last_message_id, created_at, updated_at
@@ -93,7 +93,7 @@ func (r *pgRepository) FindConversationByID(ctx context.Context, conversationID 
 	return scanConversation(row)
 }
 
-// DeleteConversation removes one conversation and all dependent rows.
+// removes one conversation and all dependent rows.
 func (r *pgRepository) DeleteConversation(ctx context.Context, conversationID uuid.UUID) error {
 	commandTag, err := r.db.Exec(ctx, `
 		DELETE FROM conversations
@@ -108,7 +108,7 @@ func (r *pgRepository) DeleteConversation(ctx context.Context, conversationID uu
 	return nil
 }
 
-// ConversationBelongsToInactiveCrew reports whether a crew-linked conversation is inactive.
+// reports whether a crew-linked conversation is inactive.
 func (r *pgRepository) ConversationBelongsToInactiveCrew(ctx context.Context, conversationID uuid.UUID) (bool, error) {
 	var inactive bool
 	err := r.db.QueryRow(ctx, `
@@ -122,7 +122,7 @@ func (r *pgRepository) ConversationBelongsToInactiveCrew(ctx context.Context, co
 	return inactive, err
 }
 
-// FindPersonaConversations lists the conversations for one member profile.
+// lists the conversations for one member profile.
 func (r *pgRepository) FindPersonaConversations(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*ConversationListItem, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT c.id, c.conversation_type, c.title, c.created_by, c.last_message_id, c.created_at, c.updated_at,

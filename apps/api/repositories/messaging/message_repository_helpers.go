@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// normalizedAttachmentIDs merges legacy and multi-attachment inputs into one ordered list.
+// merges legacy and multi-attachment inputs into one ordered list.
 func normalizedAttachmentIDs(dto dtos.SendMessageDTO) []uuid.UUID {
 	ids := make([]uuid.UUID, 0, len(dto.MediaAssetIDs)+1)
 	seen := map[uuid.UUID]bool{}
@@ -26,7 +26,7 @@ func normalizedAttachmentIDs(dto dtos.SendMessageDTO) []uuid.UUID {
 	return ids
 }
 
-// firstAttachmentID returns the first attachment id for legacy message storage.
+// returns the first attachment id for legacy message storage.
 func firstAttachmentID(attachmentIDs []uuid.UUID) any {
 	if len(attachmentIDs) == 0 {
 		return nil
@@ -34,7 +34,7 @@ func firstAttachmentID(attachmentIDs []uuid.UUID) any {
 	return attachmentIDs[0]
 }
 
-// insertMessageAttachments persists attachment rows for one message.
+// persists attachment rows for one message.
 func insertMessageAttachments(ctx context.Context, db execQuerier, messageID uuid.UUID, attachmentIDs []uuid.UUID) error {
 	for position, mediaAssetID := range attachmentIDs {
 		if err := db.QueryRow(ctx, `
@@ -48,7 +48,7 @@ func insertMessageAttachments(ctx context.Context, db execQuerier, messageID uui
 	return nil
 }
 
-// refreshConversationLastMessage updates the conversation pointer to the latest visible message.
+// updates the conversation pointer to the latest visible message.
 func refreshConversationLastMessage(ctx context.Context, db execQuerier, conversationID uuid.UUID) error {
 	var lastMessageID *uuid.UUID
 	if err := db.QueryRow(ctx, `
@@ -70,7 +70,7 @@ func refreshConversationLastMessage(ctx context.Context, db execQuerier, convers
 	return err
 }
 
-// dissolveConversationIfEmpty deletes a conversation when no active members remain.
+// deletes a conversation when no active members remain.
 func dissolveConversationIfEmpty(ctx context.Context, db execQuerier, conversationID uuid.UUID) error {
 	var activeCount int
 	if err := db.QueryRow(ctx, `

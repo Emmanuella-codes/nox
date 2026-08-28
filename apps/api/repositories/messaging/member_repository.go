@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// FindConversationMembers fetches active members for one conversation.
+// fetches active members for one conversation.
 func (r *pgRepository) FindConversationMembers(ctx context.Context, conversationID uuid.UUID) ([]*models.ConversationMember, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT conversation_id, user_id, persona_id, role, last_read_message_id, joined_at, left_at
@@ -22,7 +22,7 @@ func (r *pgRepository) FindConversationMembers(ctx context.Context, conversation
 	return scanMembers(rows)
 }
 
-// FindMember fetches one active conversation member by profile id.
+// fetches one active conversation member by profile id.
 func (r *pgRepository) FindMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT conversation_id, user_id, persona_id, role, last_read_message_id, joined_at, left_at
@@ -32,7 +32,7 @@ func (r *pgRepository) FindMember(ctx context.Context, conversationID uuid.UUID,
 	return scanMember(row)
 }
 
-// AddConversationMembers inserts or reactivates members in a conversation.
+// inserts or reactivates members in a conversation.
 func (r *pgRepository) AddConversationMembers(ctx context.Context, conversationID uuid.UUID, members []*models.Persona) ([]*models.ConversationMember, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -54,7 +54,7 @@ func (r *pgRepository) AddConversationMembers(ctx context.Context, conversationI
 	return inserted, nil
 }
 
-// UpdateConversationMemberRole updates one member role in a group conversation.
+// updates one member role in a group conversation.
 func (r *pgRepository) UpdateConversationMemberRole(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, role models.ConversationMemberRole) (*models.ConversationMember, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE conversation_members
@@ -65,7 +65,7 @@ func (r *pgRepository) UpdateConversationMemberRole(ctx context.Context, convers
 	return scanMember(row)
 }
 
-// RemoveConversationMember marks one member as left and dissolves empty groups.
+// marks one member as left and dissolves empty groups.
 func (r *pgRepository) RemoveConversationMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -90,7 +90,7 @@ func (r *pgRepository) RemoveConversationMember(ctx context.Context, conversatio
 	return tx.Commit(ctx)
 }
 
-// findMembersByConversationIDs fetches members for a set of conversations.
+// fetches members for a set of conversations.
 func (r *pgRepository) findMembersByConversationIDs(ctx context.Context, conversationIDs []uuid.UUID) ([]*models.ConversationMember, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT conversation_id, user_id, persona_id, role, last_read_message_id, joined_at, left_at

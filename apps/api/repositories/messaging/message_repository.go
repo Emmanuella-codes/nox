@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateMessage persists one message and its attachments.
+// persists one message and its attachments.
 func (r *pgRepository) CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -40,7 +40,7 @@ func (r *pgRepository) CreateMessage(ctx context.Context, conversationID uuid.UU
 	return message, nil
 }
 
-// UpdateMessageBody edits one message body and marks it as edited.
+// edits one message body and marks it as edited.
 func (r *pgRepository) UpdateMessageBody(ctx context.Context, messageID uuid.UUID, body string) (*models.Message, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE messages
@@ -53,7 +53,7 @@ func (r *pgRepository) UpdateMessageBody(ctx context.Context, messageID uuid.UUI
 	return scanMessage(row)
 }
 
-// FindMessagesByConversationID lists visible messages in one conversation.
+// lists visible messages in one conversation.
 func (r *pgRepository) FindMessagesByConversationID(ctx context.Context, conversationID uuid.UUID, limit int, offset int) ([]*models.Message, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
@@ -70,7 +70,7 @@ func (r *pgRepository) FindMessagesByConversationID(ctx context.Context, convers
 	return scanMessages(rows)
 }
 
-// FindMessageByID fetches one message by id, including deleted messages.
+// fetches one message by id, including deleted messages.
 func (r *pgRepository) FindMessageByID(ctx context.Context, messageID uuid.UUID) (*models.Message, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
@@ -81,7 +81,7 @@ func (r *pgRepository) FindMessageByID(ctx context.Context, messageID uuid.UUID)
 	return scanMessage(row)
 }
 
-// FindMessageAttachmentsByMessageIDs fetches attachments for a set of message ids.
+// fetches attachments for a set of message ids.
 func (r *pgRepository) FindMessageAttachmentsByMessageIDs(ctx context.Context, messageIDs []uuid.UUID) (map[uuid.UUID][]*models.MediaAsset, error) {
 	attachmentsByMessage := make(map[uuid.UUID][]*models.MediaAsset, len(messageIDs))
 	if len(messageIDs) == 0 {
@@ -112,7 +112,7 @@ func (r *pgRepository) FindMessageAttachmentsByMessageIDs(ctx context.Context, m
 	return attachmentsByMessage, rows.Err()
 }
 
-// MarkConversationRead advances the member read cursor for one conversation.
+// advances the member read cursor for one conversation.
 func (r *pgRepository) MarkConversationRead(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, messageID uuid.UUID) (*models.ConversationMember, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE conversation_members
@@ -135,7 +135,7 @@ func (r *pgRepository) MarkConversationRead(ctx context.Context, conversationID 
 	return nil, err
 }
 
-// SoftDeleteMessage hides one message from all members and refreshes conversation state.
+// hides one message from all members and refreshes conversation state.
 func (r *pgRepository) SoftDeleteMessage(ctx context.Context, messageID uuid.UUID) (*models.Message, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
