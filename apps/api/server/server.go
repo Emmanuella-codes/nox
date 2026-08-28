@@ -116,7 +116,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification, notificationPipe), repos.Messaging, realtimeHub)
 	notificationController := notification_controllers.NewNotificationController(notificationPipe, notificationHub)
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
-	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
+	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Notification, notificationPipe))
 
 	api := app.Group("/api/v1")
 

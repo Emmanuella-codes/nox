@@ -39,17 +39,20 @@ type NotificationActorResponse struct {
 }
 
 type NotificationResponse struct {
-	ID               string                    `json:"id"`
-	PersonaID        string                    `json:"persona_id"`
-	Actor            NotificationActorResponse `json:"actor"`
-	ConversationID   *string                   `json:"conversation_id,omitempty"`
-	MessageID        *string                   `json:"message_id,omitempty"`
-	PostID           *string                   `json:"post_id,omitempty"`
-	CommentID        *string                   `json:"comment_id,omitempty"`
-	IsRead           bool                      `json:"is_read"`
-	ReadAt           *string                   `json:"read_at,omitempty"`
-	NotificationType models.NotificationType   `json:"notification_type"`
-	CreatedAt        string                    `json:"created_at"`
+	ID                         string                    `json:"id"`
+	PersonaID                  string                    `json:"persona_id"`
+	Actor                      NotificationActorResponse `json:"actor"`
+	ConversationID             *string                   `json:"conversation_id,omitempty"`
+	MessageID                  *string                   `json:"message_id,omitempty"`
+	PostID                     *string                   `json:"post_id,omitempty"`
+	CommentID                  *string                   `json:"comment_id,omitempty"`
+	EventID                    *string                   `json:"event_id,omitempty"`
+	StoryID                    *string                   `json:"story_id,omitempty"`
+	StoryContributionRequestID *string                   `json:"story_contribution_request_id,omitempty"`
+	IsRead                     bool                      `json:"is_read"`
+	ReadAt                     *string                   `json:"read_at,omitempty"`
+	NotificationType           models.NotificationType   `json:"notification_type"`
+	CreatedAt                  string                    `json:"created_at"`
 }
 
 type NotificationListResponse struct {
@@ -102,6 +105,9 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 	var messageID *string
 	var postID *string
 	var commentID *string
+	var eventID *string
+	var storyID *string
+	var storyContributionRequestID *string
 	var readAt *string
 	if notification.ConversationID != nil {
 		value := notification.ConversationID.String()
@@ -119,22 +125,37 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 		value := notification.CommentID.String()
 		commentID = &value
 	}
+	if notification.EventID != nil {
+		value := notification.EventID.String()
+		eventID = &value
+	}
+	if notification.StoryID != nil {
+		value := notification.StoryID.String()
+		storyID = &value
+	}
+	if notification.StoryContributionRequestID != nil {
+		value := notification.StoryContributionRequestID.String()
+		storyContributionRequestID = &value
+	}
 	if notification.ReadAt != nil {
 		value := notification.ReadAt.Format(timeFormat)
 		readAt = &value
 	}
 	response := NotificationResponse{
-		ID:               notification.ID.String(),
-		PersonaID:        notification.RecipientPersonaID.String(),
-		Actor:            NotificationActorResponse{Mode: notification.ActorPostingMode},
-		ConversationID:   conversationID,
-		MessageID:        messageID,
-		PostID:           postID,
-		CommentID:        commentID,
-		IsRead:           notification.IsRead,
-		ReadAt:           readAt,
-		NotificationType: notification.NotificationType,
-		CreatedAt:        notification.CreatedAt.Format(timeFormat),
+		ID:                         notification.ID.String(),
+		PersonaID:                  notification.RecipientPersonaID.String(),
+		Actor:                      NotificationActorResponse{Mode: notification.ActorPostingMode},
+		ConversationID:             conversationID,
+		MessageID:                  messageID,
+		PostID:                     postID,
+		CommentID:                  commentID,
+		EventID:                    eventID,
+		StoryID:                    storyID,
+		StoryContributionRequestID: storyContributionRequestID,
+		IsRead:                     notification.IsRead,
+		ReadAt:                     readAt,
+		NotificationType:           notification.NotificationType,
+		CreatedAt:                  notification.CreatedAt.Format(timeFormat),
 	}
 	if notification.ActorPostingMode == models.AnonymousPostingMode {
 		response.Actor.Anonymous = &ActorAnonymousResponse{

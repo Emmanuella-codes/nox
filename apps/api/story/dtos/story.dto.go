@@ -21,6 +21,11 @@ type AddStoryItemDTO struct {
 	PostingMode          models.PostingMode `json:"posting_mode" validate:"required"`
 }
 
+type CreateStoryContributionRequestDTO struct {
+	ContributorPersonaID uuid.UUID `json:"contributor_persona_id" validate:"required"`
+	MediaAssetID         uuid.UUID `json:"media_asset_id" validate:"required"`
+}
+
 type AddEventHighlightStoryDTO struct {
 	StoryID          uuid.UUID `json:"story_id" validate:"required"`
 	AddedByPersonaID uuid.UUID `json:"added_by_persona_id" validate:"required"`

@@ -9,29 +9,37 @@ import (
 type NotificationType string
 
 const (
-	FollowNotificationType        NotificationType = "follow"
-	LikeNotificationType          NotificationType = "like"
-	CommentNotificationType       NotificationType = "comment"
-	RepostNotificationType        NotificationType = "repost"
-	MentionNotificationType       NotificationType = "mention"
-	DirectMessageNotificationType NotificationType = "message_direct"
-	GroupMessageNotificationType  NotificationType = "message_group"
+	FollowNotificationType                    NotificationType = "follow"
+	LikeNotificationType                      NotificationType = "like"
+	CommentNotificationType                   NotificationType = "comment"
+	RepostNotificationType                    NotificationType = "repost"
+	MentionNotificationType                   NotificationType = "mention"
+	DirectMessageNotificationType             NotificationType = "message_direct"
+	GroupMessageNotificationType              NotificationType = "message_group"
+	StoryContributionRequestNotificationType  NotificationType = "story_contribution_request"
+	StoryContributionAcceptedNotificationType NotificationType = "story_contribution_accepted"
+	StoryContributionRejectedNotificationType NotificationType = "story_contribution_rejected"
+	StoryHighlightAddedNotificationType       NotificationType = "story_highlight_added"
+	StoryHighlightRemovedNotificationType     NotificationType = "story_highlight_removed"
 )
 
 type Notification struct {
-	ID                      uuid.UUID        `json:"id"`
-	RecipientUserID         uuid.UUID        `json:"-"`
-	RecipientPersonaID      uuid.UUID        `json:"persona_id"`
-	ActorPersonaID          *uuid.UUID       `json:"actor_persona_id,omitempty"`
-	ActorPostingMode        PostingMode      `json:"actor_posting_mode"`
-	ActorAnonymousHandle    string           `json:"actor_anonymous_handle,omitempty"`
-	ActorAnonymousAvatarKey string           `json:"actor_anonymous_avatar_key,omitempty"`
-	ConversationID          *uuid.UUID       `json:"conversation_id,omitempty"`
-	MessageID               *uuid.UUID       `json:"message_id,omitempty"`
-	PostID                  *uuid.UUID       `json:"post_id,omitempty"`
-	CommentID               *uuid.UUID       `json:"comment_id,omitempty"`
-	IsRead                  bool             `json:"is_read"`
-	ReadAt                  *time.Time       `json:"read_at,omitempty"`
-	NotificationType        NotificationType `json:"notification_type"`
-	CreatedAt               time.Time        `json:"created_at"`
+	ID                         uuid.UUID        `json:"id"`
+	RecipientUserID            uuid.UUID        `json:"-"`
+	RecipientPersonaID         uuid.UUID        `json:"persona_id"`
+	ActorPersonaID             *uuid.UUID       `json:"actor_persona_id,omitempty"`
+	ActorPostingMode           PostingMode      `json:"actor_posting_mode"`
+	ActorAnonymousHandle       string           `json:"actor_anonymous_handle,omitempty"`
+	ActorAnonymousAvatarKey    string           `json:"actor_anonymous_avatar_key,omitempty"`
+	ConversationID             *uuid.UUID       `json:"conversation_id,omitempty"`
+	MessageID                  *uuid.UUID       `json:"message_id,omitempty"`
+	PostID                     *uuid.UUID       `json:"post_id,omitempty"`
+	CommentID                  *uuid.UUID       `json:"comment_id,omitempty"`
+	EventID                    *uuid.UUID       `json:"event_id,omitempty"`
+	StoryID                    *uuid.UUID       `json:"story_id,omitempty"`
+	StoryContributionRequestID *uuid.UUID       `json:"story_contribution_request_id,omitempty"`
+	IsRead                     bool             `json:"is_read"`
+	ReadAt                     *time.Time       `json:"read_at,omitempty"`
+	NotificationType           NotificationType `json:"notification_type"`
+	CreatedAt                  time.Time        `json:"created_at"`
 }

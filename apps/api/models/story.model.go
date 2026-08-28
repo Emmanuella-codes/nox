@@ -41,6 +41,27 @@ type StoryItem struct {
 	CreatedAt            time.Time   `json:"created_at"`
 }
 
+type StoryContributionRequestStatus string
+
+const (
+	PendingStoryContributionRequestStatus  StoryContributionRequestStatus = "pending"
+	AcceptedStoryContributionRequestStatus StoryContributionRequestStatus = "accepted"
+	RejectedStoryContributionRequestStatus StoryContributionRequestStatus = "rejected"
+)
+
+type StoryContributionRequest struct {
+	ID                   uuid.UUID                      `json:"id"`
+	StoryID              uuid.UUID                      `json:"story_id"`
+	MediaAssetID         uuid.UUID                      `json:"media_asset_id"`
+	ContributorUserID    uuid.UUID                      `json:"-"`
+	ContributorPersonaID uuid.UUID                      `json:"contributor_persona_id"`
+	Status               StoryContributionRequestStatus `json:"status"`
+	ReviewedByPersonaID  *uuid.UUID                     `json:"reviewed_by_persona_id,omitempty"`
+	StoryItemID          *uuid.UUID                     `json:"story_item_id,omitempty"`
+	CreatedAt            time.Time                      `json:"created_at"`
+	ReviewedAt           *time.Time                     `json:"reviewed_at,omitempty"`
+}
+
 type EventHighlightStory struct {
 	ID               uuid.UUID `json:"id"`
 	EventID          uuid.UUID `json:"event_id"`

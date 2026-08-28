@@ -45,9 +45,9 @@ func pipeError(ctx *fiber.Ctx, status int, message shared.PipeMessage) error {
 
 func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
-	case messages.Invalid_Payload, messages.Invalid_Story, messages.Story_Duration_Limit_Exceeded, messages.Media_Asset_In_Use:
+	case messages.Invalid_Payload, messages.Invalid_Story, messages.Story_Duration_Limit_Exceeded, messages.Media_Asset_In_Use, messages.Story_Contribution_Request_Already_Pending, messages.Story_Contribution_Request_Already_Reviewed:
 		return fiber.StatusBadRequest
-	case messages.Story_Not_Found, messages.Story_Item_Not_Found, messages.Event_Not_Found, messages.Persona_Not_Found, messages.Media_Asset_Not_Found:
+	case messages.Story_Not_Found, messages.Story_Item_Not_Found, messages.Story_Contribution_Request_Not_Found, messages.Event_Not_Found, messages.Persona_Not_Found, messages.Media_Asset_Not_Found:
 		return fiber.StatusNotFound
 	case messages.Forbidden:
 		return fiber.StatusForbidden

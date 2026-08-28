@@ -9,17 +9,20 @@ import (
 )
 
 type CreateNotificationInput struct {
-	RecipientUserID         uuid.UUID
-	RecipientPersonaID      uuid.UUID
-	ActorPersonaID          *uuid.UUID
-	ActorPostingMode        models.PostingMode
-	ActorAnonymousHandle    string
-	ActorAnonymousAvatarKey string
-	ConversationID          *uuid.UUID
-	MessageID               *uuid.UUID
-	PostID                  *uuid.UUID
-	CommentID               *uuid.UUID
-	NotificationType        models.NotificationType
+	RecipientUserID            uuid.UUID
+	RecipientPersonaID         uuid.UUID
+	ActorPersonaID             *uuid.UUID
+	ActorPostingMode           models.PostingMode
+	ActorAnonymousHandle       string
+	ActorAnonymousAvatarKey    string
+	ConversationID             *uuid.UUID
+	MessageID                  *uuid.UUID
+	PostID                     *uuid.UUID
+	CommentID                  *uuid.UUID
+	EventID                    *uuid.UUID
+	StoryID                    *uuid.UUID
+	StoryContributionRequestID *uuid.UUID
+	NotificationType           models.NotificationType
 }
 
 type NotificationRepository interface {

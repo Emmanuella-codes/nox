@@ -110,6 +110,43 @@ func scanEventHighlightStory(scanner storyScanner) (*models.EventHighlightStory,
 	return &highlight, nil
 }
 
+// scanStoryContributionRequests scans many contribution request rows into model values.
+func scanStoryContributionRequests(rows storyRows) ([]*models.StoryContributionRequest, error) {
+	var requests []*models.StoryContributionRequest
+	for rows.Next() {
+		request, err := scanStoryContributionRequest(rows)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, request)
+	}
+	return requests, rows.Err()
+}
+
+// scanStoryContributionRequest scans one contribution request row into the model shape.
+func scanStoryContributionRequest(scanner storyScanner) (*models.StoryContributionRequest, error) {
+	var request models.StoryContributionRequest
+	err := scanner.Scan(
+		&request.ID,
+		&request.StoryID,
+		&request.MediaAssetID,
+		&request.ContributorUserID,
+		&request.ContributorPersonaID,
+		&request.Status,
+		&request.ReviewedByPersonaID,
+		&request.StoryItemID,
+		&request.CreatedAt,
+		&request.ReviewedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrStoryContributionRequestNotFound
+		}
+		return nil, err
+	}
+	return &request, nil
+}
+
 func mapStoryError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrStoryNotFound

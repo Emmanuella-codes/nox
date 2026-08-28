@@ -41,6 +41,18 @@ type StoryItemResponse struct {
 	CreatedAt       time.Time          `json:"created_at"`
 }
 
+type StoryContributionRequestResponse struct {
+	ID                  string                                `json:"id"`
+	StoryID             string                                `json:"story_id"`
+	MediaAsset          *models.MediaAsset                    `json:"media_asset"`
+	Contributor         PersonaResponse                       `json:"contributor"`
+	Status              models.StoryContributionRequestStatus `json:"status"`
+	ReviewedByPersonaID *string                               `json:"reviewed_by_persona_id,omitempty"`
+	StoryItemID         *string                               `json:"story_item_id,omitempty"`
+	CreatedAt           time.Time                             `json:"created_at"`
+	ReviewedAt          *time.Time                            `json:"reviewed_at,omitempty"`
+}
+
 type StoryListResponse struct {
 	Limit      int             `json:"limit"`
 	Offset     int             `json:"offset"`

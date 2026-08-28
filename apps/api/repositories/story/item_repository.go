@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// AddStoryItem inserts one direct owner-managed item into a story.
 func (r *pgRepository) AddStoryItem(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, durationSeconds int, anonymousLabel string, dto storydtos.AddStoryItemDTO) (*models.StoryItem, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -29,20 +30,8 @@ func (r *pgRepository) AddStoryItem(ctx context.Context, storyID uuid.UUID, cont
 	if err := tx.QueryRow(ctx, `SELECT COALESCE(MAX(position), 0) + 1 FROM story_items WHERE story_id = $1`, storyID).Scan(&position); err != nil {
 		return nil, err
 	}
-
-	row := tx.QueryRow(ctx, `
-		INSERT INTO story_items (
-			story_id, media_asset_id, contributor_user_id, contributor_persona_id,
-			posting_mode, anonymous_label, duration_seconds, position
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
-		          posting_mode, COALESCE(anonymous_label, ''), duration_seconds, position, created_at
-	`, storyID, dto.MediaAssetID, contributorUserID, dto.ContributorPersonaID, dto.PostingMode, emptyToNil(anonymousLabel), durationSeconds, position)
-	item, err := scanStoryItem(row)
+	item, err := insertStoryItemInTx(ctx, tx, storyID, dto.MediaAssetID, contributorUserID, dto.ContributorPersonaID, dto.PostingMode, anonymousLabel, durationSeconds, position)
 	if err != nil {
-		if isUniqueViolation(err, "story_items_media_asset_id_key") {
-			return nil, ErrStoryMediaInUse
-		}
 		return nil, err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE stories SET total_duration_seconds = total_duration_seconds + $2, updated_at = now() WHERE id = $1`, storyID, durationSeconds); err != nil {
@@ -51,6 +40,7 @@ func (r *pgRepository) AddStoryItem(ctx context.Context, storyID uuid.UUID, cont
 	return item, tx.Commit(ctx)
 }
 
+// ReorderStoryItem moves one story item to a new position within the same story.
 func (r *pgRepository) ReorderStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID, position int) (*models.StoryItem, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -97,6 +87,7 @@ func (r *pgRepository) ReorderStoryItem(ctx context.Context, storyID uuid.UUID, 
 	return item, tx.Commit(ctx)
 }
 
+// FindStoryItems lists all items for one story in position order.
 func (r *pgRepository) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
@@ -112,6 +103,7 @@ func (r *pgRepository) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([
 	return scanStoryItems(rows)
 }
 
+// DeleteStoryItem removes one story item and updates the story duration total.
 func (r *pgRepository) DeleteStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -138,6 +130,7 @@ func (r *pgRepository) DeleteStoryItem(ctx context.Context, storyID uuid.UUID, i
 	return item, tx.Commit(ctx)
 }
 
+// storyItemInTx loads one story item inside an existing transaction.
 func (r *pgRepository) storyItemInTx(ctx context.Context, tx pgx.Tx, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error) {
 	row := tx.QueryRow(ctx, `
 		SELECT id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
@@ -146,4 +139,24 @@ func (r *pgRepository) storyItemInTx(ctx context.Context, tx pgx.Tx, storyID uui
 		WHERE story_id = $1 AND id = $2
 	`, storyID, itemID)
 	return scanStoryItem(row)
+}
+
+// insertStoryItemInTx inserts one story item row inside an existing transaction.
+func insertStoryItemInTx(ctx context.Context, tx pgx.Tx, storyID uuid.UUID, mediaAssetID uuid.UUID, contributorUserID uuid.UUID, contributorPersonaID uuid.UUID, postingMode models.PostingMode, anonymousLabel string, durationSeconds int, position int) (*models.StoryItem, error) {
+	row := tx.QueryRow(ctx, `
+		INSERT INTO story_items (
+			story_id, media_asset_id, contributor_user_id, contributor_persona_id,
+			posting_mode, anonymous_label, duration_seconds, position
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
+		          posting_mode, COALESCE(anonymous_label, ''), duration_seconds, position, created_at
+	`, storyID, mediaAssetID, contributorUserID, contributorPersonaID, postingMode, emptyToNil(anonymousLabel), durationSeconds, position)
+	item, err := scanStoryItem(row)
+	if err != nil {
+		if isUniqueViolation(err, "story_items_media_asset_id_key") {
+			return nil, ErrStoryMediaInUse
+		}
+		return nil, err
+	}
+	return item, nil
 }

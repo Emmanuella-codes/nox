@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// AddStoryItemPipe adds one direct owner-managed story item.
 func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, dto dtos.AddStoryItemDTO) *shared.PipeRes[StoryItemResponse] {
 	if !validPostingMode(dto.PostingMode) {
 		return shared.PipeError[StoryItemResponse](messages.Invalid_Story)
@@ -36,6 +37,9 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 	if !allowed {
 		return shared.PipeError[StoryItemResponse](messages.Forbidden)
 	}
+	if story.OwnerPersonaID != contributor.ID {
+		return shared.PipeError[StoryItemResponse](messages.Forbidden)
+	}
 
 	asset, message := p.mediaAsset(ctx, dto.MediaAssetID)
 	if message != "" {
@@ -45,11 +49,7 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 		return shared.PipeError[StoryItemResponse](messages.Invalid_Story)
 	}
 
-	label := ""
-	if dto.PostingMode == models.AnonymousPostingMode {
-		label = anonymousLabel(storyID, contributor.ID)
-	}
-	item, err := p.storyRepo.AddStoryItem(ctx, storyID, userID, asset.DurationSeconds, label, dto)
+	item, err := p.storyRepo.AddStoryItem(ctx, storyID, userID, asset.DurationSeconds, "", dto)
 	if err != nil {
 		if err == story_repo.ErrStoryDurationLimitExceeded {
 			return shared.PipeError[StoryItemResponse](messages.Story_Duration_Limit_Exceeded)
@@ -74,6 +74,7 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 	return pipeInternalError[StoryItemResponse](story_repo.ErrStoryItemNotFound, "story.find_added_item")
 }
 
+// DeleteStoryItemPipe deletes one story item when the actor has permission to do so.
 func (p *StoryPipe) DeleteStoryItemPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, itemID uuid.UUID, moderatorPersonaID *uuid.UUID) *shared.PipeRes[any] {
 	story, err := p.storyRepo.FindStoryByID(ctx, storyID)
 	if err != nil {
@@ -124,6 +125,7 @@ func (p *StoryPipe) DeleteStoryItemPipe(ctx context.Context, userID uuid.UUID, s
 	return shared.PipeSuccess[any](messages.Story_Item_Deleted, nil)
 }
 
+// ReorderStoryItemPipe reorders one story item within its story.
 func (p *StoryPipe) ReorderStoryItemPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, itemID uuid.UUID, dto dtos.ReorderStoryItemDTO) *shared.PipeRes[StoryItemResponse] {
 	if dto.Position < 1 {
 		return shared.PipeError[StoryItemResponse](messages.Invalid_Story)
