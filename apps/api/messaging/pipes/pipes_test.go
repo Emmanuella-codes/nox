@@ -91,6 +91,9 @@ func TestSendMessagePipeSupportsAttachmentOnlyAudio(t *testing.T) {
 	userID, personaID, conversationID, messageID, assetID := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	persona := testPersona(userID, personaID, "sender")
 	messagingRepo := &messagingTestRepo{
+		conversations: map[uuid.UUID]*models.Conversation{
+			conversationID: {ID: conversationID, ConversationType: models.DirectConversationType, CreatedBy: personaID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		},
 		memberByConversationPersona: map[string]*models.ConversationMember{
 			memberKey(conversationID, personaID): testMember(conversationID, userID, personaID, models.ConversationMemberRoleMember),
 		},
@@ -333,6 +336,9 @@ func (r *messagingTestRepo) CreateGroupConversation(ctx context.Context, creator
 
 // FindConversationByID returns the configured conversation fixture.
 func (r *messagingTestRepo) FindConversationByID(ctx context.Context, conversationID uuid.UUID) (*models.Conversation, error) {
+	if r.directConversation != nil && r.directConversation.ID == conversationID {
+		return r.directConversation, nil
+	}
 	if conversation, ok := r.conversations[conversationID]; ok {
 		return conversation, nil
 	}
@@ -579,19 +585,4 @@ func testMember(conversationID uuid.UUID, userID uuid.UUID, personaID uuid.UUID,
 // testMediaAsset builds one ready attachment fixture.
 func testMediaAsset(assetID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, kind models.MediaKind) *models.MediaAsset {
 	return &models.MediaAsset{ID: assetID, OwnerUserID: userID, OwnerPersonaID: personaID, MediaKind: kind, ProcessingStatus: models.ReadyMediaStatus}
-}
-
-// memberKey builds one stable member lookup key.
-func memberKey(conversationID uuid.UUID, personaID uuid.UUID) string {
-	return conversationID.String() + ":" + personaID.String()
-}
-
-// followKey builds one stable follow lookup key.
-func followKey(followerID uuid.UUID, followingID uuid.UUID) string {
-	return followerID.String() + ":" + followingID.String()
-}
-
-// timePtr returns a pointer to the supplied timestamp.
-func timePtr(value time.Time) *time.Time {
-	return &value
 }

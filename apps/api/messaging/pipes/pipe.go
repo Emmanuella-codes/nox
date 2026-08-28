@@ -11,6 +11,7 @@ import (
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/emmanuella-codes/nox/shared/realtime"
@@ -18,11 +19,12 @@ import (
 )
 
 type MessagingPipe struct {
-	messagingRepo messaging_repo.MessagingRepository
-	personaRepo   persona_repo.PersonaRepository
-	mediaRepo     media_repo.MediaRepository
-	followRepo    follow_repo.FollowRepository
-	realtimeHub   *realtime.Hub
+	messagingRepo    messaging_repo.MessagingRepository
+	personaRepo      persona_repo.PersonaRepository
+	mediaRepo        media_repo.MediaRepository
+	followRepo       follow_repo.FollowRepository
+	notificationRepo notification_repo.NotificationRepository
+	realtimeHub      *realtime.Hub
 }
 
 // NewMessagingPipe builds the messaging orchestration layer from repositories.
@@ -31,6 +33,9 @@ func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaR
 	for _, dep := range deps {
 		if hub, ok := dep.(*realtime.Hub); ok {
 			pipe.realtimeHub = hub
+		}
+		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
+			pipe.notificationRepo = repo
 		}
 	}
 	return pipe
@@ -277,14 +282,6 @@ func normalizeAttachmentIDs(legacy *uuid.UUID, attachmentIDs []uuid.UUID) []uuid
 		normalized = append(normalized, attachmentID)
 	}
 	return normalized
-}
-
-// attachmentsOrEmpty normalizes nil attachment slices into empty response arrays.
-func attachmentsOrEmpty(attachments []*models.MediaAsset) []*models.MediaAsset {
-	if attachments == nil {
-		return []*models.MediaAsset{}
-	}
-	return attachments
 }
 
 // canMutateMessage reports whether a message is still inside the one-hour mutation window.

@@ -62,6 +62,9 @@ func (r *realtimeMessagingTestRepo) AppendConversationEvent(ctx context.Context,
 func TestSendMessagePipeTrimsIdempotencyKey(t *testing.T) {
 	userID, personaID, conversationID := uuid.New(), uuid.New(), uuid.New()
 	repo := &messagingTestRepo{
+		conversations: map[uuid.UUID]*models.Conversation{
+			conversationID: {ID: conversationID, ConversationType: models.DirectConversationType, CreatedBy: personaID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		},
 		memberByConversationPersona: map[string]*models.ConversationMember{
 			memberKey(conversationID, personaID): testMember(conversationID, userID, personaID, models.ConversationMemberRoleMember),
 		},
@@ -93,6 +96,9 @@ func TestSendMessagePipeSkipsReplayableEventOnIdempotentRetry(t *testing.T) {
 		messagingTestRepo: messagingTestRepo{
 			memberByConversationPersona: map[string]*models.ConversationMember{
 				memberKey(conversationID, personaID): testMember(conversationID, userID, personaID, models.ConversationMemberRoleMember),
+			},
+			conversations: map[uuid.UUID]*models.Conversation{
+				conversationID: {ID: conversationID, ConversationType: models.DirectConversationType, CreatedBy: personaID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 			},
 			membersByConversation: map[uuid.UUID][]*models.ConversationMember{
 				conversationID: {testMember(conversationID, userID, personaID, models.ConversationMemberRoleMember)},

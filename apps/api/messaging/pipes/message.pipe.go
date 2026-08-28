@@ -39,6 +39,10 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	if inactiveCrew {
 		return shared.PipeError[MessageResponse](messages.Forbidden)
 	}
+	conversation, err := p.messagingRepo.FindConversationByID(ctx, conversationID)
+	if err != nil {
+		return pipeInternalError[MessageResponse](err, "messaging.find_conversation")
+	}
 	attachmentType := models.TextMessageType
 	if len(attachmentIDs) > 0 {
 		var mediaMessage shared.PipeMessage
@@ -57,6 +61,7 @@ func (p *MessagingPipe) SendMessagePipe(ctx context.Context, userID uuid.UUID, c
 	}
 	response := p.messageResponse(ctx, created)
 	if createdNew {
+		p.createMessageNotifications(ctx, conversation, created)
 		p.publishMessageEvent(ctx, userID, "message.created", created)
 		p.publishTypingEvent(ctx, conversationID, dto.SenderPersonaID, false)
 	}
@@ -109,6 +114,7 @@ func (p *MessagingPipe) MarkReadPipe(ctx context.Context, userID uuid.UUID, conv
 	}
 	response := memberResponses([]*models.ConversationMember{member}, personas)[0]
 	if member.LastReadMessageID != nil && (memberBefore.LastReadMessageID == nil || *memberBefore.LastReadMessageID != *member.LastReadMessageID) {
+		p.markConversationNotificationsRead(ctx, userID, dto.PersonaID, conversationID, dto.MessageID)
 		p.publishConversationEvent(ctx, conversationID, userID, "conversation.read", &messageModel.ID, response)
 	}
 	return shared.PipeSuccess(messages.Conversation_Read, &response)
@@ -159,6 +165,7 @@ func (p *MessagingPipe) DeleteMessagePipe(ctx context.Context, userID uuid.UUID,
 		return pipeInternalError[MessageResponse](err, "messaging.delete_message")
 	}
 	response := p.messageResponse(ctx, deleted)
+	p.deleteMessageNotifications(ctx, messageID)
 	p.publishMessageEvent(ctx, userID, "message.deleted", deleted)
 	return shared.PipeSuccess(messages.Message_Deleted, &response)
 }

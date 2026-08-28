@@ -34,6 +34,9 @@ import (
 	messaging_pipes "github.com/emmanuella-codes/nox/messaging/pipes"
 	messaging_routers "github.com/emmanuella-codes/nox/messaging/routers"
 	"github.com/emmanuella-codes/nox/middleware"
+	notification_controllers "github.com/emmanuella-codes/nox/notification/controllers"
+	notification_pipes "github.com/emmanuella-codes/nox/notification/pipes"
+	notification_routers "github.com/emmanuella-codes/nox/notification/routers"
 	persona_controllers "github.com/emmanuella-codes/nox/persona/controllers"
 	persona_pipes "github.com/emmanuella-codes/nox/persona/pipes"
 	persona_routers "github.com/emmanuella-codes/nox/persona/routers"
@@ -108,7 +111,8 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like, repos.Post))
 	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
-	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub), repos.Messaging, realtimeHub)
+	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification), repos.Messaging, realtimeHub)
+	notificationController := notification_controllers.NewNotificationController(notification_pipes.NewNotificationPipe(repos.Notification, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
 
@@ -126,6 +130,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))
 	shared_api.BaseRouter(api, messaging_routers.MessagingRoutes(messagingController, cfg))
+	shared_api.BaseRouter(api, notification_routers.NotificationRoutes(notificationController, cfg))
 	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
 	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 
