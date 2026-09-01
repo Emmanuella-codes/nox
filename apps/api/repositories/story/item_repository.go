@@ -103,6 +103,24 @@ func (r *pgRepository) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([
 	return scanStoryItems(rows)
 }
 
+// FindStoryItemByID loads one story item scoped to one story.
+func (r *pgRepository) FindStoryItemByID(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
+		       posting_mode, COALESCE(anonymous_label, ''), duration_seconds, position, created_at
+		FROM story_items
+		WHERE story_id = $1 AND id = $2
+	`, storyID, itemID)
+	item, err := scanStoryItem(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrStoryItemNotFound
+		}
+		return nil, err
+	}
+	return item, nil
+}
+
 // DeleteStoryItem removes one story item and updates the story duration total.
 func (r *pgRepository) DeleteStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error) {
 	tx, err := r.db.Begin(ctx)

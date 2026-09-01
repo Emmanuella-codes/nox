@@ -30,11 +30,11 @@ func (r *pgRepository) CreateMessage(ctx context.Context, conversationID uuid.UU
 	}
 	attachments := normalizedAttachmentIDs(dto)
 	row := tx.QueryRow(ctx, `
-		INSERT INTO messages (conversation_id, sender_user_id, sender_persona_id, body, message_type, media_asset_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO messages (conversation_id, sender_user_id, sender_persona_id, body, message_type, media_asset_id, story_id, story_item_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
-		          media_asset_id, created_at, edited_at, deleted_at
-	`, conversationID, senderUserID, dto.SenderPersonaID, dto.Body, dto.MessageType, firstAttachmentID(attachments))
+		          media_asset_id, story_id, story_item_id, created_at, edited_at, deleted_at
+	`, conversationID, senderUserID, dto.SenderPersonaID, dto.Body, dto.MessageType, firstAttachmentID(attachments), dto.StoryID, dto.StoryItemID)
 	message, err := scanMessage(row)
 	if err != nil {
 		return nil, false, err
@@ -72,7 +72,7 @@ func (r *pgRepository) UpdateMessageBody(ctx context.Context, messageID uuid.UUI
 		    edited_at = now()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
-		          media_asset_id, created_at, edited_at, deleted_at
+		          media_asset_id, story_id, story_item_id, created_at, edited_at, deleted_at
 	`, messageID, body)
 	return scanMessage(row)
 }
@@ -81,7 +81,7 @@ func (r *pgRepository) UpdateMessageBody(ctx context.Context, messageID uuid.UUI
 func (r *pgRepository) FindMessagesByConversationID(ctx context.Context, conversationID uuid.UUID, limit int, offset int) ([]*models.Message, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
-		       media_asset_id, created_at, edited_at, deleted_at
+		       media_asset_id, story_id, story_item_id, created_at, edited_at, deleted_at
 		FROM messages
 		WHERE conversation_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC, id DESC
@@ -98,7 +98,7 @@ func (r *pgRepository) FindMessagesByConversationID(ctx context.Context, convers
 func (r *pgRepository) FindMessageByID(ctx context.Context, messageID uuid.UUID) (*models.Message, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
-		       media_asset_id, created_at, edited_at, deleted_at
+		       media_asset_id, story_id, story_item_id, created_at, edited_at, deleted_at
 		FROM messages
 		WHERE id = $1
 	`, messageID)
@@ -182,7 +182,7 @@ func (r *pgRepository) SoftDeleteMessage(ctx context.Context, messageID uuid.UUI
 		    deleted_at = COALESCE(deleted_at, now())
 		WHERE id = $1
 		RETURNING id, conversation_id, sender_user_id, sender_persona_id, body, message_type,
-		          media_asset_id, created_at, edited_at, deleted_at
+		          media_asset_id, story_id, story_item_id, created_at, edited_at, deleted_at
 	`, messageID)
 	message, err := scanMessage(row)
 	if err != nil {

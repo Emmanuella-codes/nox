@@ -21,6 +21,7 @@ type CreateNotificationInput struct {
 	CommentID                  *uuid.UUID
 	EventID                    *uuid.UUID
 	StoryID                    *uuid.UUID
+	StoryItemID                *uuid.UUID
 	StoryContributionRequestID *uuid.UUID
 	NotificationType           models.NotificationType
 }

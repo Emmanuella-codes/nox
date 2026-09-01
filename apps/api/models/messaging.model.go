@@ -57,6 +57,8 @@ type Message struct {
 	Body            string      `json:"body"`
 	MessageType     MessageType `json:"message_type"`
 	MediaAssetID    *uuid.UUID  `json:"media_asset_id,omitempty"`
+	StoryID         *uuid.UUID  `json:"story_id,omitempty"`
+	StoryItemID     *uuid.UUID  `json:"story_item_id,omitempty"`
 	CreatedAt       time.Time   `json:"created_at"`
 	EditedAt        *time.Time  `json:"edited_at,omitempty"`
 	DeletedAt       *time.Time  `json:"deleted_at,omitempty"`

@@ -21,6 +21,7 @@ const (
 	StoryContributionRejectedNotificationType NotificationType = "story_contribution_rejected"
 	StoryHighlightAddedNotificationType       NotificationType = "story_highlight_added"
 	StoryHighlightRemovedNotificationType     NotificationType = "story_highlight_removed"
+	StoryReactionNotificationType             NotificationType = "story_reaction"
 )
 
 type Notification struct {
@@ -37,6 +38,7 @@ type Notification struct {
 	CommentID                  *uuid.UUID       `json:"comment_id,omitempty"`
 	EventID                    *uuid.UUID       `json:"event_id,omitempty"`
 	StoryID                    *uuid.UUID       `json:"story_id,omitempty"`
+	StoryItemID                *uuid.UUID       `json:"story_item_id,omitempty"`
 	StoryContributionRequestID *uuid.UUID       `json:"story_contribution_request_id,omitempty"`
 	IsRead                     bool             `json:"is_read"`
 	ReadAt                     *time.Time       `json:"read_at,omitempty"`

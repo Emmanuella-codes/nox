@@ -60,7 +60,7 @@ func (p *StoryPipe) ListStoryItemsPipe(ctx context.Context, storyID uuid.UUID, l
 	if !allowed {
 		return shared.PipeError[[]StoryItemResponse](messages.Story_Not_Found)
 	}
-	items, err := p.storyItemResponses(ctx, storyID)
+	items, err := p.storyItemResponses(ctx, storyID, viewerPersonaID)
 	if err != nil {
 		return pipeInternalError[[]StoryItemResponse](err, "story.items")
 	}

@@ -62,7 +62,7 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 		}
 		return pipeInternalError[StoryItemResponse](err, "story.add_item")
 	}
-	items, err := p.storyItemResponses(ctx, storyID)
+	items, err := p.storyItemResponses(ctx, storyID, &contributor.ID)
 	if err != nil {
 		return pipeInternalError[StoryItemResponse](err, "story.item_response")
 	}
@@ -151,7 +151,7 @@ func (p *StoryPipe) ReorderStoryItemPipe(ctx context.Context, userID uuid.UUID, 
 		}
 		return pipeInternalError[StoryItemResponse](err, "story.reorder_item")
 	}
-	items, err := p.storyItemResponses(ctx, storyID)
+	items, err := p.storyItemResponses(ctx, storyID, &persona.ID)
 	if err != nil {
 		return pipeInternalError[StoryItemResponse](err, "story.reorder_response")
 	}

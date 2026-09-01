@@ -91,6 +91,8 @@ type MessageResponse struct {
 	Attachments     []*models.MediaAsset `json:"attachments"`
 	MediaAssetID    *string              `json:"media_asset_id,omitempty"`
 	Media           *models.MediaAsset   `json:"media,omitempty"`
+	StoryID         *string              `json:"story_id,omitempty"`
+	StoryItemID     *string              `json:"story_item_id,omitempty"`
 	Deleted         bool                 `json:"deleted"`
 	Edited          bool                 `json:"edited"`
 	CreatedAt       string               `json:"created_at"`
@@ -214,6 +216,16 @@ func messageResponseWithAttachments(message *models.Message, attachments []*mode
 		value := message.EditedAt.Format(timeFormat)
 		editedAt = &value
 	}
+	var storyID *string
+	if message.StoryID != nil {
+		value := message.StoryID.String()
+		storyID = &value
+	}
+	var storyItemID *string
+	if message.StoryItemID != nil {
+		value := message.StoryItemID.String()
+		storyItemID = &value
+	}
 	return MessageResponse{
 		ID:              message.ID.String(),
 		ConversationID:  message.ConversationID.String(),
@@ -223,6 +235,8 @@ func messageResponseWithAttachments(message *models.Message, attachments []*mode
 		Attachments:     attachmentsOrEmpty(attachments),
 		MediaAssetID:    mediaAssetID,
 		Media:           media,
+		StoryID:         storyID,
+		StoryItemID:     storyItemID,
 		Deleted:         message.DeletedAt != nil,
 		Edited:          message.EditedAt != nil,
 		CreatedAt:       message.CreatedAt.Format(timeFormat),

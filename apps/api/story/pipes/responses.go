@@ -30,15 +30,19 @@ type PersonaResponse struct {
 }
 
 type StoryItemResponse struct {
-	ID              string             `json:"id"`
-	StoryID         string             `json:"story_id"`
-	MediaAsset      *models.MediaAsset `json:"media_asset"`
-	Contributor     *PersonaResponse   `json:"contributor,omitempty"`
-	PostingMode     models.PostingMode `json:"posting_mode"`
-	AnonymousLabel  string             `json:"anonymous_label,omitempty"`
-	DurationSeconds int                `json:"duration_seconds"`
-	Position        int                `json:"position"`
-	CreatedAt       time.Time          `json:"created_at"`
+	ID              string                               `json:"id"`
+	StoryID         string                               `json:"story_id"`
+	MediaAsset      *models.MediaAsset                   `json:"media_asset"`
+	Contributor     *PersonaResponse                     `json:"contributor,omitempty"`
+	PostingMode     models.PostingMode                   `json:"posting_mode"`
+	AnonymousLabel  string                               `json:"anonymous_label,omitempty"`
+	DurationSeconds int                                  `json:"duration_seconds"`
+	Position        int                                  `json:"position"`
+	ViewCount       int                                  `json:"view_count"`
+	Viewed          bool                                 `json:"viewed"`
+	ReactionCounts  map[models.StoryReactionType]int     `json:"reaction_counts"`
+	ViewerReaction  *models.StoryReactionType            `json:"viewer_reaction,omitempty"`
+	CreatedAt       time.Time                            `json:"created_at"`
 }
 
 type StoryContributionRequestResponse struct {
@@ -69,6 +73,22 @@ type EventHighlightStoryResponse struct {
 	Position         int            `json:"position"`
 	Story            *StoryResponse `json:"story,omitempty"`
 	CreatedAt        time.Time      `json:"created_at"`
+}
+
+type StoryViewersResponse struct {
+	StoryID     string            `json:"story_id"`
+	StoryItemID string            `json:"story_item_id"`
+	ViewCount   int               `json:"view_count"`
+	Viewers     []PersonaResponse `json:"viewers"`
+}
+
+type ProfileStoryHighlightResponse struct {
+	ID             string         `json:"id"`
+	OwnerPersonaID string         `json:"owner_persona_id"`
+	StoryID        string         `json:"story_id"`
+	Position       int            `json:"position"`
+	Story          *StoryResponse `json:"story,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
 }
 
 func personaResponse(persona *models.Persona) PersonaResponse {

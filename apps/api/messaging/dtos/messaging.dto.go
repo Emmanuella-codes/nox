@@ -22,6 +22,8 @@ type SendMessageDTO struct {
 	MessageType     models.MessageType `json:"message_type"`
 	MediaAssetID    *uuid.UUID         `json:"media_asset_id"`
 	MediaAssetIDs   []uuid.UUID        `json:"media_asset_ids" validate:"max=5"`
+	StoryID         *uuid.UUID         `json:"story_id"`
+	StoryItemID     *uuid.UUID         `json:"story_item_id"`
 	IdempotencyKey  string             `json:"idempotency_key" validate:"max=80"`
 }
 

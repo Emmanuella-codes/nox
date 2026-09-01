@@ -30,6 +30,7 @@ func scanNotification(row scanner) (*models.Notification, error) {
 		&notification.CommentID,
 		&notification.EventID,
 		&notification.StoryID,
+		&notification.StoryItemID,
 		&notification.StoryContributionRequestID,
 		&notification.IsRead,
 		&notification.ReadAt,

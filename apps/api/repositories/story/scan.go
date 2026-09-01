@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/emmanuella-codes/nox/models"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -108,6 +109,19 @@ func scanEventHighlightStory(scanner storyScanner) (*models.EventHighlightStory,
 		return nil, err
 	}
 	return &highlight, nil
+}
+
+// scanStoryUUIDs scans one-column uuid row sets into a slice.
+func scanStoryUUIDs(rows storyRows) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // scanStoryContributionRequests scans many contribution request rows into model values.

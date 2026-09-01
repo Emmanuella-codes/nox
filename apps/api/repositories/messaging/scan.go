@@ -122,6 +122,8 @@ func scanMessage(scanner conversationScanner) (*models.Message, error) {
 		&message.Body,
 		&message.MessageType,
 		&message.MediaAssetID,
+		&message.StoryID,
+		&message.StoryItemID,
 		&message.CreatedAt,
 		&message.EditedAt,
 		&message.DeletedAt,

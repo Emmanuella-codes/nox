@@ -10,10 +10,12 @@ import (
 	event_repo "github.com/emmanuella-codes/nox/repositories/event"
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
+	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	story_repo "github.com/emmanuella-codes/nox/repositories/story"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/emmanuella-codes/nox/story/messages"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -25,8 +27,10 @@ type StoryPipe struct {
 	personaRepo           persona_repo.PersonaRepository
 	mediaRepo             media_repo.MediaRepository
 	followRepo            follow_repo.FollowRepository
+	messagingRepo         messaging_repo.MessagingRepository
 	notificationRepo      notification_repo.NotificationRepository
 	notificationPublisher notificationPublisher
+	realtimeHub           *realtime.Hub
 }
 
 type notificationPublisher interface {
@@ -48,6 +52,10 @@ func NewStoryPipe(storyRepo story_repo.StoryRepository, eventRepo event_repo.Eve
 			pipe.notificationRepo = value
 		case notificationPublisher:
 			pipe.notificationPublisher = value
+		case messaging_repo.MessagingRepository:
+			pipe.messagingRepo = value
+		case *realtime.Hub:
+			pipe.realtimeHub = value
 		}
 	}
 	return pipe
@@ -58,21 +66,7 @@ func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "story", operation, messages.Internal_Error)
 }
 
-func validContributionMode(mode models.StoryContributionMode) bool {
-	return mode == models.PublicStoryContributionMode || mode == models.PrivateStoryContributionMode
-}
-
-func validPostingMode(mode models.PostingMode) bool {
-	return mode == models.PublicPostingMode
-}
-
-func validStoryVideo(asset *models.MediaAsset) bool {
-	return asset.MediaKind == models.VideoMediaKind &&
-		asset.ProcessingStatus == models.ReadyMediaStatus &&
-		asset.DurationSeconds > 0 &&
-		asset.DurationSeconds <= 300
-}
-
+// defaultStoryExpiry falls back empty or past expiries to twenty-four hours from now.
 func defaultStoryExpiry(expiresAt time.Time) time.Time {
 	if expiresAt.IsZero() || expiresAt.Before(time.Now()) {
 		return time.Now().Add(24 * time.Hour)
@@ -175,7 +169,7 @@ func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, view
 		UpdatedAt:            story.UpdatedAt,
 	}
 	if includeItems {
-		items, err := p.storyItemResponses(ctx, story.ID)
+		items, err := p.storyItemResponses(ctx, story.ID, viewerPersonaID)
 		if err != nil {
 			return nil, err
 		}
@@ -191,10 +185,33 @@ func anonymousLabel(storyID uuid.UUID, personaID uuid.UUID) string {
 }
 
 // storyItemResponses maps one story's items into API response values.
-func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID) ([]StoryItemResponse, error) {
+func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID, viewerPersonaID *uuid.UUID) ([]StoryItemResponse, error) {
 	items, err := p.storyRepo.FindStoryItems(ctx, storyID)
 	if err != nil {
 		return nil, err
+	}
+	viewCounts, err := p.storyRepo.FindStoryItemViewCounts(ctx, storyID)
+	if err != nil {
+		return nil, err
+	}
+	reactionCounts, err := p.storyRepo.FindStoryItemReactionCounts(ctx, storyID)
+	if err != nil {
+		return nil, err
+	}
+	viewed := map[uuid.UUID]bool{}
+	reactions := map[uuid.UUID]models.StoryReactionType{}
+	if viewerPersonaID != nil {
+		viewedIDs, err := p.storyRepo.FindViewedStoryItemIDs(ctx, storyID, *viewerPersonaID)
+		if err != nil {
+			return nil, err
+		}
+		for _, itemID := range viewedIDs {
+			viewed[itemID] = true
+		}
+		reactions, err = p.storyRepo.FindStoryItemReactionsByPersona(ctx, storyID, *viewerPersonaID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	responses := make([]StoryItemResponse, 0, len(items))
 	for _, item := range items {
@@ -209,7 +226,16 @@ func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID) (
 			PostingMode:     item.PostingMode,
 			DurationSeconds: item.DurationSeconds,
 			Position:        item.Position,
+			ViewCount:       viewCounts[item.ID],
+			Viewed:          viewed[item.ID],
+			ReactionCounts:  reactionCounts[item.ID],
 			CreatedAt:       item.CreatedAt,
+		}
+		if response.ReactionCounts == nil {
+			response.ReactionCounts = map[models.StoryReactionType]int{}
+		}
+		if reactionType, ok := reactions[item.ID]; ok {
+			response.ViewerReaction = &reactionType
 		}
 		if item.PostingMode == models.AnonymousPostingMode {
 			response.AnonymousLabel = item.AnonymousLabel

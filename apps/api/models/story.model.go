@@ -7,12 +7,20 @@ import (
 )
 
 type StoryContributionMode string
+type StoryReactionType string
 
 const (
 	PublicStoryContributionMode  StoryContributionMode = "public"
 	PrivateStoryContributionMode StoryContributionMode = "private"
 
 	FollowersStoryContributionMode StoryContributionMode = PrivateStoryContributionMode
+)
+
+const (
+	StoryReactionTypeLike  StoryReactionType = "like"
+	StoryReactionTypeFire  StoryReactionType = "fire"
+	StoryReactionTypeHeart StoryReactionType = "heart"
+	StoryReactionTypeLaugh StoryReactionType = "laugh"
 )
 
 type Story struct {
@@ -69,4 +77,30 @@ type EventHighlightStory struct {
 	AddedByPersonaID uuid.UUID `json:"added_by_persona_id"`
 	Position         int       `json:"position"`
 	CreatedAt        time.Time `json:"created_at"`
+}
+
+type StoryItemView struct {
+	StoryID         uuid.UUID `json:"story_id"`
+	StoryItemID     uuid.UUID `json:"story_item_id"`
+	ViewerUserID    uuid.UUID `json:"-"`
+	ViewerPersonaID uuid.UUID `json:"viewer_persona_id"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type StoryItemReaction struct {
+	StoryID          uuid.UUID         `json:"story_id"`
+	StoryItemID      uuid.UUID         `json:"story_item_id"`
+	ReactorUserID    uuid.UUID         `json:"-"`
+	ReactorPersonaID uuid.UUID         `json:"reactor_persona_id"`
+	ReactionType     StoryReactionType `json:"reaction_type"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+}
+
+type ProfileStoryHighlight struct {
+	ID             uuid.UUID `json:"id"`
+	OwnerPersonaID uuid.UUID `json:"owner_persona_id"`
+	StoryID        uuid.UUID `json:"story_id"`
+	Position       int       `json:"position"`
+	CreatedAt      time.Time `json:"created_at"`
 }

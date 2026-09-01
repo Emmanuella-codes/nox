@@ -72,7 +72,7 @@ func (p *StoryPipe) ListEventHighlightStoriesPipe(ctx context.Context, eventID u
 	}
 	responses := make([]EventHighlightStoryResponse, 0, len(highlights))
 	for _, highlight := range highlights {
-		story, err := p.storyRepo.FindStoryByID(ctx, highlight.StoryID)
+		story, err := p.storyRepo.FindStoryByIDAny(ctx, highlight.StoryID)
 		if err != nil {
 			return pipeInternalError[[]EventHighlightStoryResponse](err, "story.highlight_story")
 		}
@@ -122,7 +122,7 @@ func (p *StoryPipe) RemoveEventHighlightStoryPipe(ctx context.Context, userID uu
 	if persona.UserID != userID || event.OrganizerID != persona.ID {
 		return shared.PipeError[any](messages.Forbidden)
 	}
-	story, err := p.storyRepo.FindStoryByID(ctx, storyID)
+	story, err := p.storyRepo.FindStoryByIDAny(ctx, storyID)
 	if err != nil {
 		if err == story_repo.ErrStoryNotFound {
 			return shared.PipeError[any](messages.Story_Not_Found)
@@ -187,7 +187,7 @@ func (p *StoryPipe) eventHighlightResponse(ctx context.Context, highlight *model
 		Position:         highlight.Position,
 		CreatedAt:        highlight.CreatedAt,
 	}
-	story, err := p.storyRepo.FindStoryByID(ctx, highlight.StoryID)
+	story, err := p.storyRepo.FindStoryByIDAny(ctx, highlight.StoryID)
 	if err != nil {
 		return nil, err
 	}
