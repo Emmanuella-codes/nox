@@ -31,7 +31,7 @@ func (p *StoryPipe) GetStoryPipe(ctx context.Context, storyID uuid.UUID, viewerU
 	if viewer != nil {
 		viewerPersonaID = &viewer.ID
 	}
-	response, err := p.storyResponse(ctx, story, viewerPersonaID, true)
+	response, err := p.storyResponse(ctx, story, viewerPersonaID, true, false)
 	if err != nil {
 		return pipeInternalError[StoryResponse](err, "story.response")
 	}
@@ -60,7 +60,7 @@ func (p *StoryPipe) ListStoryItemsPipe(ctx context.Context, storyID uuid.UUID, l
 	if !allowed {
 		return shared.PipeError[[]StoryItemResponse](messages.Story_Not_Found)
 	}
-	items, err := p.storyItemResponses(ctx, storyID, viewerPersonaID)
+	items, err := p.storyItemResponses(ctx, storyID, viewerPersonaID, false)
 	if err != nil {
 		return pipeInternalError[[]StoryItemResponse](err, "story.items")
 	}

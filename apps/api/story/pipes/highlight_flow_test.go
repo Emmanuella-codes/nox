@@ -80,8 +80,10 @@ func TestStoryCanBeHighlightedOnEventAndProfile(t *testing.T) {
 // storyHighlightTestRepo stores highlight mutations in memory for story pipe tests.
 type storyHighlightTestRepo struct {
 	story             *models.Story
+	items             []*models.StoryItem
 	eventHighlights   []*models.EventHighlightStory
 	profileHighlights []*models.ProfileStoryHighlight
+	acceptsAdditions  bool
 }
 
 // CreateStory is unused in this test stub.
@@ -112,6 +114,11 @@ func (r *storyHighlightTestRepo) FindStoriesByOwnerPersonaID(ctx context.Context
 	panic("unexpected call to FindStoriesByOwnerPersonaID")
 }
 
+// Returns the configured add-window decision.
+func (r *storyHighlightTestRepo) StoryAcceptsAdditions(ctx context.Context, storyID uuid.UUID) (bool, error) {
+	return r.acceptsAdditions, nil
+}
+
 // DeleteStory is unused in this test stub.
 func (r *storyHighlightTestRepo) DeleteStory(ctx context.Context, storyID uuid.UUID) error {
 	panic("unexpected call to DeleteStory")
@@ -129,7 +136,25 @@ func (r *storyHighlightTestRepo) FindStoryItemByID(ctx context.Context, storyID 
 
 // FindStoryItems is unused in this test stub.
 func (r *storyHighlightTestRepo) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error) {
-	return []*models.StoryItem{}, nil
+	items := make([]*models.StoryItem, 0, len(r.items))
+	now := time.Now()
+	for _, item := range r.items {
+		if item.StoryID == storyID && item.ExpiresAt.After(now) {
+			items = append(items, item)
+		}
+	}
+	return items, nil
+}
+
+// Returns all stored story items for preserved highlight reads.
+func (r *storyHighlightTestRepo) FindStoryItemsAny(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error) {
+	items := make([]*models.StoryItem, 0, len(r.items))
+	for _, item := range r.items {
+		if item.StoryID == storyID {
+			items = append(items, item)
+		}
+	}
+	return items, nil
 }
 
 // DeleteStoryItem is unused in this test stub.
@@ -262,6 +287,21 @@ func (r *storyHighlightTestRepo) RemoveProfileStoryHighlight(ctx context.Context
 // HasProfileStoryHighlight is unused in this test stub.
 func (r *storyHighlightTestRepo) HasProfileStoryHighlight(ctx context.Context, ownerPersonaID uuid.UUID, storyID uuid.UUID) (bool, error) {
 	return false, nil
+}
+
+// No-ops the auto-rejection batch for this in-memory stub.
+func (r *storyHighlightTestRepo) RejectPendingContributionRequestsForClosedStories(ctx context.Context, limit int) (int64, error) {
+	return 0, nil
+}
+
+// No-ops retained item cleanup for this in-memory stub.
+func (r *storyHighlightTestRepo) DeleteExpiredNonHighlightedStoryItems(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	return 0, nil
+}
+
+// No-ops empty-story cleanup for this in-memory stub.
+func (r *storyHighlightTestRepo) DeleteRetainedEmptyStories(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	return 0, nil
 }
 
 // storyHighlightEventRepo returns one event fixture.

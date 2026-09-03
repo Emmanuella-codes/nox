@@ -75,6 +75,7 @@ func scanStoryItem(scanner storyScanner) (*models.StoryItem, error) {
 		&item.AnonymousLabel,
 		&item.DurationSeconds,
 		&item.Position,
+		&item.ExpiresAt,
 		&item.CreatedAt,
 	)
 	if err != nil {

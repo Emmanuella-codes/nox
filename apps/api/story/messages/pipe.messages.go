@@ -14,6 +14,7 @@ const (
 	Media_Asset_In_Use                          shared.PipeMessage = "media_asset_already_used"
 	Forbidden                                   shared.PipeMessage = "forbidden"
 	Story_Duration_Limit_Exceeded               shared.PipeMessage = "story_duration_limit_exceeded"
+	Story_Closed_For_Additions                  shared.PipeMessage = "story_closed_for_additions"
 	Story_Contribution_Request_Already_Pending  shared.PipeMessage = "story_contribution_request_already_pending"
 	Story_Contribution_Request_Already_Reviewed shared.PipeMessage = "story_contribution_request_already_reviewed"
 	Internal_Error                              shared.PipeMessage = "internal_error"

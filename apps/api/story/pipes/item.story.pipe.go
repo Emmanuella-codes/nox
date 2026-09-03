@@ -40,6 +40,13 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 	if story.OwnerPersonaID != contributor.ID {
 		return shared.PipeError[StoryItemResponse](messages.Forbidden)
 	}
+	acceptsAdditions, err := p.storyRepo.StoryAcceptsAdditions(ctx, storyID)
+	if err != nil {
+		return pipeInternalError[StoryItemResponse](err, "story.item_add_window")
+	}
+	if !acceptsAdditions {
+		return shared.PipeError[StoryItemResponse](messages.Story_Closed_For_Additions)
+	}
 
 	asset, message := p.mediaAsset(ctx, dto.MediaAssetID)
 	if message != "" {
@@ -54,6 +61,9 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 		if err == story_repo.ErrStoryDurationLimitExceeded {
 			return shared.PipeError[StoryItemResponse](messages.Story_Duration_Limit_Exceeded)
 		}
+		if err == story_repo.ErrStoryClosedForAdditions {
+			return shared.PipeError[StoryItemResponse](messages.Story_Closed_For_Additions)
+		}
 		if err == story_repo.ErrStoryMediaInUse {
 			return shared.PipeError[StoryItemResponse](messages.Media_Asset_In_Use)
 		}
@@ -62,7 +72,7 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 		}
 		return pipeInternalError[StoryItemResponse](err, "story.add_item")
 	}
-	items, err := p.storyItemResponses(ctx, storyID, &contributor.ID)
+	items, err := p.storyItemResponses(ctx, storyID, &contributor.ID, false)
 	if err != nil {
 		return pipeInternalError[StoryItemResponse](err, "story.item_response")
 	}
@@ -151,7 +161,7 @@ func (p *StoryPipe) ReorderStoryItemPipe(ctx context.Context, userID uuid.UUID, 
 		}
 		return pipeInternalError[StoryItemResponse](err, "story.reorder_item")
 	}
-	items, err := p.storyItemResponses(ctx, storyID, &persona.ID)
+	items, err := p.storyItemResponses(ctx, storyID, &persona.ID, false)
 	if err != nil {
 		return pipeInternalError[StoryItemResponse](err, "story.reorder_response")
 	}

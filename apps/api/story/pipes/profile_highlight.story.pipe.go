@@ -105,7 +105,7 @@ func (p *StoryPipe) profileHighlightResponse(ctx context.Context, highlight *mod
 			return nil, story_repo.ErrStoryNotFound
 		}
 	}
-	storyResponse, err := p.storyResponse(ctx, story, viewerPersonaID, false)
+	storyResponse, err := p.storyResponse(ctx, story, viewerPersonaID, true, true)
 	if err != nil {
 		return nil, err
 	}

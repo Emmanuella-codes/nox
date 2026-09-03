@@ -191,7 +191,7 @@ func (p *StoryPipe) eventHighlightResponse(ctx context.Context, highlight *model
 	if err != nil {
 		return nil, err
 	}
-	storyResponse, err := p.storyResponse(ctx, story, nil, false)
+	storyResponse, err := p.storyResponse(ctx, story, nil, true, true)
 	if err != nil {
 		return nil, err
 	}

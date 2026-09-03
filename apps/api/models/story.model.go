@@ -46,6 +46,7 @@ type StoryItem struct {
 	AnonymousLabel       string      `json:"anonymous_label,omitempty"`
 	DurationSeconds      int         `json:"duration_seconds"`
 	Position             int         `json:"position"`
+	ExpiresAt            time.Time   `json:"expires_at"`
 	CreatedAt            time.Time   `json:"created_at"`
 }
 

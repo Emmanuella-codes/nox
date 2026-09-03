@@ -34,6 +34,13 @@ func (p *StoryPipe) CreateStoryContributionRequestPipe(ctx context.Context, user
 	if !allowed {
 		return shared.PipeError[StoryContributionRequestResponse](messages.Forbidden)
 	}
+	acceptsAdditions, err := p.storyRepo.StoryAcceptsAdditions(ctx, storyID)
+	if err != nil {
+		return pipeInternalError[StoryContributionRequestResponse](err, "story.contribution_request_window")
+	}
+	if !acceptsAdditions {
+		return shared.PipeError[StoryContributionRequestResponse](messages.Story_Closed_For_Additions)
+	}
 	asset, message := p.mediaAsset(ctx, dto.MediaAssetID)
 	if message != "" {
 		return shared.PipeError[StoryContributionRequestResponse](message)
@@ -98,10 +105,20 @@ func (p *StoryPipe) AcceptStoryContributionRequestPipe(ctx context.Context, user
 	if message != "" {
 		return shared.PipeError[StoryContributionRequestResponse](message)
 	}
-	request, _, err := p.storyRepo.AcceptStoryContributionRequest(ctx, story, requestID, story.OwnerPersonaID, asset.DurationSeconds)
+	acceptsAdditions, err := p.storyRepo.StoryAcceptsAdditions(ctx, story.ID)
+	if err != nil {
+		return pipeInternalError[StoryContributionRequestResponse](err, "story.contribution_request_accept_window")
+	}
+	if !acceptsAdditions {
+		return shared.PipeError[StoryContributionRequestResponse](messages.Story_Closed_For_Additions)
+	}
+	request, _, err = p.storyRepo.AcceptStoryContributionRequest(ctx, story, requestID, story.OwnerPersonaID, asset.DurationSeconds)
 	if err != nil {
 		if err == story_repo.ErrStoryDurationLimitExceeded {
 			return shared.PipeError[StoryContributionRequestResponse](messages.Story_Duration_Limit_Exceeded)
+		}
+		if err == story_repo.ErrStoryClosedForAdditions {
+			return shared.PipeError[StoryContributionRequestResponse](messages.Story_Closed_For_Additions)
 		}
 		if err == story_repo.ErrStoryMediaInUse {
 			return shared.PipeError[StoryContributionRequestResponse](messages.Media_Asset_In_Use)

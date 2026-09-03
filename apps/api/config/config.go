@@ -34,6 +34,9 @@ type Config struct {
 	PushProvider           string
 	PushWorkerBatchSize    int
 	PushWorkerPollInterval time.Duration
+	StoryCleanupBatchSize  int
+	StoryCleanupInterval   time.Duration
+	StoryExpiryRetention   time.Duration
 	GhostPersonaSecret     string
 	Environment            string
 }
@@ -70,6 +73,9 @@ func Load() (*Config, error) {
 		PushProvider:           getEnv("PUSH_PROVIDER", "log"),
 		PushWorkerBatchSize:    getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
 		PushWorkerPollInterval: getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
+		StoryCleanupBatchSize:  getIntEnv("STORY_CLEANUP_BATCH_SIZE", 25),
+		StoryCleanupInterval:   getDurationEnv("STORY_CLEANUP_INTERVAL", 10*time.Minute),
+		StoryExpiryRetention:   getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
 		GhostPersonaSecret:     getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:            getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 	}

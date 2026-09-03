@@ -80,6 +80,13 @@ func (r *pgRepository) AcceptStoryContributionRequest(ctx context.Context, story
 	if currentTotal+durationSeconds > maxStoryDurationSeconds {
 		return nil, nil, ErrStoryDurationLimitExceeded
 	}
+	acceptsAdditions, err := storyAcceptsAdditions(ctx, tx, story.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !acceptsAdditions {
+		return nil, nil, ErrStoryClosedForAdditions
+	}
 	var position int
 	if err := tx.QueryRow(ctx, `SELECT COALESCE(MAX(position), 0) + 1 FROM story_items WHERE story_id = $1`, story.ID).Scan(&position); err != nil {
 		return nil, nil, err
@@ -88,7 +95,7 @@ func (r *pgRepository) AcceptStoryContributionRequest(ctx context.Context, story
 	if err != nil {
 		return nil, nil, err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE stories SET total_duration_seconds = total_duration_seconds + $2, updated_at = now() WHERE id = $1`, story.ID, durationSeconds); err != nil {
+	if err := recalculateStoryState(ctx, tx, story.ID); err != nil {
 		return nil, nil, err
 	}
 	row := tx.QueryRow(ctx, `

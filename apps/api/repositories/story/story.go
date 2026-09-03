@@ -3,6 +3,7 @@ package story
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	storydtos "github.com/emmanuella-codes/nox/story/dtos"
@@ -19,6 +20,7 @@ var (
 	ErrStoryDurationLimitExceeded       = errors.New("story duration limit exceeded")
 	ErrStoryMediaInUse                  = errors.New("story media asset already used")
 	ErrEventHighlightNotFound           = errors.New("event highlight story not found")
+	ErrStoryClosedForAdditions          = errors.New("story is closed for additions")
 )
 
 type StoryRepository interface {
@@ -27,10 +29,12 @@ type StoryRepository interface {
 	FindStoryByIDAny(ctx context.Context, storyID uuid.UUID) (*models.Story, error)
 	FindStoriesByEventID(ctx context.Context, eventID uuid.UUID, limit int, offset int) ([]*models.Story, error)
 	FindStoriesByOwnerPersonaID(ctx context.Context, personaID uuid.UUID, limit int, offset int) ([]*models.Story, error)
+	StoryAcceptsAdditions(ctx context.Context, storyID uuid.UUID) (bool, error)
 	DeleteStory(ctx context.Context, storyID uuid.UUID) error
 	AddStoryItem(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, durationSeconds int, anonymousLabel string, dto storydtos.AddStoryItemDTO) (*models.StoryItem, error)
 	FindStoryItemByID(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error)
 	FindStoryItems(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error)
+	FindStoryItemsAny(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error)
 	DeleteStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error)
 	ReorderStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID, position int) (*models.StoryItem, error)
 	CreateStoryContributionRequest(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, dto storydtos.CreateStoryContributionRequestDTO) (*models.StoryContributionRequest, error)
@@ -54,6 +58,9 @@ type StoryRepository interface {
 	FindProfileStoryHighlights(ctx context.Context, ownerPersonaID uuid.UUID) ([]*models.ProfileStoryHighlight, error)
 	RemoveProfileStoryHighlight(ctx context.Context, ownerPersonaID uuid.UUID, storyID uuid.UUID) error
 	HasProfileStoryHighlight(ctx context.Context, ownerPersonaID uuid.UUID, storyID uuid.UUID) (bool, error)
+	RejectPendingContributionRequestsForClosedStories(ctx context.Context, limit int) (int64, error)
+	DeleteExpiredNonHighlightedStoryItems(ctx context.Context, olderThan time.Time, limit int) (int64, error)
+	DeleteRetainedEmptyStories(ctx context.Context, olderThan time.Time, limit int) (int64, error)
 }
 
 func NewStoryRepository(db *pgxpool.Pool) StoryRepository {

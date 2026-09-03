@@ -33,7 +33,7 @@ func (p *StoryPipe) CreateStoryPipe(ctx context.Context, userID uuid.UUID, dto d
 	if err != nil {
 		return pipeInternalError[StoryResponse](err, "story.create")
 	}
-	response, err := p.storyResponse(ctx, story, &dto.OwnerPersonaID, false)
+	response, err := p.storyResponse(ctx, story, &dto.OwnerPersonaID, false, false)
 	if err != nil {
 		return pipeInternalError[StoryResponse](err, "story.response")
 	}

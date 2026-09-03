@@ -174,7 +174,7 @@ func (p *StoryPipe) loadViewableStoryItem(ctx context.Context, storyID uuid.UUID
 
 // storyItemResponse maps one story item into a response with viewer state hydrated.
 func (p *StoryPipe) storyItemResponse(ctx context.Context, item *models.StoryItem, viewerPersonaID *uuid.UUID) (*StoryItemResponse, error) {
-	responses, err := p.storyItemResponses(ctx, item.StoryID, viewerPersonaID)
+	responses, err := p.storyItemResponses(ctx, item.StoryID, viewerPersonaID, false)
 	if err != nil {
 		return nil, err
 	}
