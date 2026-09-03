@@ -10,6 +10,7 @@ import (
 	"github.com/emmanuella-codes/nox/post/messages"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/google/uuid"
 )
 
@@ -324,6 +325,24 @@ func TestGetPersonaPostsForViewerPipeIncludesAnonymousPostsForOwner(t *testing.T
 	}
 }
 
+func TestGetPersonaPostsForViewerPipeHidesBlockedProfiles(t *testing.T) {
+	targetUserID := uuid.New()
+	targetPersonaID := uuid.New()
+	viewerUserID := uuid.New()
+	viewerPersonaID := uuid.New()
+	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			targetPersonaID.String(): {ID: targetPersonaID, UserID: targetUserID, PersonaType: models.VisiblePersonaType},
+			viewerPersonaID.String(): {ID: viewerPersonaID, UserID: viewerUserID, PersonaType: models.VisiblePersonaType},
+		},
+	}, &postTestPreferenceRepo{blockedUsers: map[string]bool{viewerUserID.String() + ":" + targetUserID.String(): true}})
+
+	res := pipe.GetPersonaPostsForViewerPipe(context.Background(), targetPersonaID, viewerPersonaID, 20)
+	if res.Message != messages.Persona_Not_Found {
+		t.Fatalf("expected %q, got %q", messages.Persona_Not_Found, res.Message)
+	}
+}
+
 type postTestRepo struct {
 	posts               map[string]*models.Post
 	personaPosts        []*models.Post
@@ -497,6 +516,57 @@ type postTestHashtagRepo struct {
 	tagsByPost    map[uuid.UUID][]string
 }
 
+type postTestPreferenceRepo struct {
+	blockedUsers map[string]bool
+}
+
+func (r *postTestPreferenceRepo) BlockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) UnblockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) MuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) UnmuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) AddDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) RemoveDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) IsBlockedBetween(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
+	if r.blockedUsers == nil {
+		return false, nil
+	}
+	return r.blockedUsers[userA.String()+":"+userB.String()] || r.blockedUsers[userB.String()+":"+userA.String()], nil
+}
+
+func (r *postTestPreferenceRepo) FindExcludedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *postTestPreferenceRepo) FindMutedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *postTestPreferenceRepo) FindSuppressedTargetIDs(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *postTestPreferenceRepo) DeleteFollowRelationsBetweenUsers(ctx context.Context, userA uuid.UUID, userB uuid.UUID) error {
+	return nil
+}
+
 // SyncPostHashtags records synced tags for assertions.
 func (r *postTestHashtagRepo) SyncPostHashtags(ctx context.Context, postID uuid.UUID, tags []string) error {
 	r.syncedPostID = postID
@@ -535,6 +605,8 @@ func (r *postTestHashtagRepo) FindByTag(ctx context.Context, tag string) (*model
 func (r *postTestHashtagRepo) FindPostsByTag(ctx context.Context, tag string, limit int, offset int) ([]*models.Post, error) {
 	return nil, nil
 }
+
+var _ preference_repo.PreferenceRepository = (*postTestPreferenceRepo)(nil)
 
 // Search is unused in these tests.
 func (r *postTestHashtagRepo) Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error) {

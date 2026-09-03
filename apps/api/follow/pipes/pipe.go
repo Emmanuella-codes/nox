@@ -9,6 +9,7 @@ import (
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 )
@@ -17,6 +18,7 @@ type FollowPipe struct {
 	followRepo            follow_repo.FollowRepository
 	personaRepo           persona_repo.PersonaRepository
 	notificationRepo      notification_repo.NotificationRepository
+	preferenceRepo        preference_repo.PreferenceRepository
 	notificationPublisher interface {
 		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
 	}
@@ -59,6 +61,9 @@ func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_
 		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
 			pipe.notificationRepo = repo
 		}
+		if repo, ok := dep.(preference_repo.PreferenceRepository); ok {
+			pipe.preferenceRepo = repo
+		}
 		if publisher, ok := dep.(interface {
 			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
 		}); ok {
@@ -82,6 +87,15 @@ func (p *FollowPipe) validateFollowAction(ctx context.Context, userID uuid.UUID,
 
 	if followerPersona.ID == targetPersona.ID {
 		return nil, nil, shared.PipeError[any](messages.Self_Follow_Not_Allowed)
+	}
+	if p.preferenceRepo != nil {
+		blocked, err := p.preferenceRepo.IsBlockedBetween(ctx, followerPersona.UserID, targetPersona.UserID)
+		if err != nil {
+			return nil, nil, pipeInternalError[any](err, "follow.block_status")
+		}
+		if blocked {
+			return nil, nil, shared.PipeError[any](messages.Forbidden)
+		}
 	}
 
 	return followerPersona, targetPersona, nil
@@ -193,4 +207,39 @@ func personaIDs(personas []*models.Persona) []uuid.UUID {
 		ids = append(ids, persona.ID)
 	}
 	return ids
+}
+
+func (p *FollowPipe) visibleToViewer(ctx context.Context, viewerPersonaID uuid.UUID, target *models.Persona) (bool, error) {
+	if p.preferenceRepo == nil || target == nil {
+		return true, nil
+	}
+	viewer, err := p.personaRepo.FindPersonaByID(ctx, viewerPersonaID)
+	if err != nil {
+		return false, err
+	}
+	if viewer.UserID == target.UserID {
+		return true, nil
+	}
+	blocked, err := p.preferenceRepo.IsBlockedBetween(ctx, viewer.UserID, target.UserID)
+	if err != nil {
+		return false, err
+	}
+	return !blocked, nil
+}
+
+func (p *FollowPipe) filterBlockedPersonas(ctx context.Context, viewerPersonaID uuid.UUID, personas []*models.Persona) ([]*models.Persona, error) {
+	if p.preferenceRepo == nil {
+		return personas, nil
+	}
+	filtered := make([]*models.Persona, 0, len(personas))
+	for _, persona := range personas {
+		visible, err := p.visibleToViewer(ctx, viewerPersonaID, persona)
+		if err != nil {
+			return nil, err
+		}
+		if visible {
+			filtered = append(filtered, persona)
+		}
+	}
+	return filtered, nil
 }

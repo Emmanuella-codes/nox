@@ -22,6 +22,24 @@ func (p *PersonaPipe) GetPersonaPipe(ctx context.Context, personaID uuid.UUID) *
 	return shared.PipeSuccess(messages.Persona_Fetched, persona)
 }
 
+func (p *PersonaPipe) GetPersonaForViewerPipe(ctx context.Context, personaID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[models.Persona] {
+	persona, err := p.repo.FindPersonaByID(ctx, personaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[models.Persona](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[models.Persona](err, "persona.get")
+	}
+	visible, err := p.visibleToViewer(ctx, viewerPersonaID, persona)
+	if err != nil {
+		return pipeInternalError[models.Persona](err, "persona.visibility")
+	}
+	if !visible {
+		return shared.PipeError[models.Persona](messages.Persona_Not_Found)
+	}
+	return shared.PipeSuccess(messages.Persona_Fetched, persona)
+}
+
 func (p *PersonaPipe) GetMyPersonasPipe(ctx context.Context, userID uuid.UUID) *shared.PipeRes[[]*models.Persona] {
 	personas, err := p.repo.FindPersonasByUserID(ctx, userID)
 	if err != nil {

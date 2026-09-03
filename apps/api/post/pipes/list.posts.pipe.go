@@ -47,7 +47,24 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 // GetPostForViewerPipe fetches one post and viewer-specific liked state.
 func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[PostResponse] {
 	res := p.GetPostPipe(ctx, postID)
-	if !res.Success || res.Data == nil || p.likeRepo == nil {
+	if !res.Success || res.Data == nil {
+		return res
+	}
+	post, err := p.postRepo.FindPostByID(ctx, postID)
+	if err != nil {
+		if err == post_repo.ErrPostNotFound {
+			return shared.PipeError[PostResponse](messages.Post_Not_Found)
+		}
+		return pipeInternalError[PostResponse](err, "post.viewer_lookup")
+	}
+	blocked, err := p.blockedForViewer(ctx, viewerPersonaID, post.AuthorUserID)
+	if err != nil {
+		return pipeInternalError[PostResponse](err, "post.viewer_visibility")
+	}
+	if blocked {
+		return shared.PipeError[PostResponse](messages.Post_Not_Found)
+	}
+	if p.likeRepo == nil {
 		return res
 	}
 	liked, err := p.likeRepo.HasPostLike(ctx, viewerPersonaID, postID)
@@ -89,6 +106,13 @@ func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID u
 			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[[]PostResponse](err, "post.find_viewer_persona")
+	}
+	blocked, err := p.blockedForViewer(ctx, viewerPersonaID, targetProfile.UserID)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.profile_visibility")
+	}
+	if targetProfile.UserID != viewerProfile.UserID && blocked {
+		return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 	}
 	var posts []*models.Post
 	if targetProfile.UserID == viewerProfile.UserID {

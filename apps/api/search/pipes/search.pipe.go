@@ -68,6 +68,12 @@ func (p *SearchPipe) search(ctx context.Context, query string, options SearchOpt
 	if err != nil {
 		return pipeInternalError[SearchResponse](err, "search.query")
 	}
+	if viewerPersonaID != nil {
+		if err := p.applyViewerSuppression(ctx, *viewerPersonaID, results); err != nil {
+			return pipeInternalError[SearchResponse](err, "search.visibility")
+		}
+		results.HasMore = false
+	}
 
 	response := SearchResponse{
 		Query:      query,

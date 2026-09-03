@@ -71,6 +71,17 @@ func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, o
 			OR p.posting_mode = 'anonymous'
 			OR p.author_user_id = v.user_id
 		)
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM user_blocks ub
+			WHERE (ub.blocker_user_id = v.user_id AND ub.blocked_user_id = p.author_user_id)
+			   OR (ub.blocker_user_id = p.author_user_id AND ub.blocked_user_id = v.user_id)
+		  )
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM user_mutes um
+			WHERE um.user_id = v.user_id AND um.muted_user_id = p.author_user_id
+		  )
 		  AND (
 			$2::timestamptz IS NULL
 			OR p.created_at < $2
@@ -107,6 +118,17 @@ func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uui
 		CROSS JOIN viewer v
 		WHERE p.posting_mode = 'public'
 		  AND (pf.follower_id IS NOT NULL OR p.author_user_id = v.user_id)
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM user_blocks ub
+			WHERE (ub.blocker_user_id = v.user_id AND ub.blocked_user_id = p.author_user_id)
+			   OR (ub.blocker_user_id = p.author_user_id AND ub.blocked_user_id = v.user_id)
+		  )
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM user_mutes um
+			WHERE um.user_id = v.user_id AND um.muted_user_id = p.author_user_id
+		  )
 		  AND (
 			$2::timestamptz IS NULL
 			OR p.created_at < $2

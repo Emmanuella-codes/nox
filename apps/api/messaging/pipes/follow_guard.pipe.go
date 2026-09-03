@@ -14,6 +14,23 @@ func (p *MessagingPipe) requireMutualFollow(ctx context.Context, actorPersonaID 
 	if p.followRepo == nil {
 		return messages.Internal_Error
 	}
+	if p.preferenceRepo != nil {
+		actor, err := p.personaRepo.FindPersonaByID(ctx, actorPersonaID)
+		if err != nil {
+			return messages.Internal_Error
+		}
+		target, err := p.personaRepo.FindPersonaByID(ctx, targetPersonaID)
+		if err != nil {
+			return messages.Internal_Error
+		}
+		blocked, err := p.preferenceRepo.IsBlockedBetween(ctx, actor.UserID, target.UserID)
+		if err != nil {
+			return messages.Internal_Error
+		}
+		if blocked {
+			return messages.Forbidden
+		}
+	}
 	followsTarget, err := p.followRepo.IsFollowing(ctx, actorPersonaID, targetPersonaID)
 	if err != nil {
 		return messages.Internal_Error

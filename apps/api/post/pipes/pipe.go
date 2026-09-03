@@ -12,6 +12,7 @@ import (
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -20,12 +21,13 @@ import (
 var errInvalidPostMedia = errors.New("invalid post media")
 
 type PostPipe struct {
-	postRepo    post_repo.PostRepository
-	personaRepo persona_repo.PersonaRepository
-	likeRepo    like_repo.LikeRepository
-	hashtagRepo hashtag_repo.HashtagRepository
-	mediaRepo   media_repo.MediaRepository
-	cacheClient *redis.Client
+	postRepo       post_repo.PostRepository
+	personaRepo    persona_repo.PersonaRepository
+	likeRepo       like_repo.LikeRepository
+	hashtagRepo    hashtag_repo.HashtagRepository
+	mediaRepo      media_repo.MediaRepository
+	cacheClient    *redis.Client
+	preferenceRepo preference_repo.PreferenceRepository
 }
 
 type PostResponse struct {
@@ -78,6 +80,7 @@ func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.Per
 	var likes like_repo.LikeRepository
 	var hashtags hashtag_repo.HashtagRepository
 	var media media_repo.MediaRepository
+	var preferenceRepo preference_repo.PreferenceRepository
 	var cacheClient *redis.Client
 	for _, dep := range deps {
 		switch typed := dep.(type) {
@@ -89,9 +92,11 @@ func NewPostPipe(postRepo post_repo.PostRepository, personaRepo persona_repo.Per
 			media = typed
 		case *redis.Client:
 			cacheClient = typed
+		case preference_repo.PreferenceRepository:
+			preferenceRepo = typed
 		}
 	}
-	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags, mediaRepo: media, cacheClient: cacheClient}
+	return &PostPipe{postRepo: postRepo, personaRepo: personaRepo, likeRepo: likes, hashtagRepo: hashtags, mediaRepo: media, cacheClient: cacheClient, preferenceRepo: preferenceRepo}
 }
 
 // pipeInternalError maps internal post errors to pipe responses.

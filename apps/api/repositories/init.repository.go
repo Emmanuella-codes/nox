@@ -12,6 +12,7 @@ import (
 	"github.com/emmanuella-codes/nox/repositories/notification"
 	"github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/repositories/post"
+	"github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/repositories/set"
 	"github.com/emmanuella-codes/nox/repositories/story"
@@ -23,6 +24,7 @@ type Repositories struct {
 	User         user.UserRepository
 	Persona      persona.PersonaRepository
 	Post         post.PostRepository
+	Preference   preference.PreferenceRepository
 	Comment      comment.CommentRepository
 	Crew         crew.CrewRepository
 	Like         like.LikeRepository
@@ -42,6 +44,7 @@ func Init(pool *pgxpool.Pool) *Repositories {
 		User:         user.NewUserRepository(pool),
 		Persona:      persona.NewPersonaRepository(pool),
 		Post:         post.NewPostRepository(pool),
+		Preference:   preference.NewPreferenceRepository(pool),
 		Comment:      comment.NewCommentRepository(pool),
 		Crew:         crew.NewCrewRepository(pool),
 		Like:         like.NewLikeRepository(pool),

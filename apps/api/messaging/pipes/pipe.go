@@ -13,6 +13,7 @@ import (
 	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type MessagingPipe struct {
 	personaRepo           persona_repo.PersonaRepository
 	mediaRepo             media_repo.MediaRepository
 	followRepo            follow_repo.FollowRepository
+	preferenceRepo        preference_repo.PreferenceRepository
 	notificationRepo      notification_repo.NotificationRepository
 	notificationPublisher interface {
 		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
@@ -39,6 +41,9 @@ func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaR
 		}
 		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
 			pipe.notificationRepo = repo
+		}
+		if repo, ok := dep.(preference_repo.PreferenceRepository); ok {
+			pipe.preferenceRepo = repo
 		}
 		if publisher, ok := dep.(interface {
 			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
