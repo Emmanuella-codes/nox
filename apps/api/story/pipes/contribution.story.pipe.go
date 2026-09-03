@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateStoryContributionRequestPipe submits one pending contribution request for a story owner to review.
 func (p *StoryPipe) CreateStoryContributionRequestPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, dto dtos.CreateStoryContributionRequestDTO) *shared.PipeRes[StoryContributionRequestResponse] {
 	contributor, message := p.ownedPersona(ctx, userID, dto.ContributorPersonaID)
 	if message != "" {
@@ -45,7 +44,7 @@ func (p *StoryPipe) CreateStoryContributionRequestPipe(ctx context.Context, user
 	if message != "" {
 		return shared.PipeError[StoryContributionRequestResponse](message)
 	}
-	if asset.OwnerUserID != userID || asset.OwnerPersonaID != contributor.ID || !validStoryVideo(asset) {
+	if asset.OwnerUserID != userID || asset.OwnerPersonaID != contributor.ID || !validStoryMedia(asset) {
 		return shared.PipeError[StoryContributionRequestResponse](messages.Invalid_Story)
 	}
 	request, err := p.storyRepo.CreateStoryContributionRequest(ctx, storyID, userID, dto)
@@ -68,7 +67,6 @@ func (p *StoryPipe) CreateStoryContributionRequestPipe(ctx context.Context, user
 	return shared.PipeSuccess(messages.Story_Contribution_Request_Created, response)
 }
 
-// ListStoryContributionRequestsPipe lists contribution requests for one owned story.
 func (p *StoryPipe) ListStoryContributionRequestsPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, statusValue string, limit int, offset int) *shared.PipeRes[[]StoryContributionRequestResponse] {
 	story, err := p.storyRepo.FindStoryByID(ctx, storyID)
 	if err != nil {
@@ -95,7 +93,6 @@ func (p *StoryPipe) ListStoryContributionRequestsPipe(ctx context.Context, userI
 	return shared.PipeSuccess(messages.Story_Contribution_Requests_Listed, &responses)
 }
 
-// AcceptStoryContributionRequestPipe accepts one pending story contribution request.
 func (p *StoryPipe) AcceptStoryContributionRequestPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, requestID uuid.UUID) *shared.PipeRes[StoryContributionRequestResponse] {
 	request, story, contributor, response := p.loadContributionReviewContext(ctx, userID, storyID, requestID)
 	if response != nil {
@@ -112,7 +109,11 @@ func (p *StoryPipe) AcceptStoryContributionRequestPipe(ctx context.Context, user
 	if !acceptsAdditions {
 		return shared.PipeError[StoryContributionRequestResponse](messages.Story_Closed_For_Additions)
 	}
-	request, _, err = p.storyRepo.AcceptStoryContributionRequest(ctx, story, requestID, story.OwnerPersonaID, asset.DurationSeconds)
+	durationSeconds := storyItemDuration(asset)
+	if !validStoryMedia(asset) || durationSeconds <= 0 {
+		return shared.PipeError[StoryContributionRequestResponse](messages.Invalid_Story)
+	}
+	request, _, err = p.storyRepo.AcceptStoryContributionRequest(ctx, story, requestID, story.OwnerPersonaID, durationSeconds)
 	if err != nil {
 		if err == story_repo.ErrStoryDurationLimitExceeded {
 			return shared.PipeError[StoryContributionRequestResponse](messages.Story_Duration_Limit_Exceeded)
@@ -141,7 +142,6 @@ func (p *StoryPipe) AcceptStoryContributionRequestPipe(ctx context.Context, user
 	return shared.PipeSuccess(messages.Story_Contribution_Request_Accepted, result)
 }
 
-// RejectStoryContributionRequestPipe rejects one pending story contribution request.
 func (p *StoryPipe) RejectStoryContributionRequestPipe(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, requestID uuid.UUID) *shared.PipeRes[StoryContributionRequestResponse] {
 	request, story, contributor, response := p.loadContributionReviewContext(ctx, userID, storyID, requestID)
 	if response != nil {
@@ -167,7 +167,6 @@ func (p *StoryPipe) RejectStoryContributionRequestPipe(ctx context.Context, user
 	return shared.PipeSuccess(messages.Story_Contribution_Request_Rejected, result)
 }
 
-// loadContributionReviewContext loads the review entities and enforces owner-only review access.
 func (p *StoryPipe) loadContributionReviewContext(ctx context.Context, userID uuid.UUID, storyID uuid.UUID, requestID uuid.UUID) (*models.StoryContributionRequest, *models.Story, *models.Persona, *shared.PipeRes[StoryContributionRequestResponse]) {
 	story, err := p.storyRepo.FindStoryByID(ctx, storyID)
 	if err != nil {
@@ -193,7 +192,6 @@ func (p *StoryPipe) loadContributionReviewContext(ctx context.Context, userID uu
 	return request, story, contributor, nil
 }
 
-// storyContributionRequestResponse maps one contribution request into the API response shape.
 func (p *StoryPipe) storyContributionRequestResponse(ctx context.Context, request *models.StoryContributionRequest) (*StoryContributionRequestResponse, error) {
 	asset, err := p.mediaRepo.FindMediaAssetByID(ctx, request.MediaAssetID)
 	if err != nil {
@@ -226,7 +224,6 @@ func (p *StoryPipe) storyContributionRequestResponse(ctx context.Context, reques
 	}, nil
 }
 
-// storyContributionRequestResponses maps many contribution requests into API response values.
 func (p *StoryPipe) storyContributionRequestResponses(ctx context.Context, requests []*models.StoryContributionRequest) ([]StoryContributionRequestResponse, error) {
 	responses := make([]StoryContributionRequestResponse, 0, len(requests))
 	for _, request := range requests {
@@ -239,7 +236,6 @@ func (p *StoryPipe) storyContributionRequestResponses(ctx context.Context, reque
 	return responses, nil
 }
 
-// parseStoryContributionRequestStatus parses one optional status filter.
 func parseStoryContributionRequestStatus(value string) (*models.StoryContributionRequestStatus, shared.PipeMessage) {
 	if value == "" {
 		return nil, ""

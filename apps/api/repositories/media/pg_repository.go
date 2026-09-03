@@ -14,12 +14,10 @@ type pgRepository struct {
 	db *pgxpool.Pool
 }
 
-// newPgRepository builds the postgres-backed media repository.
 func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
-// CreateMediaAsset stores one ready media asset row.
 func (r *pgRepository) CreateMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.CreateMediaAssetDTO) (*models.MediaAsset, error) {
 	mediaKind := dto.MediaKind
 	if mediaKind == "" {
@@ -38,7 +36,6 @@ func (r *pgRepository) CreateMediaAsset(ctx context.Context, ownerUserID uuid.UU
 	return scanMediaAsset(row)
 }
 
-// CreatePostMediaAsset stores one ready uploaded post or messaging media asset row.
 func (r *pgRepository) CreatePostMediaAsset(ctx context.Context, ownerUserID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
@@ -53,32 +50,45 @@ func (r *pgRepository) CreatePostMediaAsset(ctx context.Context, ownerUserID uui
 	return scanMediaAsset(row)
 }
 
-// CreatePendingMediaAsset stores one pending set video asset row.
 func (r *pgRepository) CreatePendingMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateSetVideoUploadDTO) (*models.MediaAsset, error) {
-	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+	return r.createPendingAsset(ctx, ownerUserID, dto.OwnerPersonaID, models.VideoMediaKind, storageKey, playbackURL, dto.MimeType, 1, dto.SizeBytes)
 }
 
-// CreatePendingStoryMediaAsset stores one pending story video asset row.
-func (r *pgRepository) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryVideoUploadDTO) (*models.MediaAsset, error) {
-	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+func (r *pgRepository) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryMediaUploadDTO) (*models.MediaAsset, error) {
+	return r.createPendingAsset(
+		ctx,
+		ownerUserID,
+		dto.OwnerPersonaID,
+		dto.MediaKind,
+		storageKey,
+		playbackURL,
+		dto.MimeType,
+		storyMediaDuration(dto.MediaKind, 1),
+		dto.SizeBytes,
+	)
 }
 
-// createPendingVideoAsset stores one pending video asset row.
-func (r *pgRepository) createPendingVideoAsset(ctx context.Context, ownerUserID uuid.UUID, ownerPersonaID uuid.UUID, storageKey string, playbackURL string, mimeType string, sizeBytes int64) (*models.MediaAsset, error) {
+func storyMediaDuration(kind models.MediaKind, durationSeconds int) int {
+	if kind == models.ImageMediaKind {
+		return 5
+	}
+	return durationSeconds
+}
+
+func (r *pgRepository) createPendingAsset(ctx context.Context, ownerUserID uuid.UUID, ownerPersonaID uuid.UUID, mediaKind models.MediaKind, storageKey string, playbackURL string, mimeType string, durationSeconds int, sizeBytes int64) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
 			owner_user_id, owner_persona_id, media_kind, storage_key, playback_url, thumbnail_url,
 			mime_type, duration_seconds, size_bytes, processing_status
-		) VALUES ($1, $2, 'video', $3, $4, NULL, $5, 1, $6, 'pending')
+		) VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, 'pending')
 		RETURNING id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
 		          COALESCE(thumbnail_url, ''), mime_type, duration_seconds, size_bytes,
 		          processing_status, created_at, updated_at
-	`, ownerUserID, ownerPersonaID, storageKey, playbackURL, mimeType, sizeBytes)
+	`, ownerUserID, ownerPersonaID, mediaKind, storageKey, playbackURL, mimeType, durationSeconds, sizeBytes)
 
 	return scanMediaAsset(row)
 }
 
-// FindMediaAssetByID fetches one media asset by id.
 func (r *pgRepository) FindMediaAssetByID(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
@@ -91,7 +101,6 @@ func (r *pgRepository) FindMediaAssetByID(ctx context.Context, mediaAssetID uuid
 	return scanMediaAsset(row)
 }
 
-// MarkMediaAssetReady updates one pending asset into the ready state.
 func (r *pgRepository) MarkMediaAssetReady(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE media_assets
@@ -111,7 +120,6 @@ func (r *pgRepository) MarkMediaAssetReady(ctx context.Context, mediaAssetID uui
 	return scanMediaAsset(row)
 }
 
-// MarkMediaAssetFailed updates one pending asset into the failed state.
 func (r *pgRepository) MarkMediaAssetFailed(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE media_assets
@@ -126,7 +134,6 @@ func (r *pgRepository) MarkMediaAssetFailed(ctx context.Context, mediaAssetID uu
 	return scanMediaAsset(row)
 }
 
-// DeleteOrphanedMediaAssets removes failed or pending assets with no remaining references.
 func (r *pgRepository) DeleteOrphanedMediaAssets(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
 	if limit <= 0 {
 		limit = 100
@@ -165,7 +172,6 @@ type mediaAssetScanner interface {
 	Scan(dest ...any) error
 }
 
-// scanMediaAsset scans one media asset row into the model shape.
 func scanMediaAsset(scanner mediaAssetScanner) (*models.MediaAsset, error) {
 	var asset models.MediaAsset
 	err := scanner.Scan(
@@ -189,7 +195,6 @@ func scanMediaAsset(scanner mediaAssetScanner) (*models.MediaAsset, error) {
 	return &asset, nil
 }
 
-// emptyToNil converts empty strings into sql null inputs.
 func emptyToNil(value string) any {
 	if value == "" {
 		return nil

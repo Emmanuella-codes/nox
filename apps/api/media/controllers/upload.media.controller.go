@@ -28,22 +28,26 @@ func (c *MediaController) InitiateSetVideoUpload(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
 }
 
-func (c *MediaController) InitiateStoryVideoUpload(ctx *fiber.Ctx) error {
+func (c *MediaController) InitiateStoryMediaUpload(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
 		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
 	}
 
-	var dto dtos.InitiateStoryVideoUploadDTO
+	var dto dtos.InitiateStoryMediaUploadDTO
 	if err := parseAndValidate(ctx, &dto); err != nil {
 		return validationError(ctx, err)
 	}
 
-	res := c.pipe.InitiateStoryVideoUploadPipe(ctx.Context(), userID, dto)
+	res := c.pipe.InitiateStoryMediaUploadPipe(ctx.Context(), userID, dto)
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}
 	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
+}
+
+func (c *MediaController) InitiateStoryVideoUpload(ctx *fiber.Ctx) error {
+	return c.InitiateStoryMediaUpload(ctx)
 }
 
 func (c *MediaController) InitiatePostMediaUpload(ctx *fiber.Ctx) error {
@@ -112,7 +116,7 @@ func (c *MediaController) CompleteStoryMediaProcessing(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_media_asset_id")
 	}
 
-	var dto dtos.CompleteMediaProcessingDTO
+	var dto dtos.CompleteStoryMediaProcessingDTO
 	if err := parseAndValidate(ctx, &dto); err != nil {
 		return validationError(ctx, err)
 	}

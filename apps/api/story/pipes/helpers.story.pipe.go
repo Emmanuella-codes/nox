@@ -5,25 +5,45 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 )
 
-// validContributionMode validates the supported story contribution modes.
+const (
+	storyItemImageDurationSeconds = 5
+	maxStoryItemMediaDuration     = 120
+)
+
 func validContributionMode(mode models.StoryContributionMode) bool {
 	return mode == models.PublicStoryContributionMode || mode == models.PrivateStoryContributionMode
 }
 
-// validPostingMode validates the supported direct story item posting modes.
 func validPostingMode(mode models.PostingMode) bool {
 	return mode == models.PublicPostingMode
 }
 
-// validStoryVideo verifies that one media asset is usable as a story item.
-func validStoryVideo(asset *models.MediaAsset) bool {
+func validStoryMedia(asset *models.MediaAsset) bool {
+	if asset == nil {
+		return false
+	}
+	if asset.ProcessingStatus != models.ReadyMediaStatus {
+		return false
+	}
+	if asset.MediaKind == models.ImageMediaKind {
+		return asset.DurationSeconds == storyItemImageDurationSeconds
+	}
 	return asset.MediaKind == models.VideoMediaKind &&
 		asset.ProcessingStatus == models.ReadyMediaStatus &&
 		asset.DurationSeconds > 0 &&
-		asset.DurationSeconds <= 300
+		asset.DurationSeconds <= maxStoryItemMediaDuration
 }
 
-// validStoryReactionType validates the supported story reaction types.
+func storyItemDuration(asset *models.MediaAsset) int {
+	if asset == nil {
+		return 0
+	}
+	if asset.MediaKind == models.ImageMediaKind {
+		return storyItemImageDurationSeconds
+	}
+	return asset.DurationSeconds
+}
+
 func validStoryReactionType(reactionType models.StoryReactionType) bool {
 	return reactionType == models.StoryReactionTypeLike ||
 		reactionType == models.StoryReactionTypeFire ||
@@ -31,7 +51,6 @@ func validStoryReactionType(reactionType models.StoryReactionType) bool {
 		reactionType == models.StoryReactionTypeLaugh
 }
 
-// storyMessageResponse maps one story-linked direct message into the shared messaging response shape.
 func storyMessageResponse(message *models.Message) messaging_pipes.MessageResponse {
 	var storyID *string
 	if message.StoryID != nil {
