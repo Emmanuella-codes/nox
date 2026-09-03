@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/emmanuella-codes/nox/models"
-	// "github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,12 +18,14 @@ type Results struct {
 	Posts    []*PostResult
 	Events   []*models.Event
 	Hashtags []*models.Hashtag
+	Sets     []*models.Set
 	HasMore  bool
 }
 
 type Options struct {
 	Limit  int
 	Offset int
+	Scope  string
 }
 
 type SearchRepository interface {
@@ -40,6 +41,7 @@ func NormalizeOptions(options Options) Options {
 	if options.Offset < 0 {
 		options.Offset = 0
 	}
+	options.Scope = normalizeScope(options.Scope)
 	return options
 }
 
@@ -71,10 +73,14 @@ func normalizeHashtagQuery(query string) string {
 	return strings.ToLower(query)
 }
 
-// func nullableUUID(valid bool, value uuid.UUID) *uuid.UUID {
-// 	if !valid {
-// 		return nil
-// 	}
-// 	v := value
-// 	return &v
-// }
+func normalizeScope(scope string) string {
+	scope = strings.ToLower(strings.TrimSpace(scope))
+	switch scope {
+	case "", "all":
+		return "all"
+	case "personas", "posts", "events", "hashtags", "sets":
+		return scope
+	default:
+		return "all"
+	}
+}

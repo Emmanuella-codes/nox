@@ -7,6 +7,7 @@ import (
 )
 
 type Comment struct {
+	AuthorUserID uuid.UUID   `json:"-"`
 	ID          uuid.UUID   `json:"id"`
 	PersonaID   uuid.UUID   `json:"persona_id"`
 	PostID      uuid.UUID   `json:"post_id"`

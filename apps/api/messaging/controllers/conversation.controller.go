@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// CreateDirectConversation handles direct conversation creation or reuse.
 func (c *MessagingController) CreateDirectConversation(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
@@ -23,6 +24,7 @@ func (c *MessagingController) CreateDirectConversation(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
 }
 
+// CreateGroupConversation handles group conversation creation.
 func (c *MessagingController) CreateGroupConversation(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
@@ -39,6 +41,7 @@ func (c *MessagingController) CreateGroupConversation(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusCreated, res.Message, res.Data)
 }
 
+// ListConversations lists conversations for one public profile.
 func (c *MessagingController) ListConversations(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {
@@ -55,6 +58,7 @@ func (c *MessagingController) ListConversations(ctx *fiber.Ctx) error {
 	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 }
 
+// GetConversation fetches one conversation for one authenticated member.
 func (c *MessagingController) GetConversation(ctx *fiber.Ctx) error {
 	userID, ok := middleware.CurrentUserID(ctx)
 	if !ok {

@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// ListConversationsPipe lists the conversations available to one profile.
 func (p *MessagingPipe) ListConversationsPipe(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) *shared.PipeRes[[]ConversationResponse] {
-	if _, message := p.visiblePersona(ctx, userID, personaID, true); message != "" {
+	if _, message := p.profilePersona(ctx, userID, personaID, true); message != "" {
 		return shared.PipeError[[]ConversationResponse](message)
 	}
 	limit = normalizeLimit(limit, 20, 50)
@@ -33,6 +34,7 @@ func (p *MessagingPipe) ListConversationsPipe(ctx context.Context, userID uuid.U
 	return shared.PipeSuccess(messages.Conversations_Listed, &responses)
 }
 
+// GetConversationPipe fetches one conversation if the current user is a member.
 func (p *MessagingPipe) GetConversationPipe(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID) *shared.PipeRes[ConversationResponse] {
 	conversation, err := p.messagingRepo.FindConversationByID(ctx, conversationID)
 	if err != nil {
@@ -58,11 +60,15 @@ func (p *MessagingPipe) GetConversationPipe(ctx context.Context, userID uuid.UUI
 		if err != nil {
 			return pipeInternalError[ConversationResponse](err, "messaging.get_last_message")
 		}
+		if lastMessage.DeletedAt != nil {
+			lastMessage = nil
+		}
 	}
 	response := p.conversationResponse(ctx, conversation, members, personas, lastMessage, 0)
 	return shared.PipeSuccess(messages.Conversation_Fetched, &response)
 }
 
+// userInConversation checks whether the current user belongs to the conversation.
 func userInConversation(userID uuid.UUID, members []*models.ConversationMember) bool {
 	for _, member := range members {
 		if member.UserID == userID {
@@ -72,6 +78,7 @@ func userInConversation(userID uuid.UUID, members []*models.ConversationMember) 
 	return false
 }
 
+// normalizeLimit bounds list sizes to the accepted window.
 func normalizeLimit(limit int, fallback int, max int) int {
 	if limit <= 0 {
 		return fallback

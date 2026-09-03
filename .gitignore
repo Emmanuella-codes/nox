@@ -39,10 +39,14 @@ yarn-error.log*
 AGENTS.md
 CLAUDE.md
 
+.cache/
+
 STRUCTURE.md
 DESIGN.md
 SCREENS.md
 LANDING.md
 ENDPOINTS.md
+NOX_ARCHITECTURE.md
+backend-structure-status.md
 
 todos

@@ -5,19 +5,25 @@ import (
 
 	"github.com/emmanuella-codes/nox/messaging/messages"
 	"github.com/emmanuella-codes/nox/messaging/pipes"
+	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
 	"github.com/emmanuella-codes/nox/shared"
 	sharedapi "github.com/emmanuella-codes/nox/shared/api"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/gofiber/fiber/v2"
 )
 
 type MessagingController struct {
-	pipe *pipes.MessagingPipe
+	pipe          *pipes.MessagingPipe
+	messagingRepo messaging_repo.MessagingRepository
+	realtimeHub   *realtime.Hub
 }
 
-func NewMessagingController(pipe *pipes.MessagingPipe) *MessagingController {
-	return &MessagingController{pipe: pipe}
+// NewMessagingController builds the messaging HTTP controller.
+func NewMessagingController(pipe *pipes.MessagingPipe, messagingRepo messaging_repo.MessagingRepository, realtimeHub *realtime.Hub) *MessagingController {
+	return &MessagingController{pipe: pipe, messagingRepo: messagingRepo, realtimeHub: realtimeHub}
 }
 
+// parseAndValidate binds and validates one request payload.
 func parseAndValidate(ctx *fiber.Ctx, dto any) error {
 	if err := ctx.BodyParser(dto); err != nil {
 		return err
@@ -29,18 +35,22 @@ func parseAndValidate(ctx *fiber.Ctx, dto any) error {
 	return nil
 }
 
+// validationError returns one consistent validation failure response.
 func validationError(ctx *fiber.Ctx, err error) error {
 	return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "message": messages.Invalid_Payload, "error": err.Error()})
 }
 
+// pipeSuccess writes one successful pipe response to the client.
 func pipeSuccess[T any](ctx *fiber.Ctx, status int, message shared.PipeMessage, data *T) error {
 	return ctx.Status(status).JSON(shared.PipeRes[T]{Success: true, Message: message, Data: data})
 }
 
+// pipeError writes one failed pipe response to the client.
 func pipeError(ctx *fiber.Ctx, status int, message shared.PipeMessage) error {
 	return ctx.Status(status).JSON(shared.PipeRes[any]{Success: false, Message: message})
 }
 
+// pipeErrorStatus maps pipe messages into HTTP status codes.
 func pipeErrorStatus(message shared.PipeMessage) int {
 	switch message {
 	case messages.Invalid_Payload:
@@ -56,6 +66,7 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 	}
 }
 
+// queryLimit parses one optional list limit query parameter.
 func queryLimit(ctx *fiber.Ctx, fallback int) int {
 	limit, err := strconv.Atoi(ctx.Query("limit"))
 	if err != nil {
@@ -64,6 +75,7 @@ func queryLimit(ctx *fiber.Ctx, fallback int) int {
 	return limit
 }
 
+// queryOffset parses one optional list offset query parameter.
 func queryOffset(ctx *fiber.Ctx) int {
 	offset, err := strconv.Atoi(ctx.Query("offset"))
 	if err != nil {

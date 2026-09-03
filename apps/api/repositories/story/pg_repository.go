@@ -43,6 +43,21 @@ func (r *pgRepository) FindStoryByID(ctx context.Context, storyID uuid.UUID) (*m
 	return story, nil
 }
 
+// FindStoryByIDAny loads one story regardless of expiry state.
+func (r *pgRepository) FindStoryByIDAny(ctx context.Context, storyID uuid.UUID) (*models.Story, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT id, event_id, owner_user_id, owner_persona_id, title, contribution_mode,
+		       total_duration_seconds, expires_at, created_at, updated_at
+		FROM stories
+		WHERE id = $1
+	`, storyID)
+	story, err := scanStory(row)
+	if err != nil {
+		return nil, mapStoryError(err)
+	}
+	return story, nil
+}
+
 func (r *pgRepository) FindStoriesByEventID(ctx context.Context, eventID uuid.UUID, limit int, offset int) ([]*models.Story, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, event_id, owner_user_id, owner_persona_id, title, contribution_mode,

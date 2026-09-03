@@ -40,17 +40,28 @@ type InitiateSetVideoUploadDTO struct {
 	SizeBytes      int64     `json:"size_bytes" validate:"required,min=1"`
 }
 
-type InitiateStoryVideoUploadDTO struct {
-	OwnerPersonaID uuid.UUID `json:"owner_persona_id" validate:"required"`
-	MimeType       string    `json:"mime_type" validate:"required"`
-	SizeBytes      int64     `json:"size_bytes" validate:"required,min=1"`
+type InitiateStoryMediaUploadDTO struct {
+	OwnerPersonaID uuid.UUID        `json:"owner_persona_id" validate:"required"`
+	MediaKind      models.MediaKind `json:"media_kind" validate:"required"`
+	MimeType       string           `json:"mime_type" validate:"required"`
+	SizeBytes      int64            `json:"size_bytes" validate:"required,min=1"`
 }
+
+type InitiateStoryVideoUploadDTO = InitiateStoryMediaUploadDTO
 
 type CompleteMediaProcessingDTO struct {
 	PlaybackURL     string `json:"playback_url" validate:"required"`
 	ThumbnailURL    string `json:"thumbnail_url"`
 	MimeType        string `json:"mime_type" validate:"required"`
 	DurationSeconds int    `json:"duration_seconds" validate:"required,min=1,max=900"`
+	SizeBytes       int64  `json:"size_bytes" validate:"required,min=1"`
+}
+
+type CompleteStoryMediaProcessingDTO struct {
+	PlaybackURL     string `json:"playback_url" validate:"required"`
+	ThumbnailURL    string `json:"thumbnail_url"`
+	MimeType        string `json:"mime_type" validate:"required"`
+	DurationSeconds int    `json:"duration_seconds" validate:"min=0,max=900"`
 	SizeBytes       int64  `json:"size_bytes" validate:"required,min=1"`
 }
 

@@ -36,23 +36,33 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 	if !allowed {
 		return shared.PipeError[StoryItemResponse](messages.Forbidden)
 	}
+	if story.OwnerPersonaID != contributor.ID {
+		return shared.PipeError[StoryItemResponse](messages.Forbidden)
+	}
+	acceptsAdditions, err := p.storyRepo.StoryAcceptsAdditions(ctx, storyID)
+	if err != nil {
+		return pipeInternalError[StoryItemResponse](err, "story.item_add_window")
+	}
+	if !acceptsAdditions {
+		return shared.PipeError[StoryItemResponse](messages.Story_Closed_For_Additions)
+	}
 
 	asset, message := p.mediaAsset(ctx, dto.MediaAssetID)
 	if message != "" {
 		return shared.PipeError[StoryItemResponse](message)
 	}
-	if asset.OwnerUserID != userID || asset.OwnerPersonaID != contributor.ID || !validStoryVideo(asset) {
+	durationSeconds := storyItemDuration(asset)
+	if asset.OwnerUserID != userID || asset.OwnerPersonaID != contributor.ID || !validStoryMedia(asset) || durationSeconds <= 0 {
 		return shared.PipeError[StoryItemResponse](messages.Invalid_Story)
 	}
 
-	label := ""
-	if dto.PostingMode == models.AnonymousPostingMode {
-		label = anonymousLabel(storyID, contributor.ID)
-	}
-	item, err := p.storyRepo.AddStoryItem(ctx, storyID, userID, asset.DurationSeconds, label, dto)
+	item, err := p.storyRepo.AddStoryItem(ctx, storyID, userID, durationSeconds, "", dto)
 	if err != nil {
 		if err == story_repo.ErrStoryDurationLimitExceeded {
 			return shared.PipeError[StoryItemResponse](messages.Story_Duration_Limit_Exceeded)
+		}
+		if err == story_repo.ErrStoryClosedForAdditions {
+			return shared.PipeError[StoryItemResponse](messages.Story_Closed_For_Additions)
 		}
 		if err == story_repo.ErrStoryMediaInUse {
 			return shared.PipeError[StoryItemResponse](messages.Media_Asset_In_Use)
@@ -62,7 +72,7 @@ func (p *StoryPipe) AddStoryItemPipe(ctx context.Context, userID uuid.UUID, stor
 		}
 		return pipeInternalError[StoryItemResponse](err, "story.add_item")
 	}
-	items, err := p.storyItemResponses(ctx, storyID)
+	items, err := p.storyItemResponses(ctx, storyID, &contributor.ID, false)
 	if err != nil {
 		return pipeInternalError[StoryItemResponse](err, "story.item_response")
 	}
@@ -149,7 +159,7 @@ func (p *StoryPipe) ReorderStoryItemPipe(ctx context.Context, userID uuid.UUID, 
 		}
 		return pipeInternalError[StoryItemResponse](err, "story.reorder_item")
 	}
-	items, err := p.storyItemResponses(ctx, storyID)
+	items, err := p.storyItemResponses(ctx, storyID, &persona.ID, false)
 	if err != nil {
 		return pipeInternalError[StoryItemResponse](err, "story.reorder_response")
 	}

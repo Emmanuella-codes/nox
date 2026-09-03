@@ -16,11 +16,20 @@ type pgRepository struct {
 	db *pgxpool.Pool
 }
 
+// newPgRepository builds the Postgres-backed profile repository.
 func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
+// CreatePersona creates the single public profile attached to a user account.
 func (r *pgRepository) CreatePersona(ctx context.Context, userID uuid.UUID, dto dtos.CreatePersonaDTO) (*models.Persona, error) {
+	existing, err := r.FindPersonasByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(existing) > 0 {
+		return nil, ErrProfileAlreadyExists
+	}
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO personas (
 			user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags
@@ -37,6 +46,7 @@ func (r *pgRepository) CreatePersona(ctx context.Context, userID uuid.UUID, dto 
 	return persona, nil
 }
 
+// FindPersonaByID fetches one public profile by id.
 func (r *pgRepository) FindPersonaByID(ctx context.Context, personaID uuid.UUID) (*models.Persona, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
@@ -53,6 +63,7 @@ func (r *pgRepository) FindPersonaByID(ctx context.Context, personaID uuid.UUID)
 	return persona, nil
 }
 
+// FindPersonasByUserID fetches profiles belonging to one user account.
 func (r *pgRepository) FindPersonasByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
@@ -82,6 +93,7 @@ func (r *pgRepository) FindPersonasByUserID(ctx context.Context, userID uuid.UUI
 	return personas, nil
 }
 
+// FindPersonaByHandle fetches one public profile by handle.
 func (r *pgRepository) FindPersonaByHandle(ctx context.Context, handle string) (*models.Persona, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
@@ -98,6 +110,7 @@ func (r *pgRepository) FindPersonaByHandle(ctx context.Context, handle string) (
 	return persona, nil
 }
 
+// UpdatePersona updates mutable public profile fields.
 func (r *pgRepository) UpdatePersona(ctx context.Context, personaID uuid.UUID, dto dtos.UpdatePersonaDTO) (*models.Persona, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE personas
@@ -125,6 +138,7 @@ type personaScanner interface {
 	Scan(dest ...any) error
 }
 
+// scanPersona maps one public profile row.
 func scanPersona(scanner personaScanner) (*models.Persona, error) {
 	var persona models.Persona
 	err := scanner.Scan(
@@ -150,6 +164,7 @@ func scanPersona(scanner personaScanner) (*models.Persona, error) {
 	return &persona, nil
 }
 
+// mapPersonaError maps repository-specific profile errors.
 func mapPersonaError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrPersonaNotFound
@@ -160,6 +175,8 @@ func mapPersonaError(err error) error {
 		switch pgErr.ConstraintName {
 		case "personas_handle_key":
 			return ErrHandleAlreadyTaken
+		case "personas_one_profile_per_user_idx":
+			return ErrProfileAlreadyExists
 		case "personas_one_ghost_per_user_idx":
 			return ErrGhostPersonaAlreadyUsed
 		}

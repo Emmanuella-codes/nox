@@ -19,6 +19,7 @@ type CommentRepository interface {
 	DeleteComment(ctx context.Context, commentID uuid.UUID) error
 }
 
+// NewCommentRepository builds the Postgres-backed comment repository.
 func NewCommentRepository(db *pgxpool.Pool) CommentRepository {
 	return newPgRepository(db)
 }

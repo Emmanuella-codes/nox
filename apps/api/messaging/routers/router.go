@@ -54,6 +54,12 @@ func MessagingRoutes(controller *controllers.MessagingController, cfg *config.Co
 		},
 		{
 			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/conversations/:conversationID/typing",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.UpdateTyping,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
 			Path:        "/conversations/:conversationID/members",
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
 			Handler:     controller.AddMembers,
@@ -65,10 +71,34 @@ func MessagingRoutes(controller *controllers.MessagingController, cfg *config.Co
 			Handler:     controller.RemoveMember,
 		},
 		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/conversations/:conversationID/leave",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.LeaveConversation,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/conversations/:conversationID/members/:personaID/role",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.UpdateMemberRole,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/messages/:messageID",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.EditMessage,
+		},
+		{
 			RouteMethod: api.RouteMethod("DELETE"),
 			Path:        "/messages/:messageID",
 			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
 			Handler:     controller.DeleteMessage,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/realtime/stream",
+			Middlewares: []typings.FiberMiddleware{middleware.JWT(cfg)},
+			Handler:     controller.StreamRealtime,
 		},
 	}
 }

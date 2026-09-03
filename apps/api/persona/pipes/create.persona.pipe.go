@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// CreatePersonaPipe creates the single public profile attached to a user account.
 func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, dto dtos.CreatePersonaDTO) *shared.PipeRes[models.Persona] {
 	dto.DisplayName = strings.TrimSpace(dto.DisplayName)
 	dto.Bio = strings.TrimSpace(dto.Bio)
@@ -19,6 +20,9 @@ func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, d
 	dto.CoverURL = strings.TrimSpace(dto.CoverURL)
 	if dto.Category == "" {
 		dto.Category = models.PatronPersonaCategory
+	}
+	if dto.PersonaType == "" {
+		dto.PersonaType = models.VisiblePersonaType
 	}
 
 	if !validPersonaType(dto.PersonaType) {
@@ -38,6 +42,8 @@ func (p *PersonaPipe) CreatePersonaPipe(ctx context.Context, userID uuid.UUID, d
 		switch err {
 		case persona_repo.ErrHandleAlreadyTaken:
 			return shared.PipeError[models.Persona](messages.Handle_Already_Taken)
+		case persona_repo.ErrProfileAlreadyExists:
+			return shared.PipeError[models.Persona](messages.Profile_Already_Exists)
 		case persona_repo.ErrGhostPersonaAlreadyUsed:
 			return shared.PipeError[models.Persona](messages.Ghost_Persona_Already_Set)
 		default:

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -30,6 +31,16 @@ type Config struct {
 	CloudinaryAPIKey       string
 	CloudinaryAPISecret    string
 	CloudinaryUploadFolder string
+	PushProvider           string
+	PushWorkerBatchSize    int
+	PushWorkerPollInterval time.Duration
+	MediaCleanupBatchSize  int
+	MediaCleanupInterval   time.Duration
+	MediaPendingRetention  time.Duration
+	MediaFailedRetention   time.Duration
+	StoryCleanupBatchSize  int
+	StoryCleanupInterval   time.Duration
+	StoryExpiryRetention   time.Duration
 	GhostPersonaSecret     string
 	Environment            string
 }
@@ -63,6 +74,16 @@ func Load() (*Config, error) {
 		CloudinaryAPIKey:       getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "nox/posts"),
+		PushProvider:           getEnv("PUSH_PROVIDER", "log"),
+		PushWorkerBatchSize:    getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
+		PushWorkerPollInterval: getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
+		MediaCleanupBatchSize:  getIntEnv("MEDIA_CLEANUP_BATCH_SIZE", 25),
+		MediaCleanupInterval:   getDurationEnv("MEDIA_CLEANUP_INTERVAL", 10*time.Minute),
+		MediaPendingRetention:  getDurationEnv("MEDIA_PENDING_RETENTION", 24*time.Hour),
+		MediaFailedRetention:   getDurationEnv("MEDIA_FAILED_RETENTION", 168*time.Hour),
+		StoryCleanupBatchSize:  getIntEnv("STORY_CLEANUP_BATCH_SIZE", 25),
+		StoryCleanupInterval:   getDurationEnv("STORY_CLEANUP_INTERVAL", 10*time.Minute),
+		StoryExpiryRetention:   getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
 		GhostPersonaSecret:     getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:            getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 	}
@@ -108,4 +129,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getIntEnv(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }

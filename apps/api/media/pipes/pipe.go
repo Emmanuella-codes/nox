@@ -14,6 +14,12 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	storyImageDurationSeconds = 5
+	maxStoryMediaDuration     = 120
+	maxStoryMediaSizeBytes    = 250 * 1024 * 1024
+)
+
 type MediaPipe struct {
 	mediaRepo        media_repo.MediaRepository
 	personaRepo      persona_repo.PersonaRepository
@@ -47,10 +53,6 @@ func validSetVideo(mimeType string, durationSeconds int) bool {
 	return durationSeconds > 0 && durationSeconds <= 900
 }
 
-func validStoryVideo(mimeType string, durationSeconds int) bool {
-	return validSetVideoMime(mimeType) && durationSeconds > 0 && durationSeconds <= 300
-}
-
 func validSetVideoMime(mimeType string) bool {
 	switch strings.ToLower(strings.TrimSpace(mimeType)) {
 	case "video/mp4", "video/webm", "video/quicktime":
@@ -74,13 +76,60 @@ func validPostMedia(kind models.MediaKind, mimeType string, sizeBytes int64, dur
 		}
 	case models.VideoMediaKind:
 		return validSetVideoMime(mimeType) && durationSeconds <= 300
+	case models.AudioMediaKind:
+		switch strings.ToLower(strings.TrimSpace(mimeType)) {
+		case "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/aac", "audio/mp4", "audio/ogg", "audio/webm":
+			return durationSeconds > 0 && durationSeconds <= 900
+		default:
+			return false
+		}
 	default:
 		return false
 	}
 }
 
+func validStoryMediaUpload(kind models.MediaKind, mimeType string, sizeBytes int64) bool {
+	if sizeBytes <= 0 || sizeBytes > maxStoryMediaSizeBytes {
+		return false
+	}
+	switch kind {
+	case models.ImageMediaKind:
+		switch strings.ToLower(strings.TrimSpace(mimeType)) {
+		case "image/jpeg", "image/png", "image/webp", "image/gif":
+			return true
+		default:
+			return false
+		}
+	case models.VideoMediaKind:
+		return validSetVideoMime(mimeType)
+	default:
+		return false
+	}
+}
+
+func validStoryMedia(kind models.MediaKind, mimeType string, sizeBytes int64, durationSeconds int) bool {
+	if !validStoryMediaUpload(kind, mimeType, sizeBytes) {
+		return false
+	}
+	switch kind {
+	case models.ImageMediaKind:
+		return durationSeconds == storyImageDurationSeconds
+	case models.VideoMediaKind:
+		return durationSeconds > 0 && durationSeconds <= maxStoryMediaDuration
+	default:
+		return false
+	}
+}
+
+func storyMediaDuration(kind models.MediaKind, durationSeconds int) int {
+	if kind == models.ImageMediaKind {
+		return storyImageDurationSeconds
+	}
+	return durationSeconds
+}
+
 func cloudinaryResourceType(kind models.MediaKind) string {
-	if kind == models.VideoMediaKind {
+	if kind == models.VideoMediaKind || kind == models.AudioMediaKind {
 		return "video"
 	}
 	return "image"
@@ -104,8 +153,8 @@ func setVideoStorageKey(ownerPersonaID string) string {
 	return fmt.Sprintf("sets/%s/%s", ownerPersonaID, uuid.NewString())
 }
 
-func storyVideoStorageKey(ownerPersonaID string) string {
-	return fmt.Sprintf("stories/%s/%s", ownerPersonaID, uuid.NewString())
+func storyMediaStorageKey(ownerPersonaID string, kind models.MediaKind) string {
+	return fmt.Sprintf("stories/%s/%s/%s", ownerPersonaID, kind, uuid.NewString())
 }
 
 func canOwnSetMedia(persona *models.Persona) bool {

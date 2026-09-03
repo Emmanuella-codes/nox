@@ -10,9 +10,11 @@ import (
 	"github.com/emmanuella-codes/nox/post/messages"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/google/uuid"
 )
 
+// TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity keeps anonymous responses detached from profiles.
 func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 	userID := uuid.New()
 	postRepo := &postTestRepo{}
@@ -55,8 +57,12 @@ func TestCreatePostPipeCreatesAnonymousPostWithoutPublicIdentity(t *testing.T) {
 	if res.Data.Author.Anonymous == nil || res.Data.Author.Anonymous.Handle == "" {
 		t.Fatal("expected anonymous response to expose thread alias")
 	}
+	if res.Data.Author.Anonymous.AvatarKey == "" {
+		t.Fatal("expected anonymous response to expose fallback avatar key")
+	}
 }
 
+// TestCreatePostPipeSyncsExtractedHashtags persists normalized tags from the post body.
 func TestCreatePostPipeSyncsExtractedHashtags(t *testing.T) {
 	userID := uuid.New()
 	personaID := uuid.New()
@@ -91,6 +97,7 @@ func TestCreatePostPipeSyncsExtractedHashtags(t *testing.T) {
 	}
 }
 
+// TestCreatePostPipeRequiresPersonaForPublicPost enforces the single-profile author input.
 func TestCreatePostPipeRequiresPersonaForPublicPost(t *testing.T) {
 	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{})
 
@@ -104,6 +111,7 @@ func TestCreatePostPipeRequiresPersonaForPublicPost(t *testing.T) {
 	}
 }
 
+// TestCreatePostPipeRejectsNonOwnedPublicPersona blocks writing through another user's profile.
 func TestCreatePostPipeRejectsNonOwnedPublicPersona(t *testing.T) {
 	personaID := uuid.New()
 	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{
@@ -127,6 +135,7 @@ func TestCreatePostPipeRejectsNonOwnedPublicPersona(t *testing.T) {
 	}
 }
 
+// TestDeletePostPipeUsesAuthorUserID authorizes deletion by owning user instead of persona type.
 func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 	userID := uuid.New()
 	postID := uuid.New()
@@ -153,6 +162,7 @@ func TestDeletePostPipeUsesAuthorUserID(t *testing.T) {
 	}
 }
 
+// TestGetPostPipeHidesAnonymousIdentity keeps profile data off anonymous post responses.
 func TestGetPostPipeHidesAnonymousIdentity(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
@@ -180,6 +190,7 @@ func TestGetPostPipeHidesAnonymousIdentity(t *testing.T) {
 	}
 }
 
+// TestGetPostPipeHydratesHashtags attaches stored hashtags to a post response.
 func TestGetPostPipeHydratesHashtags(t *testing.T) {
 	postID := uuid.New()
 	pipe := NewPostPipe(&postTestRepo{
@@ -192,7 +203,7 @@ func TestGetPostPipeHydratesHashtags(t *testing.T) {
 			},
 		},
 	}, &postTestPersonaRepo{}, &postTestHashtagRepo{
-		tagsByPost: map[uuid.UUID][]string{postID: []string{"amapiano"}},
+		tagsByPost: map[uuid.UUID][]string{postID: {"amapiano"}},
 	})
 
 	res := pipe.GetPostPipe(context.Background(), postID)
@@ -204,6 +215,7 @@ func TestGetPostPipeHydratesHashtags(t *testing.T) {
 	}
 }
 
+// TestGetFeedPipeHydratesLikedState marks feed items liked for the viewer profile.
 func TestGetFeedPipeHydratesLikedState(t *testing.T) {
 	viewerPersonaID := uuid.New()
 	likedPostID := uuid.New()
@@ -225,21 +237,22 @@ func TestGetFeedPipeHydratesLikedState(t *testing.T) {
 		likedPostIDs: map[uuid.UUID]bool{likedPostID: true},
 	})
 
-	res := pipe.GetFeedPipe(context.Background(), viewerPersonaID, 20)
+	res := pipe.GetFeedPipe(context.Background(), viewerPersonaID, 20, "")
 	if !res.Success {
 		t.Fatalf("expected feed success, got %q", res.Message)
 	}
-	if len(*res.Data) != 2 {
-		t.Fatalf("expected 2 posts, got %d", len(*res.Data))
+	if len(res.Data.Posts) != 2 {
+		t.Fatalf("expected 2 posts, got %d", len(res.Data.Posts))
 	}
-	if !(*res.Data)[0].IsLiked {
+	if !res.Data.Posts[0].IsLiked {
 		t.Fatal("expected first post to be liked")
 	}
-	if (*res.Data)[1].IsLiked {
+	if res.Data.Posts[1].IsLiked {
 		t.Fatal("expected second post not to be liked")
 	}
 }
 
+// TestGetPersonaPostsForViewerPipeHydratesLikedState attaches like state on profile post listings.
 func TestGetPersonaPostsForViewerPipeHydratesLikedState(t *testing.T) {
 	personaID := uuid.New()
 	viewerPersonaID := uuid.New()
@@ -282,9 +295,58 @@ func TestGetPersonaPostsForViewerPipeHydratesLikedState(t *testing.T) {
 	}
 }
 
+// TestGetPersonaPostsForViewerPipeIncludesAnonymousPostsForOwner shows owner-only anonymous posts on their profile.
+func TestGetPersonaPostsForViewerPipeIncludesAnonymousPostsForOwner(t *testing.T) {
+	userID := uuid.New()
+	personaID := uuid.New()
+	anonymousPostID := uuid.New()
+	pipe := NewPostPipe(&postTestRepo{
+		authorPosts: []*models.Post{
+			{ID: anonymousPostID, AuthorUserID: userID, PersonaID: &personaID, PostingMode: models.AnonymousPostingMode, Body: "hidden", PostType: models.TextPostType},
+		},
+	}, &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			personaID.String(): {ID: personaID, UserID: userID, PersonaType: models.VisiblePersonaType},
+		},
+	})
+
+	res := pipe.GetPersonaPostsForViewerPipe(context.Background(), personaID, personaID, 20)
+	if !res.Success {
+		t.Fatalf("expected owner profile success, got %q", res.Message)
+	}
+	if len(*res.Data) != 1 {
+		t.Fatalf("expected 1 owner post, got %d", len(*res.Data))
+	}
+	if (*res.Data)[0].Author.Persona != nil {
+		t.Fatal("expected owner anonymous post response not to expose persona")
+	}
+	if (*res.Data)[0].Author.Anonymous == nil || (*res.Data)[0].Author.Anonymous.Handle == "" {
+		t.Fatal("expected owner anonymous post response to retain anonymous identity")
+	}
+}
+
+func TestGetPersonaPostsForViewerPipeHidesBlockedProfiles(t *testing.T) {
+	targetUserID := uuid.New()
+	targetPersonaID := uuid.New()
+	viewerUserID := uuid.New()
+	viewerPersonaID := uuid.New()
+	pipe := NewPostPipe(&postTestRepo{}, &postTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			targetPersonaID.String(): {ID: targetPersonaID, UserID: targetUserID, PersonaType: models.VisiblePersonaType},
+			viewerPersonaID.String(): {ID: viewerPersonaID, UserID: viewerUserID, PersonaType: models.VisiblePersonaType},
+		},
+	}, &postTestPreferenceRepo{blockedUsers: map[string]bool{viewerUserID.String() + ":" + targetUserID.String(): true}})
+
+	res := pipe.GetPersonaPostsForViewerPipe(context.Background(), targetPersonaID, viewerPersonaID, 20)
+	if res.Message != messages.Persona_Not_Found {
+		t.Fatalf("expected %q, got %q", messages.Persona_Not_Found, res.Message)
+	}
+}
+
 type postTestRepo struct {
 	posts               map[string]*models.Post
 	personaPosts        []*models.Post
+	authorPosts         []*models.Post
 	feedPosts           []*models.Post
 	followingFeedPosts  []*models.Post
 	identities          map[uuid.UUID]*models.AnonymousThreadIdentity
@@ -295,6 +357,7 @@ type postTestRepo struct {
 	deletedWithHashtags bool
 }
 
+// CreatePost stores the post creation inputs for assertions.
 func (r *postTestRepo) CreatePost(ctx context.Context, authorUserID uuid.UUID, dto postdtos.CreatePostDTO) (*models.Post, error) {
 	r.createdAuthorUserID = authorUserID
 	r.createdDTO = dto
@@ -312,16 +375,19 @@ func (r *postTestRepo) CreatePost(ctx context.Context, authorUserID uuid.UUID, d
 	}, nil
 }
 
+// CreatePostWithHashtags stores synced tags before delegating to CreatePost.
 func (r *postTestRepo) CreatePostWithHashtags(ctx context.Context, authorUserID uuid.UUID, dto postdtos.CreatePostDTO, tags []string) (*models.Post, error) {
 	r.createdTags = tags
 	return r.CreatePost(ctx, authorUserID, dto)
 }
 
+// CreatePostWithHashtagsAndMedia stores synced tags before delegating to CreatePost.
 func (r *postTestRepo) CreatePostWithHashtagsAndMedia(ctx context.Context, authorUserID uuid.UUID, dto postdtos.CreatePostDTO, tags []string, mediaAssetIDs []uuid.UUID) (*models.Post, error) {
 	r.createdTags = tags
 	return r.CreatePost(ctx, authorUserID, dto)
 }
 
+// FindPostByID returns a post by id from the in-memory fixture.
 func (r *postTestRepo) FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error) {
 	post, ok := r.posts[postID.String()]
 	if !ok {
@@ -330,19 +396,28 @@ func (r *postTestRepo) FindPostByID(ctx context.Context, postID uuid.UUID) (*mod
 	return post, nil
 }
 
+// FindPostsByPersonaID returns public profile posts from the fixture.
 func (r *postTestRepo) FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
 	return r.personaPosts, nil
 }
 
-func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+// FindPostsByAuthorUserID returns all owner posts from the fixture.
+func (r *postTestRepo) FindPostsByAuthorUserID(ctx context.Context, authorUserID uuid.UUID, limit int) ([]*models.Post, error) {
+	return r.authorPosts, nil
+}
+
+// FindFeedPosts returns the feed posts from the fixture.
+func (r *postTestRepo) FindFeedPosts(ctx context.Context, personaID uuid.UUID, options post_repo.FeedOptions) ([]*models.Post, error) {
 	return r.feedPosts, nil
 }
 
-func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
+// FindFollowingFeedPosts returns the following feed posts from the fixture.
+func (r *postTestRepo) FindFollowingFeedPosts(ctx context.Context, personaID uuid.UUID, options post_repo.FeedOptions) ([]*models.Post, error) {
 	return r.followingFeedPosts, nil
 }
 
-func (r *postTestRepo) EnsureAnonymousThreadIdentity(ctx context.Context, threadID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, anonymousHandle string) (*models.AnonymousThreadIdentity, error) {
+// EnsureAnonymousThreadIdentity stores or reuses one anonymous identity per thread owner.
+func (r *postTestRepo) EnsureAnonymousThreadIdentity(ctx context.Context, threadID uuid.UUID, userID uuid.UUID, personaID uuid.UUID, anonymousHandle string, anonymousAvatarKey string) (*models.AnonymousThreadIdentity, error) {
 	if r.identities == nil {
 		r.identities = map[uuid.UUID]*models.AnonymousThreadIdentity{}
 	}
@@ -350,17 +425,19 @@ func (r *postTestRepo) EnsureAnonymousThreadIdentity(ctx context.Context, thread
 		return identity, nil
 	}
 	identity := &models.AnonymousThreadIdentity{
-		ID:              uuid.New(),
-		ThreadID:        threadID,
-		UserID:          userID,
-		PersonaID:       personaID,
-		AnonymousHandle: anonymousHandle,
+		ID:                 uuid.New(),
+		ThreadID:           threadID,
+		UserID:             userID,
+		PersonaID:          personaID,
+		AnonymousHandle:    anonymousHandle,
+		AnonymousAvatarKey: anonymousAvatarKey,
 	}
 	r.identities[threadID] = identity
 	return identity, nil
 }
 
-func (r *postTestRepo) FindAnonymousThreadIdentities(ctx context.Context, threadID uuid.UUID, personaIDs []uuid.UUID) (map[uuid.UUID]*models.AnonymousThreadIdentity, error) {
+// FindAnonymousThreadIdentities returns anonymous identities keyed by owner user id.
+func (r *postTestRepo) FindAnonymousThreadIdentities(ctx context.Context, threadID uuid.UUID, userIDs []uuid.UUID) (map[uuid.UUID]*models.AnonymousThreadIdentity, error) {
 	identities := map[uuid.UUID]*models.AnonymousThreadIdentity{}
 	if r.identities == nil {
 		return identities, nil
@@ -369,24 +446,27 @@ func (r *postTestRepo) FindAnonymousThreadIdentities(ctx context.Context, thread
 		if identity.ThreadID != threadID {
 			continue
 		}
-		for _, personaID := range personaIDs {
-			if identity.PersonaID == personaID {
-				identities[personaID] = identity
+		for _, userID := range userIDs {
+			if identity.UserID == userID {
+				identities[userID] = identity
 			}
 		}
 	}
 	return identities, nil
 }
 
+// FindMediaAssetsByPostIDs returns an empty media map for fixture-backed tests.
 func (r *postTestRepo) FindMediaAssetsByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]*models.MediaAsset, error) {
 	return map[uuid.UUID][]*models.MediaAsset{}, nil
 }
 
+// DeletePost records the deleted post id for assertions.
 func (r *postTestRepo) DeletePost(ctx context.Context, postID uuid.UUID) error {
 	r.deletedPostID = postID
 	return nil
 }
 
+// DeletePostWithHashtags records the hashtag-aware delete path for assertions.
 func (r *postTestRepo) DeletePostWithHashtags(ctx context.Context, postID uuid.UUID) error {
 	r.deletedWithHashtags = true
 	return r.DeletePost(ctx, postID)
@@ -396,10 +476,12 @@ type postTestPersonaRepo struct {
 	personas map[string]*models.Persona
 }
 
+// CreatePersona is unused in these tests.
 func (r *postTestPersonaRepo) CreatePersona(ctx context.Context, userID uuid.UUID, dto dtos.CreatePersonaDTO) (*models.Persona, error) {
 	return nil, nil
 }
 
+// FindPersonaByID returns a profile fixture by id.
 func (r *postTestPersonaRepo) FindPersonaByID(ctx context.Context, personaID uuid.UUID) (*models.Persona, error) {
 	persona, ok := r.personas[personaID.String()]
 	if !ok {
@@ -408,14 +490,17 @@ func (r *postTestPersonaRepo) FindPersonaByID(ctx context.Context, personaID uui
 	return persona, nil
 }
 
+// FindPersonasByUserID is unused in these tests.
 func (r *postTestPersonaRepo) FindPersonasByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Persona, error) {
 	return nil, nil
 }
 
+// FindPersonaByHandle is unused in these tests.
 func (r *postTestPersonaRepo) FindPersonaByHandle(ctx context.Context, handle string) (*models.Persona, error) {
 	return nil, persona_repo.ErrPersonaNotFound
 }
 
+// UpdatePersona is unused in these tests.
 func (r *postTestPersonaRepo) UpdatePersona(ctx context.Context, personaID uuid.UUID, dto dtos.UpdatePersonaDTO) (*models.Persona, error) {
 	return nil, nil
 }
@@ -431,17 +516,71 @@ type postTestHashtagRepo struct {
 	tagsByPost    map[uuid.UUID][]string
 }
 
+type postTestPreferenceRepo struct {
+	blockedUsers map[string]bool
+}
+
+func (r *postTestPreferenceRepo) BlockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) UnblockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) MuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) UnmuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) AddDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) RemoveDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *postTestPreferenceRepo) IsBlockedBetween(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
+	if r.blockedUsers == nil {
+		return false, nil
+	}
+	return r.blockedUsers[userA.String()+":"+userB.String()] || r.blockedUsers[userB.String()+":"+userA.String()], nil
+}
+
+func (r *postTestPreferenceRepo) FindExcludedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *postTestPreferenceRepo) FindMutedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *postTestPreferenceRepo) FindSuppressedTargetIDs(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *postTestPreferenceRepo) DeleteFollowRelationsBetweenUsers(ctx context.Context, userA uuid.UUID, userB uuid.UUID) error {
+	return nil
+}
+
+// SyncPostHashtags records synced tags for assertions.
 func (r *postTestHashtagRepo) SyncPostHashtags(ctx context.Context, postID uuid.UUID, tags []string) error {
 	r.syncedPostID = postID
 	r.syncedTags = tags
 	return nil
 }
 
+// DeletePostHashtags records deleted hashtag relations for assertions.
 func (r *postTestHashtagRepo) DeletePostHashtags(ctx context.Context, postID uuid.UUID) error {
 	r.deletedPostID = postID
 	return nil
 }
 
+// FindTagsByPostIDs returns the configured tag fixtures.
 func (r *postTestHashtagRepo) FindTagsByPostIDs(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
 	tags := make(map[uuid.UUID][]string)
 	for _, postID := range postIDs {
@@ -452,34 +591,44 @@ func (r *postTestHashtagRepo) FindTagsByPostIDs(ctx context.Context, postIDs []u
 	return tags, nil
 }
 
+// FindTrending is unused in these tests.
 func (r *postTestHashtagRepo) FindTrending(ctx context.Context, limit int) ([]*models.Hashtag, error) {
 	return nil, nil
 }
 
+// FindByTag is unused in these tests.
 func (r *postTestHashtagRepo) FindByTag(ctx context.Context, tag string) (*models.Hashtag, error) {
 	return nil, nil
 }
 
+// FindPostsByTag is unused in these tests.
 func (r *postTestHashtagRepo) FindPostsByTag(ctx context.Context, tag string, limit int, offset int) ([]*models.Post, error) {
 	return nil, nil
 }
 
+var _ preference_repo.PreferenceRepository = (*postTestPreferenceRepo)(nil)
+
+// Search is unused in these tests.
 func (r *postTestHashtagRepo) Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error) {
 	return nil, nil
 }
 
+// LikePost is unused in these tests.
 func (r *postTestLikeRepo) LikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {
 	return nil
 }
 
+// UnlikePost is unused in these tests.
 func (r *postTestLikeRepo) UnlikePost(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) error {
 	return nil
 }
 
+// HasPostLike returns fixture-backed like state for one post.
 func (r *postTestLikeRepo) HasPostLike(ctx context.Context, personaID uuid.UUID, postID uuid.UUID) (bool, error) {
 	return r.likedPostIDs[postID], nil
 }
 
+// FindLikedPostIDs returns fixture-backed like state for many posts.
 func (r *postTestLikeRepo) FindLikedPostIDs(ctx context.Context, personaID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error) {
 	liked := make(map[uuid.UUID]bool)
 	for _, postID := range postIDs {

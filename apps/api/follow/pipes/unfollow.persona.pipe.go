@@ -9,7 +9,7 @@ import (
 )
 
 func (p *FollowPipe) UnfollowPersonaPipe(ctx context.Context, userID uuid.UUID, followerPersonaID uuid.UUID, targetPersonaID uuid.UUID) *shared.PipeRes[any] {
-	if res := p.validateFollowAction(ctx, userID, followerPersonaID, targetPersonaID); res != nil {
+	if _, _, res := p.validateFollowAction(ctx, userID, followerPersonaID, targetPersonaID); res != nil {
 		return res
 	}
 

@@ -57,7 +57,7 @@ func (p *StoryPipe) listResponse(ctx context.Context, stories []*models.Story, l
 		if !allowed {
 			continue
 		}
-		response, err := p.storyResponse(ctx, story, viewerPersonaID, false)
+		response, err := p.storyResponse(ctx, story, viewerPersonaID, true, false)
 		if err != nil {
 			return pipeInternalError[StoryListResponse](err, "story.list_response")
 		}

@@ -4,26 +4,57 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/emmanuella-codes/nox/messaging/messages"
 	"github.com/emmanuella-codes/nox/models"
+	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/google/uuid"
 )
 
 type MessagingPipe struct {
-	messagingRepo messaging_repo.MessagingRepository
-	personaRepo   persona_repo.PersonaRepository
-	mediaRepo     media_repo.MediaRepository
+	messagingRepo         messaging_repo.MessagingRepository
+	personaRepo           persona_repo.PersonaRepository
+	mediaRepo             media_repo.MediaRepository
+	followRepo            follow_repo.FollowRepository
+	preferenceRepo        preference_repo.PreferenceRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+	}
+	realtimeHub *realtime.Hub
 }
 
-func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository) *MessagingPipe {
-	return &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo}
+// NewMessagingPipe builds the messaging orchestration layer from repositories.
+func NewMessagingPipe(messagingRepo messaging_repo.MessagingRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository, followRepo follow_repo.FollowRepository, deps ...any) *MessagingPipe {
+	pipe := &MessagingPipe{messagingRepo: messagingRepo, personaRepo: personaRepo, mediaRepo: mediaRepo, followRepo: followRepo}
+	for _, dep := range deps {
+		if hub, ok := dep.(*realtime.Hub); ok {
+			pipe.realtimeHub = hub
+		}
+		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
+			pipe.notificationRepo = repo
+		}
+		if repo, ok := dep.(preference_repo.PreferenceRepository); ok {
+			pipe.preferenceRepo = repo
+		}
+		if publisher, ok := dep.(interface {
+			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+		}); ok {
+			pipe.notificationPublisher = publisher
+		}
+	}
+	return pipe
 }
 
+// pipeInternalError maps internal messaging errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "messaging", operation, messages.Internal_Error)
 }
@@ -57,18 +88,23 @@ type MemberPersonaResponse struct {
 }
 
 type MessageResponse struct {
-	ID              string             `json:"id"`
-	ConversationID  string             `json:"conversation_id"`
-	SenderPersonaID string             `json:"sender_persona_id"`
-	Body            string             `json:"body"`
-	MessageType     models.MessageType `json:"message_type"`
-	MediaAssetID    *string            `json:"media_asset_id,omitempty"`
-	Media           *models.MediaAsset `json:"media,omitempty"`
-	Deleted         bool               `json:"deleted"`
-	CreatedAt       string             `json:"created_at"`
-	EditedAt        *string            `json:"edited_at,omitempty"`
+	ID              string               `json:"id"`
+	ConversationID  string               `json:"conversation_id"`
+	SenderPersonaID string               `json:"sender_persona_id"`
+	Body            string               `json:"body"`
+	MessageType     models.MessageType   `json:"message_type"`
+	Attachments     []*models.MediaAsset `json:"attachments"`
+	MediaAssetID    *string              `json:"media_asset_id,omitempty"`
+	Media           *models.MediaAsset   `json:"media,omitempty"`
+	StoryID         *string              `json:"story_id,omitempty"`
+	StoryItemID     *string              `json:"story_item_id,omitempty"`
+	Deleted         bool                 `json:"deleted"`
+	Edited          bool                 `json:"edited"`
+	CreatedAt       string               `json:"created_at"`
+	EditedAt        *string              `json:"edited_at,omitempty"`
 }
 
+// conversationResponse maps one conversation and its related state into the API response shape.
 func (p *MessagingPipe) conversationResponse(ctx context.Context, conversation *models.Conversation, members []*models.ConversationMember, personas map[uuid.UUID]*models.Persona, lastMessage *models.Message, unreadCount int) ConversationResponse {
 	var lastMessageID *string
 	if conversation.LastMessageID != nil {
@@ -93,6 +129,7 @@ func (p *MessagingPipe) conversationResponse(ctx context.Context, conversation *
 	return response
 }
 
+// memberResponses maps conversation members into the API response shape.
 func memberResponses(members []*models.ConversationMember, personas map[uuid.UUID]*models.Persona) []MemberResponse {
 	responses := make([]MemberResponse, 0, len(members))
 	for _, member := range members {
@@ -121,6 +158,7 @@ func memberResponses(members []*models.ConversationMember, personas map[uuid.UUI
 	return responses
 }
 
+// memberPersonas hydrates the public profiles referenced by conversation members.
 func (p *MessagingPipe) memberPersonas(ctx context.Context, members []*models.ConversationMember) (map[uuid.UUID]*models.Persona, error) {
 	personas := make(map[uuid.UUID]*models.Persona, len(members))
 	for _, member := range members {
@@ -136,51 +174,83 @@ func (p *MessagingPipe) memberPersonas(ctx context.Context, members []*models.Co
 	return personas, nil
 }
 
+// messageResponse maps one message into the API response shape.
 func (p *MessagingPipe) messageResponse(ctx context.Context, message *models.Message) MessageResponse {
+	attachments := p.messageAttachments(ctx, []uuid.UUID{message.ID})
+	return messageResponseWithAttachments(message, attachments[message.ID])
+}
+
+// messageResponses maps a slice of messages into API response shape.
+func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*models.Message) []MessageResponse {
+	messageIDs := make([]uuid.UUID, 0, len(messageModels))
+	for _, message := range messageModels {
+		messageIDs = append(messageIDs, message.ID)
+	}
+	attachments := p.messageAttachments(ctx, messageIDs)
+	responses := make([]MessageResponse, 0, len(messageModels))
+	for _, message := range messageModels {
+		responses = append(responses, messageResponseWithAttachments(message, attachments[message.ID]))
+	}
+	return responses
+}
+
+// messageAttachments loads attachments for the supplied message ids.
+func (p *MessagingPipe) messageAttachments(ctx context.Context, messageIDs []uuid.UUID) map[uuid.UUID][]*models.MediaAsset {
+	attachments := make(map[uuid.UUID][]*models.MediaAsset, len(messageIDs))
+	if p.messagingRepo == nil || len(messageIDs) == 0 {
+		return attachments
+	}
+	loaded, err := p.messagingRepo.FindMessageAttachmentsByMessageIDs(ctx, messageIDs)
+	if err != nil {
+		return attachments
+	}
+	return loaded
+}
+
+// messageResponseWithAttachments maps one message and its attachments into the API response shape.
+func messageResponseWithAttachments(message *models.Message, attachments []*models.MediaAsset) MessageResponse {
 	var mediaAssetID *string
 	var media *models.MediaAsset
-	if message.MediaAssetID != nil {
-		value := message.MediaAssetID.String()
+	if len(attachments) > 0 {
+		value := attachments[0].ID.String()
 		mediaAssetID = &value
-		if p.mediaRepo != nil && message.DeletedAt == nil {
-			asset, err := p.mediaRepo.FindMediaAssetByID(ctx, *message.MediaAssetID)
-			if err == nil {
-				media = asset
-			}
-		}
+		media = attachments[0]
 	}
 	var editedAt *string
 	if message.EditedAt != nil {
 		value := message.EditedAt.Format(timeFormat)
 		editedAt = &value
 	}
-	body := message.Body
-	if message.DeletedAt != nil {
-		body = ""
+	var storyID *string
+	if message.StoryID != nil {
+		value := message.StoryID.String()
+		storyID = &value
+	}
+	var storyItemID *string
+	if message.StoryItemID != nil {
+		value := message.StoryItemID.String()
+		storyItemID = &value
 	}
 	return MessageResponse{
 		ID:              message.ID.String(),
 		ConversationID:  message.ConversationID.String(),
 		SenderPersonaID: message.SenderPersonaID.String(),
-		Body:            body,
+		Body:            message.Body,
 		MessageType:     message.MessageType,
+		Attachments:     attachmentsOrEmpty(attachments),
 		MediaAssetID:    mediaAssetID,
 		Media:           media,
+		StoryID:         storyID,
+		StoryItemID:     storyItemID,
 		Deleted:         message.DeletedAt != nil,
+		Edited:          message.EditedAt != nil,
 		CreatedAt:       message.CreatedAt.Format(timeFormat),
 		EditedAt:        editedAt,
 	}
 }
 
-func (p *MessagingPipe) messageResponses(ctx context.Context, messageModels []*models.Message) []MessageResponse {
-	responses := make([]MessageResponse, 0, len(messageModels))
-	for _, message := range messageModels {
-		responses = append(responses, p.messageResponse(ctx, message))
-	}
-	return responses
-}
-
-func (p *MessagingPipe) visiblePersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, requireOwner bool) (*models.Persona, shared.PipeMessage) {
+// profilePersona validates that a messaging participant is a real public profile.
+func (p *MessagingPipe) profilePersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, requireOwner bool) (*models.Persona, shared.PipeMessage) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
 		if errors.Is(err, persona_repo.ErrPersonaNotFound) {
@@ -188,14 +258,15 @@ func (p *MessagingPipe) visiblePersona(ctx context.Context, userID uuid.UUID, pe
 		}
 		return nil, messages.Internal_Error
 	}
-	if persona.PersonaType != models.VisiblePersonaType || (requireOwner && persona.UserID != userID) {
+	if requireOwner && persona.UserID != userID {
 		return nil, messages.Forbidden
 	}
 	return persona, ""
 }
 
+// requireMember validates that the current user owns the supplied profile and belongs to the conversation.
 func (p *MessagingPipe) requireMember(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, shared.PipeMessage) {
-	persona, message := p.visiblePersona(ctx, userID, personaID, true)
+	persona, message := p.profilePersona(ctx, userID, personaID, true)
 	if message != "" {
 		return nil, message
 	}
@@ -212,12 +283,38 @@ func (p *MessagingPipe) requireMember(ctx context.Context, userID uuid.UUID, con
 	return member, ""
 }
 
+// validMessageType validates the supported message payload types.
 func validMessageType(messageType models.MessageType) bool {
-	return messageType == models.TextMessageType || messageType == models.ImageMessageType || messageType == models.VideoMessageType
+	return messageType == models.TextMessageType || messageType == models.ImageMessageType || messageType == models.VideoMessageType || messageType == models.AudioMessageType
 }
 
+// normalizeMessageBody trims whitespace from message bodies.
 func normalizeMessageBody(body string) string {
 	return strings.TrimSpace(body)
 }
 
+// normalizeAttachmentIDs merges legacy and multi-attachment payload inputs.
+func normalizeAttachmentIDs(legacy *uuid.UUID, attachmentIDs []uuid.UUID) []uuid.UUID {
+	normalized := make([]uuid.UUID, 0, len(attachmentIDs)+1)
+	seen := map[uuid.UUID]bool{}
+	if legacy != nil && *legacy != uuid.Nil {
+		seen[*legacy] = true
+		normalized = append(normalized, *legacy)
+	}
+	for _, attachmentID := range attachmentIDs {
+		if attachmentID == uuid.Nil || seen[attachmentID] {
+			continue
+		}
+		seen[attachmentID] = true
+		normalized = append(normalized, attachmentID)
+	}
+	return normalized
+}
+
+// canMutateMessage reports whether a message is still inside the one-hour mutation window.
+func canMutateMessage(message *models.Message, now time.Time) bool {
+	return now.Before(message.CreatedAt.Add(messageMutationWindow))
+}
+
 const timeFormat = "2006-01-02T15:04:05.999999999Z07:00"
+const messageMutationWindow = time.Hour

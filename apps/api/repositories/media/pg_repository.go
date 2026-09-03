@@ -51,23 +51,40 @@ func (r *pgRepository) CreatePostMediaAsset(ctx context.Context, ownerUserID uui
 }
 
 func (r *pgRepository) CreatePendingMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateSetVideoUploadDTO) (*models.MediaAsset, error) {
-	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+	return r.createPendingAsset(ctx, ownerUserID, dto.OwnerPersonaID, models.VideoMediaKind, storageKey, playbackURL, dto.MimeType, 1, dto.SizeBytes)
 }
 
-func (r *pgRepository) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryVideoUploadDTO) (*models.MediaAsset, error) {
-	return r.createPendingVideoAsset(ctx, ownerUserID, dto.OwnerPersonaID, storageKey, playbackURL, dto.MimeType, dto.SizeBytes)
+func (r *pgRepository) CreatePendingStoryMediaAsset(ctx context.Context, ownerUserID uuid.UUID, storageKey string, playbackURL string, dto dtos.InitiateStoryMediaUploadDTO) (*models.MediaAsset, error) {
+	return r.createPendingAsset(
+		ctx,
+		ownerUserID,
+		dto.OwnerPersonaID,
+		dto.MediaKind,
+		storageKey,
+		playbackURL,
+		dto.MimeType,
+		storyMediaDuration(dto.MediaKind, 1),
+		dto.SizeBytes,
+	)
 }
 
-func (r *pgRepository) createPendingVideoAsset(ctx context.Context, ownerUserID uuid.UUID, ownerPersonaID uuid.UUID, storageKey string, playbackURL string, mimeType string, sizeBytes int64) (*models.MediaAsset, error) {
+func storyMediaDuration(kind models.MediaKind, durationSeconds int) int {
+	if kind == models.ImageMediaKind {
+		return 5
+	}
+	return durationSeconds
+}
+
+func (r *pgRepository) createPendingAsset(ctx context.Context, ownerUserID uuid.UUID, ownerPersonaID uuid.UUID, mediaKind models.MediaKind, storageKey string, playbackURL string, mimeType string, durationSeconds int, sizeBytes int64) (*models.MediaAsset, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO media_assets (
 			owner_user_id, owner_persona_id, media_kind, storage_key, playback_url, thumbnail_url,
 			mime_type, duration_seconds, size_bytes, processing_status
-		) VALUES ($1, $2, 'video', $3, $4, NULL, $5, 1, $6, 'pending')
+		) VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, 'pending')
 		RETURNING id, owner_user_id, owner_persona_id, media_kind, storage_key, playback_url,
 		          COALESCE(thumbnail_url, ''), mime_type, duration_seconds, size_bytes,
 		          processing_status, created_at, updated_at
-	`, ownerUserID, ownerPersonaID, storageKey, playbackURL, mimeType, sizeBytes)
+	`, ownerUserID, ownerPersonaID, mediaKind, storageKey, playbackURL, mimeType, durationSeconds, sizeBytes)
 
 	return scanMediaAsset(row)
 }
@@ -118,35 +135,15 @@ func (r *pgRepository) MarkMediaAssetFailed(ctx context.Context, mediaAssetID uu
 }
 
 func (r *pgRepository) DeleteOrphanedMediaAssets(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
-	if limit <= 0 {
-		limit = 100
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
-	commandTag, err := r.db.Exec(ctx, `
-		DELETE FROM media_assets
-		WHERE id IN (
-			SELECT media_assets.id
-			FROM media_assets
-			LEFT JOIN sets ON sets.media_asset_id = media_assets.id
-			LEFT JOIN story_items ON story_items.media_asset_id = media_assets.id
-			LEFT JOIN post_media_assets ON post_media_assets.media_asset_id = media_assets.id
-			LEFT JOIN messages ON messages.media_asset_id = media_assets.id
-			WHERE sets.id IS NULL
-			  AND story_items.id IS NULL
-			  AND post_media_assets.post_id IS NULL
-			  AND messages.id IS NULL
-			  AND media_assets.processing_status IN ('pending', 'failed')
-			  AND media_assets.created_at < $1
-			ORDER BY media_assets.created_at ASC
-			LIMIT $2
-		)
-	`, olderThan, limit)
+	pendingDeleted, err := r.deleteOrphanedMediaAssetsByStatus(ctx, olderThan, limit, models.PendingMediaStatus)
 	if err != nil {
 		return 0, err
 	}
-	return commandTag.RowsAffected(), nil
+	failedDeleted, err := r.deleteOrphanedMediaAssetsByStatus(ctx, olderThan, limit, models.FailedMediaStatus)
+	if err != nil {
+		return pendingDeleted, err
+	}
+	return pendingDeleted + failedDeleted, nil
 }
 
 type mediaAssetScanner interface {

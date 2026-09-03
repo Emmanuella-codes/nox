@@ -55,9 +55,9 @@ func (p *MediaPipe) InitiateSetVideoUploadPipe(ctx context.Context, userID uuid.
 	})
 }
 
-func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateStoryVideoUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
+func (p *MediaPipe) InitiateStoryMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateStoryMediaUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
-	if !validSetVideoMime(dto.MimeType) || dto.SizeBytes <= 0 {
+	if !validStoryMediaUpload(dto.MediaKind, dto.MimeType, dto.SizeBytes) {
 		return shared.PipeError[InitiateUploadResponse](messages.Invalid_Media)
 	}
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
@@ -70,7 +70,7 @@ func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uui
 	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
 		return shared.PipeError[InitiateUploadResponse](messages.Forbidden)
 	}
-	storageKey := storyVideoStorageKey(dto.OwnerPersonaID.String())
+	storageKey := storyMediaStorageKey(dto.OwnerPersonaID.String(), dto.MediaKind)
 	playbackURL := p.playbackURL(storageKey)
 	asset, err := p.mediaRepo.CreatePendingStoryMediaAsset(ctx, userID, storageKey, playbackURL, dto)
 	if err != nil {
@@ -81,6 +81,10 @@ func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uui
 		UploadURL:  p.uploadURL(storageKey),
 		StorageKey: storageKey,
 	})
+}
+
+func (p *MediaPipe) InitiateStoryVideoUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateStoryVideoUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
+	return p.InitiateStoryMediaUploadPipe(ctx, userID, dto)
 }
 
 func (p *MediaPipe) InitiatePostMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiatePostMediaUploadDTO) *shared.PipeRes[CloudinaryPostUploadResponse] {
@@ -106,6 +110,7 @@ func (p *MediaPipe) InitiatePostMediaUploadPipe(ctx context.Context, userID uuid
 	return shared.PipeSuccess(messages.Media_Upload_Initiated, &upload)
 }
 
+// ConfirmPostMediaUploadPipe stores a ready media asset after upload completion.
 func (p *MediaPipe) ConfirmPostMediaUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.ConfirmPostMediaUploadDTO) *shared.PipeRes[models.MediaAsset] {
 	dto.PublicID = strings.TrimSpace(dto.PublicID)
 	dto.SecureURL = strings.TrimSpace(dto.SecureURL)
@@ -117,7 +122,7 @@ func (p *MediaPipe) ConfirmPostMediaUploadPipe(ctx context.Context, userID uuid.
 	if dto.MediaKind == models.ImageMediaKind && dto.DurationSeconds <= 0 {
 		dto.DurationSeconds = 1
 	}
-	if dto.MediaKind == models.VideoMediaKind && dto.DurationSeconds <= 0 {
+	if (dto.MediaKind == models.VideoMediaKind || dto.MediaKind == models.AudioMediaKind) && dto.DurationSeconds <= 0 {
 		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
 	}
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
@@ -154,14 +159,28 @@ func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetI
 	return shared.PipeSuccess(messages.Media_Processing_Updated, asset)
 }
 
-func (p *MediaPipe) CompleteStoryMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {
+func (p *MediaPipe) CompleteStoryMediaProcessingPipe(ctx context.Context, mediaAssetID uuid.UUID, dto dtos.CompleteStoryMediaProcessingDTO) *shared.PipeRes[models.MediaAsset] {
 	dto.PlaybackURL = strings.TrimSpace(dto.PlaybackURL)
 	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
-	if !validStoryVideo(dto.MimeType, dto.DurationSeconds) || dto.SizeBytes <= 0 || dto.PlaybackURL == "" {
+	asset, err := p.mediaRepo.FindMediaAssetByID(ctx, mediaAssetID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return shared.PipeError[models.MediaAsset](messages.Media_Not_Found)
+		}
+		return pipeInternalError[models.MediaAsset](err, "media.story_processing_find")
+	}
+	durationSeconds := storyMediaDuration(asset.MediaKind, dto.DurationSeconds)
+	if dto.PlaybackURL == "" || !validStoryMedia(asset.MediaKind, dto.MimeType, dto.SizeBytes, durationSeconds) {
 		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
 	}
-	asset, err := p.mediaRepo.MarkMediaAssetReady(ctx, mediaAssetID, dto)
+	asset, err = p.mediaRepo.MarkMediaAssetReady(ctx, mediaAssetID, dtos.CompleteMediaProcessingDTO{
+		PlaybackURL:     dto.PlaybackURL,
+		ThumbnailURL:    dto.ThumbnailURL,
+		MimeType:        dto.MimeType,
+		DurationSeconds: durationSeconds,
+		SizeBytes:       dto.SizeBytes,
+	})
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return shared.PipeError[models.MediaAsset](messages.Media_Not_Found)

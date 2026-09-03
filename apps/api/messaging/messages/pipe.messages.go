@@ -18,5 +18,9 @@ const (
 	Conversation_Read    shared.PipeMessage = "conversation_marked_read_successfully"
 	Members_Added        shared.PipeMessage = "members_added_successfully"
 	Member_Removed       shared.PipeMessage = "member_removed_successfully"
+	Member_Left          shared.PipeMessage = "member_left_successfully"
+	Member_Role_Updated  shared.PipeMessage = "member_role_updated_successfully"
 	Message_Deleted      shared.PipeMessage = "message_deleted_successfully"
+	Message_Updated      shared.PipeMessage = "message_updated_successfully"
+	Typing_Updated       shared.PipeMessage = "typing_updated_successfully"
 )

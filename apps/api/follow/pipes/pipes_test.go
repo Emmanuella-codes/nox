@@ -9,6 +9,7 @@ import (
 	"github.com/emmanuella-codes/nox/persona/dtos"
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/google/uuid"
 )
 
@@ -171,6 +172,24 @@ func TestFollowersForViewerPipeHydratesFollowingState(t *testing.T) {
 	}
 }
 
+func TestFollowPersonaPipeRejectsBlockedRelationship(t *testing.T) {
+	userID := uuid.New()
+	followerID := uuid.New()
+	targetID := uuid.New()
+	targetUserID := uuid.New()
+	pipe := NewFollowPipe(&followTestRepo{}, &followTestPersonaRepo{
+		personas: map[string]*models.Persona{
+			followerID.String(): {ID: followerID, UserID: userID, PersonaType: models.VisiblePersonaType},
+			targetID.String():   {ID: targetID, UserID: targetUserID, PersonaType: models.VisiblePersonaType},
+		},
+	}, &followTestPreferenceRepo{blockedUsers: map[string]bool{userID.String() + ":" + targetUserID.String(): true}})
+
+	res := pipe.FollowPersonaPipe(context.Background(), userID, followerID, targetID)
+	if res.Message != messages.Forbidden {
+		t.Fatalf("expected %q, got %q", messages.Forbidden, res.Message)
+	}
+}
+
 type followTestRepo struct {
 	followErr    error
 	unfollowErr  error
@@ -235,3 +254,56 @@ func (r *followTestPersonaRepo) FindPersonaByHandle(ctx context.Context, handle 
 func (r *followTestPersonaRepo) UpdatePersona(ctx context.Context, personaID uuid.UUID, dto dtos.UpdatePersonaDTO) (*models.Persona, error) {
 	return nil, nil
 }
+
+type followTestPreferenceRepo struct {
+	blockedUsers map[string]bool
+}
+
+func (r *followTestPreferenceRepo) BlockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *followTestPreferenceRepo) UnblockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *followTestPreferenceRepo) MuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *followTestPreferenceRepo) UnmuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *followTestPreferenceRepo) AddDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *followTestPreferenceRepo) RemoveDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *followTestPreferenceRepo) IsBlockedBetween(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
+	if r.blockedUsers == nil {
+		return false, nil
+	}
+	return r.blockedUsers[userA.String()+":"+userB.String()] || r.blockedUsers[userB.String()+":"+userA.String()], nil
+}
+
+func (r *followTestPreferenceRepo) FindExcludedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *followTestPreferenceRepo) FindMutedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *followTestPreferenceRepo) FindSuppressedTargetIDs(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *followTestPreferenceRepo) DeleteFollowRelationsBetweenUsers(ctx context.Context, userA uuid.UUID, userB uuid.UUID) error {
+	return nil
+}
+
+var _ preference_repo.PreferenceRepository = (*followTestPreferenceRepo)(nil)

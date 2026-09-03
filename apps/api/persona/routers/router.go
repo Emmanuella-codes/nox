@@ -26,6 +26,7 @@ func PersonaRoutes(controller *controllers.PersonaController, cfg *config.Config
 		{
 			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/:personaID",
+			Middlewares: []typings.FiberMiddleware{middleware.OptionalJWT(cfg)},
 			Handler:     controller.GetPersona,
 		},
 		{

@@ -20,3 +20,18 @@ func (p *EventPipe) GetEventPipe(ctx context.Context, eventID uuid.UUID) *shared
 	}
 	return shared.PipeSuccess(messages.Event_Fetched, event)
 }
+
+func (p *EventPipe) GetEventForViewerPipe(ctx context.Context, eventID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[models.Event] {
+	res := p.GetEventPipe(ctx, eventID)
+	if !res.Success || res.Data == nil {
+		return res
+	}
+	visible, err := p.viewerCanSeeEvent(ctx, viewerPersonaID, res.Data)
+	if err != nil {
+		return pipeInternalError[models.Event](err, "event.visibility")
+	}
+	if !visible {
+		return shared.PipeError[models.Event](messages.Event_Not_Found)
+	}
+	return res
+}

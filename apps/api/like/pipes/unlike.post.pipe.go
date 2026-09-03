@@ -10,7 +10,7 @@ import (
 )
 
 func (p *LikePipe) UnlikePostPipe(ctx context.Context, userID uuid.UUID, postID uuid.UUID, dto dtos.LikePostDTO) *shared.PipeRes[any] {
-	if res := p.validatePersonaAndPost(ctx, userID, postID, dto.PersonaID); res != nil {
+	if _, _, res := p.validatePersonaAndPost(ctx, userID, postID, dto.PersonaID); res != nil {
 		return res
 	}
 	if err := p.likeRepo.UnlikePost(ctx, dto.PersonaID, postID); err != nil {

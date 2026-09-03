@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// AddEventHighlightStoryPipe adds one story to an event's highlight list.
 func (p *StoryPipe) AddEventHighlightStoryPipe(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, dto dtos.AddEventHighlightStoryDTO) *shared.PipeRes[EventHighlightStoryResponse] {
 	event, err := p.eventRepo.FindEventByID(ctx, eventID)
 	if err != nil {
@@ -46,6 +47,9 @@ func (p *StoryPipe) AddEventHighlightStoryPipe(ctx context.Context, userID uuid.
 	if err != nil {
 		return pipeInternalError[EventHighlightStoryResponse](err, "story.add_highlight")
 	}
+	if err := p.notifyStoryHighlightChange(ctx, story, persona, models.StoryHighlightAddedNotificationType); err != nil {
+		return pipeInternalError[EventHighlightStoryResponse](err, "story.add_highlight_notify")
+	}
 	response, err := p.eventHighlightResponse(ctx, highlight)
 	if err != nil {
 		return pipeInternalError[EventHighlightStoryResponse](err, "story.highlight_response")
@@ -53,6 +57,7 @@ func (p *StoryPipe) AddEventHighlightStoryPipe(ctx context.Context, userID uuid.
 	return shared.PipeSuccess(messages.Event_Highlight_Story_Added, response)
 }
 
+// ListEventHighlightStoriesPipe lists highlight stories visible to the current viewer.
 func (p *StoryPipe) ListEventHighlightStoriesPipe(ctx context.Context, eventID uuid.UUID, limit int, offset int, viewerUserID *uuid.UUID, viewerPersonaID *uuid.UUID) *shared.PipeRes[[]EventHighlightStoryResponse] {
 	viewer, message := p.viewerPersona(ctx, viewerUserID, viewerPersonaID)
 	if message != "" {
@@ -67,7 +72,7 @@ func (p *StoryPipe) ListEventHighlightStoriesPipe(ctx context.Context, eventID u
 	}
 	responses := make([]EventHighlightStoryResponse, 0, len(highlights))
 	for _, highlight := range highlights {
-		story, err := p.storyRepo.FindStoryByID(ctx, highlight.StoryID)
+		story, err := p.storyRepo.FindStoryByIDAny(ctx, highlight.StoryID)
 		if err != nil {
 			return pipeInternalError[[]EventHighlightStoryResponse](err, "story.highlight_story")
 		}
@@ -98,6 +103,7 @@ func (p *StoryPipe) ListEventHighlightStoriesPipe(ctx context.Context, eventID u
 	return shared.PipeSuccess(messages.Event_Highlight_Stories_Listed, &responses)
 }
 
+// RemoveEventHighlightStoryPipe removes one story from an event's highlight list.
 func (p *StoryPipe) RemoveEventHighlightStoryPipe(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, storyID uuid.UUID, addedByPersonaID uuid.UUID) *shared.PipeRes[any] {
 	event, err := p.eventRepo.FindEventByID(ctx, eventID)
 	if err != nil {
@@ -116,15 +122,26 @@ func (p *StoryPipe) RemoveEventHighlightStoryPipe(ctx context.Context, userID uu
 	if persona.UserID != userID || event.OrganizerID != persona.ID {
 		return shared.PipeError[any](messages.Forbidden)
 	}
+	story, err := p.storyRepo.FindStoryByIDAny(ctx, storyID)
+	if err != nil {
+		if err == story_repo.ErrStoryNotFound {
+			return shared.PipeError[any](messages.Story_Not_Found)
+		}
+		return pipeInternalError[any](err, "story.remove_highlight_story")
+	}
 	if err := p.storyRepo.RemoveEventHighlightStory(ctx, eventID, storyID); err != nil {
 		if err == story_repo.ErrEventHighlightNotFound {
 			return shared.PipeError[any](messages.Story_Not_Found)
 		}
 		return pipeInternalError[any](err, "story.remove_highlight")
 	}
+	if err := p.notifyStoryHighlightChange(ctx, story, persona, models.StoryHighlightRemovedNotificationType); err != nil {
+		return pipeInternalError[any](err, "story.remove_highlight_notify")
+	}
 	return shared.PipeSuccess[any](messages.Event_Highlight_Story_Removed, nil)
 }
 
+// ReorderEventHighlightStoryPipe reorders one highlighted story within an event.
 func (p *StoryPipe) ReorderEventHighlightStoryPipe(ctx context.Context, userID uuid.UUID, eventID uuid.UUID, storyID uuid.UUID, dto dtos.ReorderEventHighlightStoryDTO) *shared.PipeRes[EventHighlightStoryResponse] {
 	if dto.Position < 1 {
 		return shared.PipeError[EventHighlightStoryResponse](messages.Invalid_Story)
@@ -160,6 +177,7 @@ func (p *StoryPipe) ReorderEventHighlightStoryPipe(ctx context.Context, userID u
 	return shared.PipeSuccess(messages.Event_Highlight_Story_Reordered, response)
 }
 
+// eventHighlightResponse maps one highlight row into the API response shape.
 func (p *StoryPipe) eventHighlightResponse(ctx context.Context, highlight *models.EventHighlightStory) (*EventHighlightStoryResponse, error) {
 	response := &EventHighlightStoryResponse{
 		ID:               uuidString(highlight.ID),
@@ -169,11 +187,11 @@ func (p *StoryPipe) eventHighlightResponse(ctx context.Context, highlight *model
 		Position:         highlight.Position,
 		CreatedAt:        highlight.CreatedAt,
 	}
-	story, err := p.storyRepo.FindStoryByID(ctx, highlight.StoryID)
+	story, err := p.storyRepo.FindStoryByIDAny(ctx, highlight.StoryID)
 	if err != nil {
 		return nil, err
 	}
-	storyResponse, err := p.storyResponse(ctx, story, nil, false)
+	storyResponse, err := p.storyResponse(ctx, story, nil, true, true)
 	if err != nil {
 		return nil, err
 	}

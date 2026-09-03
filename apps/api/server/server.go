@@ -34,12 +34,18 @@ import (
 	messaging_pipes "github.com/emmanuella-codes/nox/messaging/pipes"
 	messaging_routers "github.com/emmanuella-codes/nox/messaging/routers"
 	"github.com/emmanuella-codes/nox/middleware"
+	notification_controllers "github.com/emmanuella-codes/nox/notification/controllers"
+	notification_pipes "github.com/emmanuella-codes/nox/notification/pipes"
+	notification_routers "github.com/emmanuella-codes/nox/notification/routers"
 	persona_controllers "github.com/emmanuella-codes/nox/persona/controllers"
 	persona_pipes "github.com/emmanuella-codes/nox/persona/pipes"
 	persona_routers "github.com/emmanuella-codes/nox/persona/routers"
 	post_controllers "github.com/emmanuella-codes/nox/post/controllers"
 	post_pipes "github.com/emmanuella-codes/nox/post/pipes"
 	post_routers "github.com/emmanuella-codes/nox/post/routers"
+	preference_controllers "github.com/emmanuella-codes/nox/preference/controllers"
+	preference_pipes "github.com/emmanuella-codes/nox/preference/pipes"
+	preference_routers "github.com/emmanuella-codes/nox/preference/routers"
 	"github.com/emmanuella-codes/nox/repositories"
 	search_controllers "github.com/emmanuella-codes/nox/search/controllers"
 	search_pipes "github.com/emmanuella-codes/nox/search/pipes"
@@ -49,6 +55,7 @@ import (
 	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
 	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
@@ -58,6 +65,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// RunServer wires dependencies and starts the API server.
 func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Client, repos *repositories.Repositories) {
 	app := fiber.New(fiber.Config{
 		AppName:      "nox-api",
@@ -89,25 +97,30 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		Redis:        redisClient,
 		Config:       cfg,
 	})
+	realtimeHub := realtime.NewHub()
+	notificationHub := realtime.NewHub()
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok", "time": time.Now().Format(time.RFC3339)})
 	})
 
 	authController := controllers.NewAuthController(authPipe)
-	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona))
-	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media))
-	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post))
+	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona, repos.Preference))
+	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media, redisClient, repos.Preference))
+	notificationPipe := notification_pipes.NewNotificationPipe(repos.Notification, repos.Persona, notificationHub)
+	commentController := comment_controllers.NewCommentController(comment_pipes.NewCommentPipe(repos.Comment, repos.Persona, repos.Post, repos.Notification, notificationPipe))
 	crewController := crew_controllers.NewCrewController(crew_pipes.NewCrewPipe(repos.Crew, repos.Event, repos.Persona))
-	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post))
-	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona))
-	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow, repos.Post))
-	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona))
+	likeController := like_controllers.NewLikeController(like_pipes.NewLikePipe(repos.Like, repos.Persona, repos.Post, repos.Notification, notificationPipe))
+	eventController := event_controllers.NewEventController(event_pipes.NewEventPipe(repos.Event, repos.Persona, repos.Preference))
+	searchController := search_controllers.NewSearchController(search_pipes.NewSearchPipe(repos.Search, repos.Like, repos.Persona, repos.Hashtag, repos.Follow, repos.Post, repos.Set, redisClient, repos.Preference))
+	followController := follow_controllers.NewFollowController(follow_pipes.NewFollowPipe(repos.Follow, repos.Persona, repos.Notification, notificationPipe, repos.Preference))
 	hashtagController := hashtag_controllers.NewHashtagController(hashtag_pipes.NewHashtagPipe(repos.Hashtag, repos.Persona, repos.Like, repos.Post))
 	mediaController := media_controllers.NewMediaController(media_pipes.NewMediaPipe(repos.Media, repos.Persona, cfg), cfg)
-	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media))
+	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification, notificationPipe, repos.Preference), repos.Messaging, realtimeHub)
+	notificationController := notification_controllers.NewNotificationController(notificationPipe, notificationHub)
+	preferenceController := preference_controllers.NewPreferenceController(preference_pipes.NewPreferencePipe(repos.Preference, repos.Persona, repos.Post, repos.Event, repos.Set))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
-	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow))
+	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 
 	api := app.Group("/api/v1")
 
@@ -123,6 +136,8 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))
 	shared_api.BaseRouter(api, messaging_routers.MessagingRoutes(messagingController, cfg))
+	shared_api.BaseRouter(api, notification_routers.NotificationRoutes(notificationController, cfg))
+	shared_api.BaseRouter(api.Group("/preferences"), preference_routers.PreferenceRoutes(preferenceController, cfg))
 	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
 	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 

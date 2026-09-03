@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/emmanuella-codes/nox/models"
+	persona_dtos "github.com/emmanuella-codes/nox/persona/dtos"
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
+	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	searchrepo "github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/search/messages"
 	"github.com/google/uuid"
@@ -195,6 +198,44 @@ func TestSearchForViewerHydratesFollowingState(t *testing.T) {
 	}
 }
 
+func TestSearchForViewerFiltersSuppressedDiscoveryTargets(t *testing.T) {
+	viewerPersonaID := uuid.New()
+	viewerUserID := uuid.New()
+	hiddenPersonaID := uuid.New()
+	hiddenPostID := uuid.New()
+	hiddenEventID := uuid.New()
+	hiddenSetID := uuid.New()
+	organizerUserID := uuid.New()
+	pipe := NewSearchPipe(&searchTestRepo{
+		results: &searchrepo.Results{
+			Personas: []*models.Persona{{ID: hiddenPersonaID, UserID: organizerUserID, Handle: "hidden", PersonaType: models.VisiblePersonaType}},
+			Posts:    []*searchrepo.PostResult{{Post: &models.Post{ID: hiddenPostID, AuthorUserID: organizerUserID, PersonaID: &hiddenPersonaID, PostingMode: models.PublicPostingMode, Body: "post", PostType: models.TextPostType}}},
+			Events:   []*models.Event{{ID: hiddenEventID, OrganizerID: hiddenPersonaID, Title: "event"}},
+			Sets:     []*models.Set{{ID: hiddenSetID, AuthorUserID: organizerUserID, PersonaID: hiddenPersonaID, Title: "set"}},
+		},
+	}, nil, &searchTestPersonaRepo{
+		personas: map[uuid.UUID]*models.Persona{
+			viewerPersonaID: {ID: viewerPersonaID, UserID: viewerUserID, PersonaType: models.VisiblePersonaType},
+			hiddenPersonaID: {ID: hiddenPersonaID, UserID: organizerUserID, PersonaType: models.VisiblePersonaType},
+		},
+	}, &searchTestPreferenceRepo{
+		suppressed: map[models.DiscoverySuppressionTargetType]map[uuid.UUID]bool{
+			models.PersonaSuppressionTargetType: {hiddenPersonaID: true},
+			models.PostSuppressionTargetType:    {hiddenPostID: true},
+			models.EventSuppressionTargetType:   {hiddenEventID: true},
+			models.SetSuppressionTargetType:     {hiddenSetID: true},
+		},
+	})
+
+	res := pipe.SearchForViewer(context.Background(), "post", SearchOptions{Limit: 10}, viewerPersonaID)
+	if !res.Success {
+		t.Fatalf("expected search success, got %q", res.Message)
+	}
+	if len(res.Data.Personas) != 0 || len(res.Data.Posts) != 0 || len(res.Data.Events) != 0 || len(res.Data.Sets) != 0 {
+		t.Fatalf("expected suppressed discovery results to be filtered, got %+v", res.Data)
+	}
+}
+
 type searchTestRepo struct {
 	results *searchrepo.Results
 	options searchrepo.Options
@@ -267,3 +308,84 @@ func (r *searchTestFollowRepo) FindFollowers(ctx context.Context, personaID uuid
 func (r *searchTestFollowRepo) FindFollowing(ctx context.Context, personaID uuid.UUID, options follow_repo.ListOptions) ([]*models.Persona, error) {
 	return nil, nil
 }
+
+type searchTestPersonaRepo struct {
+	personas map[uuid.UUID]*models.Persona
+}
+
+func (r *searchTestPersonaRepo) CreatePersona(ctx context.Context, userID uuid.UUID, dto persona_dtos.CreatePersonaDTO) (*models.Persona, error) {
+	return nil, nil
+}
+
+func (r *searchTestPersonaRepo) FindPersonaByID(ctx context.Context, personaID uuid.UUID) (*models.Persona, error) {
+	persona := r.personas[personaID]
+	if persona == nil {
+		return nil, persona_repo.ErrPersonaNotFound
+	}
+	return persona, nil
+}
+
+func (r *searchTestPersonaRepo) FindPersonasByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Persona, error) {
+	return nil, nil
+}
+
+func (r *searchTestPersonaRepo) FindPersonaByHandle(ctx context.Context, handle string) (*models.Persona, error) {
+	return nil, persona_repo.ErrPersonaNotFound
+}
+
+func (r *searchTestPersonaRepo) UpdatePersona(ctx context.Context, personaID uuid.UUID, dto persona_dtos.UpdatePersonaDTO) (*models.Persona, error) {
+	return nil, nil
+}
+
+type searchTestPreferenceRepo struct {
+	suppressed map[models.DiscoverySuppressionTargetType]map[uuid.UUID]bool
+}
+
+func (r *searchTestPreferenceRepo) BlockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestPreferenceRepo) UnblockUser(ctx context.Context, blockerUserID uuid.UUID, blockedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestPreferenceRepo) MuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestPreferenceRepo) UnmuteUser(ctx context.Context, userID uuid.UUID, mutedUserID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestPreferenceRepo) AddDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestPreferenceRepo) RemoveDiscoverySuppression(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType, targetID uuid.UUID) error {
+	return nil
+}
+
+func (r *searchTestPreferenceRepo) IsBlockedBetween(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
+	return false, nil
+}
+
+func (r *searchTestPreferenceRepo) FindExcludedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *searchTestPreferenceRepo) FindMutedUserIDs(ctx context.Context, userID uuid.UUID) (map[uuid.UUID]bool, error) {
+	return map[uuid.UUID]bool{}, nil
+}
+
+func (r *searchTestPreferenceRepo) FindSuppressedTargetIDs(ctx context.Context, userID uuid.UUID, targetType models.DiscoverySuppressionTargetType) (map[uuid.UUID]bool, error) {
+	if r.suppressed == nil || r.suppressed[targetType] == nil {
+		return map[uuid.UUID]bool{}, nil
+	}
+	return r.suppressed[targetType], nil
+}
+
+func (r *searchTestPreferenceRepo) DeleteFollowRelationsBetweenUsers(ctx context.Context, userA uuid.UUID, userB uuid.UUID) error {
+	return nil
+}
+
+var _ preference_repo.PreferenceRepository = (*searchTestPreferenceRepo)(nil)

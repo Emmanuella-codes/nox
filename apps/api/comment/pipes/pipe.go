@@ -1,12 +1,14 @@
 package pipes
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/emmanuella-codes/nox/comment/messages"
 	"github.com/emmanuella-codes/nox/models"
 	comment_repo "github.com/emmanuella-codes/nox/repositories/comment"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	post_repo "github.com/emmanuella-codes/nox/repositories/post"
 	"github.com/emmanuella-codes/nox/shared"
@@ -14,17 +16,13 @@ import (
 )
 
 type CommentPipe struct {
-	commentRepo comment_repo.CommentRepository
-	personaRepo persona_repo.PersonaRepository
-	postRepo    post_repo.PostRepository
-}
-
-func NewCommentPipe(commentRepo comment_repo.CommentRepository, personaRepo persona_repo.PersonaRepository, postRepo post_repo.PostRepository) *CommentPipe {
-	return &CommentPipe{commentRepo: commentRepo, personaRepo: personaRepo, postRepo: postRepo}
-}
-
-func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
-	return shared.PipeInternalError[T](err, "comment", operation, messages.Internal_Error)
+	commentRepo           comment_repo.CommentRepository
+	personaRepo           persona_repo.PersonaRepository
+	postRepo              post_repo.PostRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+	}
 }
 
 type CommentResponse struct {
@@ -51,13 +49,37 @@ type CommentPersonaAuthor struct {
 }
 
 type CommentAnonymousAuthor struct {
-	Handle string `json:"handle"`
+	Handle    string `json:"handle"`
+	AvatarKey string `json:"avatar_key"`
 }
 
+// NewCommentPipe builds the comment orchestration layer from repositories.
+func NewCommentPipe(commentRepo comment_repo.CommentRepository, personaRepo persona_repo.PersonaRepository, postRepo post_repo.PostRepository, deps ...any) *CommentPipe {
+	pipe := &CommentPipe{commentRepo: commentRepo, personaRepo: personaRepo, postRepo: postRepo}
+	for _, dep := range deps {
+		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
+			pipe.notificationRepo = repo
+		}
+		if publisher, ok := dep.(interface {
+			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+		}); ok {
+			pipe.notificationPublisher = publisher
+		}
+	}
+	return pipe
+}
+
+// pipeInternalError maps internal comment errors to pipe responses.
+func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
+	return shared.PipeInternalError[T](err, "comment", operation, messages.Internal_Error)
+}
+
+// validPostingMode validates the supported comment publishing modes.
 func validPostingMode(mode models.PostingMode) bool {
 	return mode == models.PublicPostingMode || mode == models.AnonymousPostingMode
 }
 
+// commentResponse maps one comment model into the API response shape.
 func commentResponse(comment *models.Comment, persona *models.Persona, identity *models.AnonymousThreadIdentity) CommentResponse {
 	response := CommentResponse{
 		ID:        comment.ID.String(),
@@ -80,15 +102,15 @@ func commentResponse(comment *models.Comment, persona *models.Persona, identity 
 		}
 	}
 	if comment.PostingMode == models.AnonymousPostingMode {
-		handle := "anonymous"
-		if identity != nil && identity.AnonymousHandle != "" {
-			handle = identity.AnonymousHandle
+		response.Author.Anonymous = &CommentAnonymousAuthor{
+			Handle:    anonymousHandleValue(identity),
+			AvatarKey: anonymousAvatarValue(identity),
 		}
-		response.Author.Anonymous = &CommentAnonymousAuthor{Handle: handle}
 	}
 	return response
 }
 
+// anonymousHandle returns a generated anonymous handle for legacy tests and fallbacks.
 func anonymousHandle() string {
 	id := uuid.NewString()
 	return fmt.Sprintf("ghost_%s", id[:8])

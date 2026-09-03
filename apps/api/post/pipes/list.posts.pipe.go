@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// GetPostPipe fetches one post and hydrates its visible or anonymous author state.
 func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.PipeRes[PostResponse] {
 	post, err := p.postRepo.FindPostByID(ctx, postID)
 	if err != nil {
@@ -19,7 +20,6 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 		}
 		return pipeInternalError[PostResponse](err, "post.get")
 	}
-
 	persona, pipeErr := p.publicPostPersona(ctx, post)
 	if pipeErr != nil {
 		return pipeErr
@@ -28,7 +28,6 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	if err != nil {
 		return pipeInternalError[PostResponse](err, "post.anonymous_identity")
 	}
-
 	response := postResponse(post, persona, identity)
 	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, []uuid.UUID{post.ID})
 	if err != nil {
@@ -45,12 +44,29 @@ func (p *PostPipe) GetPostPipe(ctx context.Context, postID uuid.UUID) *shared.Pi
 	return shared.PipeSuccess(messages.Post_Fetched, &response)
 }
 
+// GetPostForViewerPipe fetches one post and viewer-specific liked state.
 func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, viewerPersonaID uuid.UUID) *shared.PipeRes[PostResponse] {
 	res := p.GetPostPipe(ctx, postID)
-	if !res.Success || res.Data == nil || p.likeRepo == nil {
+	if !res.Success || res.Data == nil {
 		return res
 	}
-
+	post, err := p.postRepo.FindPostByID(ctx, postID)
+	if err != nil {
+		if err == post_repo.ErrPostNotFound {
+			return shared.PipeError[PostResponse](messages.Post_Not_Found)
+		}
+		return pipeInternalError[PostResponse](err, "post.viewer_lookup")
+	}
+	blocked, err := p.blockedForViewer(ctx, viewerPersonaID, post.AuthorUserID)
+	if err != nil {
+		return pipeInternalError[PostResponse](err, "post.viewer_visibility")
+	}
+	if blocked {
+		return shared.PipeError[PostResponse](messages.Post_Not_Found)
+	}
+	if p.likeRepo == nil {
+		return res
+	}
 	liked, err := p.likeRepo.HasPostLike(ctx, viewerPersonaID, postID)
 	if err != nil {
 		return pipeInternalError[PostResponse](err, "post.viewer_like_status")
@@ -59,253 +75,175 @@ func (p *PostPipe) GetPostForViewerPipe(ctx context.Context, postID uuid.UUID, v
 	return res
 }
 
+// GetPersonaPostsPipe fetches the public profile view of a user's posts.
 func (p *PostPipe) GetPersonaPostsPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
-	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
+	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
+	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
 			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
 		}
 		return pipeInternalError[[]PostResponse](err, "post.find_persona")
 	}
-
-	posts, err := p.postRepo.FindPostsByPersonaID(ctx, personaID, limit)
+	posts, err := p.postRepo.FindPostsByPersonaID(ctx, persona.ID, limit)
 	if err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.list_by_persona")
 	}
-
-	personas, pipeErr := p.publicPostPersonas(ctx, posts)
-	if pipeErr != nil {
-		return pipeErr
-	}
-
-	identities, err := p.anonymousPostIdentities(ctx, posts)
-	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.anonymous_identities")
-	}
-
-	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
-	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.persona_posts_media")
-	}
-
-	responses := postResponses(posts, personas, identities, mediaByPost)
-	if err := p.hydrateHashtags(ctx, responses); err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.persona_posts_hashtags")
-	}
-	return shared.PipeSuccess(messages.Posts_Listed, &responses)
+	return p.postsResponse(ctx, posts, messages.Posts_Listed)
 }
 
+// GetPersonaPostsForViewerPipe fetches owner-aware profile posts, including anonymous posts for the owner.
 func (p *PostPipe) GetPersonaPostsForViewerPipe(ctx context.Context, personaID uuid.UUID, viewerPersonaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
-	res := p.GetPersonaPostsPipe(ctx, personaID, limit)
+	targetProfile, err := p.personaRepo.FindPersonaByID(ctx, personaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[[]PostResponse](err, "post.find_persona")
+	}
+	viewerProfile, err := p.personaRepo.FindPersonaByID(ctx, viewerPersonaID)
+	if err != nil {
+		if err == persona_repo.ErrPersonaNotFound {
+			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+		}
+		return pipeInternalError[[]PostResponse](err, "post.find_viewer_persona")
+	}
+	blocked, err := p.blockedForViewer(ctx, viewerPersonaID, targetProfile.UserID)
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.profile_visibility")
+	}
+	if targetProfile.UserID != viewerProfile.UserID && blocked {
+		return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+	}
+	var posts []*models.Post
+	if targetProfile.UserID == viewerProfile.UserID {
+		posts, err = p.postRepo.FindPostsByAuthorUserID(ctx, targetProfile.UserID, limit)
+	} else {
+		posts, err = p.postRepo.FindPostsByPersonaID(ctx, targetProfile.ID, limit)
+	}
+	if err != nil {
+		return pipeInternalError[[]PostResponse](err, "post.list_profile_posts")
+	}
+	res := p.postsResponse(ctx, posts, messages.Posts_Listed)
 	if !res.Success || res.Data == nil || p.likeRepo == nil {
 		return res
 	}
-
 	if err := p.hydrateLikedState(ctx, viewerPersonaID, *res.Data); err != nil {
 		return pipeInternalError[[]PostResponse](err, "post.persona_posts_like_status")
 	}
 	return res
 }
 
-func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+// GetFeedPipe fetches the base feed with cursor pagination and liked state.
+func (p *PostPipe) GetFeedPipe(ctx context.Context, personaID uuid.UUID, limit int, cursor string) *shared.PipeRes[PostListResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[PostListResponse](messages.Persona_Not_Found)
 		}
-		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_feed")
+		return pipeInternalError[PostListResponse](err, "post.find_persona_for_feed")
 	}
-
-	posts, err := p.postRepo.FindFeedPosts(ctx, personaID, limit)
+	options, err := p.feedOptions(limit, cursor)
 	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.feed")
+		return shared.PipeError[PostListResponse](messages.Invalid_Payload)
 	}
-
-	personas, pipeErr := p.publicPostPersonas(ctx, posts)
-	if pipeErr != nil {
-		return pipeErr
+	if cached := p.cachedFeedResponse(ctx, "all", personaID, options, messages.Feed_Listed); cached != nil {
+		return cached
 	}
-
-	identities, err := p.anonymousPostIdentities(ctx, posts)
+	posts, err := p.postRepo.FindFeedPosts(ctx, personaID, options)
 	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.feed_anonymous_identities")
+		return pipeInternalError[PostListResponse](err, "post.feed")
 	}
-
-	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
-	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.feed_media")
+	response, pipeRes := p.feedResponse(ctx, posts, personaID, options.Limit, messages.Feed_Listed)
+	if pipeRes != nil {
+		return pipeRes
 	}
-
-	responses := postResponses(posts, personas, identities, mediaByPost)
-	if err := p.hydrateHashtags(ctx, responses); err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.feed_hashtags")
+	if err := p.storeFeedCache(ctx, "all", personaID.String(), options.Limit, cursor, response); err != nil {
+		return pipeInternalError[PostListResponse](err, "post.feed_cache_store")
 	}
-	if p.likeRepo != nil {
-		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
-			return pipeInternalError[[]PostResponse](err, "post.feed_like_status")
-		}
-	}
-	return shared.PipeSuccess(messages.Feed_Listed, &responses)
+	return shared.PipeSuccess(messages.Feed_Listed, response)
 }
 
-func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID, limit int) *shared.PipeRes[[]PostResponse] {
+// GetFollowingFeedPipe fetches the following feed with cursor pagination and liked state.
+func (p *PostPipe) GetFollowingFeedPipe(ctx context.Context, personaID uuid.UUID, limit int, cursor string) *shared.PipeRes[PostListResponse] {
 	if _, err := p.personaRepo.FindPersonaByID(ctx, personaID); err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
-			return shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
+			return shared.PipeError[PostListResponse](messages.Persona_Not_Found)
 		}
-		return pipeInternalError[[]PostResponse](err, "post.find_persona_for_following_feed")
+		return pipeInternalError[PostListResponse](err, "post.find_persona_for_following_feed")
 	}
-
-	posts, err := p.postRepo.FindFollowingFeedPosts(ctx, personaID, limit)
+	options, err := p.feedOptions(limit, cursor)
 	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.following_feed")
+		return shared.PipeError[PostListResponse](messages.Invalid_Payload)
 	}
-
-	personas, pipeErr := p.publicPostPersonas(ctx, posts)
-	if pipeErr != nil {
-		return pipeErr
+	if cached := p.cachedFeedResponse(ctx, "following", personaID, options, messages.Feed_Listed); cached != nil {
+		return cached
 	}
-
-	identities, err := p.anonymousPostIdentities(ctx, posts)
+	posts, err := p.postRepo.FindFollowingFeedPosts(ctx, personaID, options)
 	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.following_feed_anonymous_identities")
+		return pipeInternalError[PostListResponse](err, "post.following_feed")
 	}
-
-	mediaByPost, err := p.postRepo.FindMediaAssetsByPostIDs(ctx, postIDs(posts))
-	if err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.following_feed_media")
+	response, pipeRes := p.feedResponse(ctx, posts, personaID, options.Limit, messages.Feed_Listed)
+	if pipeRes != nil {
+		return pipeRes
 	}
-
-	responses := postResponses(posts, personas, identities, mediaByPost)
-	if err := p.hydrateHashtags(ctx, responses); err != nil {
-		return pipeInternalError[[]PostResponse](err, "post.following_feed_hashtags")
+	if err := p.storeFeedCache(ctx, "following", personaID.String(), options.Limit, cursor, response); err != nil {
+		return pipeInternalError[PostListResponse](err, "post.following_feed_cache_store")
 	}
-	if p.likeRepo != nil {
-		if err := p.hydrateLikedState(ctx, personaID, responses); err != nil {
-			return pipeInternalError[[]PostResponse](err, "post.following_feed_like_status")
-		}
-	}
-	return shared.PipeSuccess(messages.Feed_Listed, &responses)
+	return shared.PipeSuccess(messages.Feed_Listed, response)
 }
 
-func (p *PostPipe) FindViewerPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
-	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
+// feedOptions builds validated feed options from incoming request parameters.
+func (p *PostPipe) feedOptions(limit int, cursor string) (post_repo.FeedOptions, error) {
+	decodedCursor, err := decodeFeedCursor(cursor)
 	if err != nil {
-		if err == persona_repo.ErrPersonaNotFound {
-			return nil, messages.Persona_Not_Found
-		}
-		return nil, messages.Internal_Error
+		return post_repo.FeedOptions{}, err
 	}
-	if persona.UserID != userID || persona.PersonaType != models.VisiblePersonaType {
-		return nil, messages.Forbidden
-	}
-	return persona, ""
+	return post_repo.NormalizeFeedOptions(post_repo.FeedOptions{Limit: limit, Cursor: decodedCursor}), nil
 }
 
-func (p *PostPipe) publicPostPersona(ctx context.Context, post *models.Post) (*models.Persona, *shared.PipeRes[PostResponse]) {
-	if post.PostingMode != models.PublicPostingMode || post.PersonaID == nil {
-		return nil, nil
-	}
-
-	persona, err := p.personaRepo.FindPersonaByID(ctx, *post.PersonaID)
-	if err != nil {
-		if err == persona_repo.ErrPersonaNotFound {
-			return nil, shared.PipeError[PostResponse](messages.Persona_Not_Found)
-		}
-		return nil, pipeInternalError[PostResponse](err, "post.find_public_persona")
-	}
-
-	return persona, nil
-}
-
-func (p *PostPipe) publicPostPersonas(ctx context.Context, posts []*models.Post) (map[string]*models.Persona, *shared.PipeRes[[]PostResponse]) {
-	personas := make(map[string]*models.Persona)
-	for _, post := range posts {
-		if post.PostingMode != models.PublicPostingMode || post.PersonaID == nil {
-			continue
-		}
-		personaID := post.PersonaID.String()
-		if _, ok := personas[personaID]; ok {
-			continue
-		}
-
-		persona, err := p.personaRepo.FindPersonaByID(ctx, *post.PersonaID)
+// cachedFeedResponse returns one cached feed response when available.
+func (p *PostPipe) cachedFeedResponse(ctx context.Context, kind string, personaID uuid.UUID, options post_repo.FeedOptions, message shared.PipeMessage) *shared.PipeRes[PostListResponse] {
+	var cached PostListResponse
+	cursor := ""
+	if options.Cursor != nil {
+		var err error
+		cursor, err = encodeFeedCursor(PostResponse{ID: options.Cursor.ID.String(), CreatedAt: options.Cursor.CreatedAt})
 		if err != nil {
-			if err == persona_repo.ErrPersonaNotFound {
-				return nil, shared.PipeError[[]PostResponse](messages.Persona_Not_Found)
-			}
-			return nil, pipeInternalError[[]PostResponse](err, "post.find_public_persona")
-		}
-		personas[personaID] = persona
-	}
-
-	return personas, nil
-}
-
-func (p *PostPipe) anonymousPostIdentity(ctx context.Context, post *models.Post) (*models.AnonymousThreadIdentity, error) {
-	if post.PostingMode != models.AnonymousPostingMode || post.PersonaID == nil {
-		return nil, nil
-	}
-	return p.postRepo.EnsureAnonymousThreadIdentity(ctx, post.ID, post.AuthorUserID, *post.PersonaID, anonymousHandle())
-}
-
-func (p *PostPipe) anonymousPostIdentities(ctx context.Context, posts []*models.Post) (map[uuid.UUID]*models.AnonymousThreadIdentity, error) {
-	identities := make(map[uuid.UUID]*models.AnonymousThreadIdentity)
-	for _, post := range posts {
-		identity, err := p.anonymousPostIdentity(ctx, post)
-		if err != nil {
-			return nil, err
-		}
-		if identity != nil {
-			identities[post.ID] = identity
+			return pipeInternalError[PostListResponse](err, "post.feed_cache_cursor")
 		}
 	}
-	return identities, nil
-}
-
-func (p *PostPipe) hydrateLikedState(ctx context.Context, viewerPersonaID uuid.UUID, responses []PostResponse) error {
-	if p.likeRepo == nil || len(responses) == 0 {
+	hit, err := p.loadFeedCache(ctx, kind, personaID.String(), options.Limit, cursor, &cached)
+	if err != nil {
+		return pipeInternalError[PostListResponse](err, "post.feed_cache_load")
+	}
+	if !hit {
 		return nil
 	}
-
-	postIDs := make([]uuid.UUID, 0, len(responses))
-	for _, response := range responses {
-		postID, err := uuid.Parse(response.ID)
-		if err != nil {
-			return err
-		}
-		postIDs = append(postIDs, postID)
-	}
-
-	liked, err := p.likeRepo.FindLikedPostIDs(ctx, viewerPersonaID, postIDs)
-	if err != nil {
-		return err
-	}
-	for i := range responses {
-		postID := postIDs[i]
-		responses[i].IsLiked = liked[postID]
-	}
-	return nil
+	return shared.PipeSuccess(message, &cached)
 }
 
-func (p *PostPipe) hydrateHashtags(ctx context.Context, responses []PostResponse) error {
-	if p.hashtagRepo == nil || len(responses) == 0 {
-		return nil
+// feedResponse maps one feed page into a cursor-paginated response body.
+func (p *PostPipe) feedResponse(ctx context.Context, posts []*models.Post, personaID uuid.UUID, limit int, message shared.PipeMessage) (*PostListResponse, *shared.PipeRes[PostListResponse]) {
+	hasMore := len(posts) > limit
+	if hasMore {
+		posts = posts[:limit]
 	}
-
-	ids := make([]uuid.UUID, 0, len(responses))
-	for _, response := range responses {
-		postID, err := uuid.Parse(response.ID)
-		if err != nil {
-			return err
+	res := p.postsResponse(ctx, posts, message)
+	if !res.Success || res.Data == nil {
+		if res.Success {
+			return nil, shared.PipeSuccess(message, &PostListResponse{Limit: limit, HasMore: false, Posts: []PostResponse{}})
 		}
-		ids = append(ids, postID)
+		return nil, &shared.PipeRes[PostListResponse]{Success: false, Message: res.Message}
 	}
-
-	tags, err := p.hashtagRepo.FindTagsByPostIDs(ctx, ids)
-	if err != nil {
-		return err
+	if err := p.hydrateLikedState(ctx, personaID, *res.Data); err != nil {
+		return nil, pipeInternalError[PostListResponse](err, "post.feed_like_status")
 	}
-	for i := range responses {
-		responses[i].Hashtags = tags[ids[i]]
+	response := &PostListResponse{Limit: limit, HasMore: hasMore, Posts: *res.Data}
+	if hasMore && len(response.Posts) > 0 {
+		cursor, err := encodeFeedCursor(response.Posts[len(response.Posts)-1])
+		if err != nil {
+			return nil, pipeInternalError[PostListResponse](err, "post.feed_next_cursor")
+		}
+		response.NextCursor = &cursor
 	}
-	return nil
+	return response, nil
 }

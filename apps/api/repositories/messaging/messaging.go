@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/emmanuella-codes/nox/messaging/dtos"
@@ -28,17 +29,25 @@ type MessagingRepository interface {
 	FindDirectConversationBetweenPersonas(ctx context.Context, personaAID uuid.UUID, personaBID uuid.UUID) (*models.Conversation, error)
 	CreateGroupConversation(ctx context.Context, creator *models.Persona, members []*models.Persona, dto dtos.CreateGroupConversationDTO) (*models.Conversation, error)
 	FindConversationByID(ctx context.Context, conversationID uuid.UUID) (*models.Conversation, error)
+	DeleteConversation(ctx context.Context, conversationID uuid.UUID) error
 	ConversationBelongsToInactiveCrew(ctx context.Context, conversationID uuid.UUID) (bool, error)
 	FindPersonaConversations(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*ConversationListItem, error)
 	FindConversationMembers(ctx context.Context, conversationID uuid.UUID) ([]*models.ConversationMember, error)
+	FindConversationMemberUserIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
+	FindRelatedConversationUserIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	FindMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) (*models.ConversationMember, error)
 	AddConversationMembers(ctx context.Context, conversationID uuid.UUID, members []*models.Persona) ([]*models.ConversationMember, error)
+	UpdateConversationMemberRole(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, role models.ConversationMemberRole) (*models.ConversationMember, error)
 	RemoveConversationMember(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID) error
-	CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, error)
+	CreateMessage(ctx context.Context, conversationID uuid.UUID, senderUserID uuid.UUID, dto dtos.SendMessageDTO) (*models.Message, bool, error)
+	UpdateMessageBody(ctx context.Context, messageID uuid.UUID, body string) (*models.Message, error)
 	FindMessagesByConversationID(ctx context.Context, conversationID uuid.UUID, limit int, offset int) ([]*models.Message, error)
 	FindMessageByID(ctx context.Context, messageID uuid.UUID) (*models.Message, error)
+	FindMessageAttachmentsByMessageIDs(ctx context.Context, messageIDs []uuid.UUID) (map[uuid.UUID][]*models.MediaAsset, error)
 	MarkConversationRead(ctx context.Context, conversationID uuid.UUID, personaID uuid.UUID, messageID uuid.UUID) (*models.ConversationMember, error)
 	SoftDeleteMessage(ctx context.Context, messageID uuid.UUID) (*models.Message, error)
+	AppendConversationEvent(ctx context.Context, conversationID uuid.UUID, actorUserID uuid.UUID, eventType string, messageID *uuid.UUID, payload json.RawMessage) (*models.ConversationEvent, error)
+	FindConversationEventsAfter(ctx context.Context, userID uuid.UUID, afterID int64, limit int) ([]*models.ConversationEvent, error)
 }
 
 func NewMessagingRepository(db *pgxpool.Pool) MessagingRepository {

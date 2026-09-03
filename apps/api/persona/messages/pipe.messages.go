@@ -9,6 +9,7 @@ const (
 	Invalid_Persona_Type      shared.PipeMessage = "invalid_persona_type"
 	Persona_Not_Found         shared.PipeMessage = "persona_not_found"
 	Handle_Already_Taken      shared.PipeMessage = "handle_already_taken"
+	Profile_Already_Exists    shared.PipeMessage = "profile_already_exists"
 	Ghost_Persona_Already_Set shared.PipeMessage = "ghost_persona_already_exists"
 	Forbidden                 shared.PipeMessage = "forbidden"
 	Internal_Error            shared.PipeMessage = "internal_error"

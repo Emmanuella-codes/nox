@@ -2,53 +2,71 @@ package pipes
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
+	// "crypto/sha256"
+	// "fmt"
 	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	event_repo "github.com/emmanuella-codes/nox/repositories/event"
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
+	messaging_repo "github.com/emmanuella-codes/nox/repositories/messaging"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	story_repo "github.com/emmanuella-codes/nox/repositories/story"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/realtime"
 	"github.com/emmanuella-codes/nox/story/messages"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
 type StoryPipe struct {
-	storyRepo   story_repo.StoryRepository
-	eventRepo   event_repo.EventRepository
-	personaRepo persona_repo.PersonaRepository
-	mediaRepo   media_repo.MediaRepository
-	followRepo  follow_repo.FollowRepository
+	storyRepo             story_repo.StoryRepository
+	eventRepo             event_repo.EventRepository
+	personaRepo           persona_repo.PersonaRepository
+	mediaRepo             media_repo.MediaRepository
+	followRepo            follow_repo.FollowRepository
+	messagingRepo         messaging_repo.MessagingRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher notificationPublisher
+	realtimeHub           *realtime.Hub
 }
 
-func NewStoryPipe(storyRepo story_repo.StoryRepository, eventRepo event_repo.EventRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository, followRepo follow_repo.FollowRepository) *StoryPipe {
-	return &StoryPipe{storyRepo: storyRepo, eventRepo: eventRepo, personaRepo: personaRepo, mediaRepo: mediaRepo, followRepo: followRepo}
+type notificationPublisher interface {
+	PublishCreatedNotification(ctx context.Context, notification *models.Notification)
 }
 
+// builds the story pipe and optional notification dependencies.
+func NewStoryPipe(storyRepo story_repo.StoryRepository, eventRepo event_repo.EventRepository, personaRepo persona_repo.PersonaRepository, mediaRepo media_repo.MediaRepository, followRepo follow_repo.FollowRepository, deps ...any) *StoryPipe {
+	pipe := &StoryPipe{
+		storyRepo:   storyRepo,
+		eventRepo:   eventRepo,
+		personaRepo: personaRepo,
+		mediaRepo:   mediaRepo,
+		followRepo:  followRepo,
+	}
+	for _, dep := range deps {
+		switch value := dep.(type) {
+		case notification_repo.NotificationRepository:
+			pipe.notificationRepo = value
+		case notificationPublisher:
+			pipe.notificationPublisher = value
+		case messaging_repo.MessagingRepository:
+			pipe.messagingRepo = value
+		case *realtime.Hub:
+			pipe.realtimeHub = value
+		}
+	}
+	return pipe
+}
+
+// converts one internal story error into a pipe response.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "story", operation, messages.Internal_Error)
 }
 
-func validContributionMode(mode models.StoryContributionMode) bool {
-	return mode == models.PublicStoryContributionMode || mode == models.PrivateStoryContributionMode
-}
-
-func validPostingMode(mode models.PostingMode) bool {
-	return mode == models.PublicPostingMode || mode == models.AnonymousPostingMode
-}
-
-func validStoryVideo(asset *models.MediaAsset) bool {
-	return asset.MediaKind == models.VideoMediaKind &&
-		asset.ProcessingStatus == models.ReadyMediaStatus &&
-		asset.DurationSeconds > 0 &&
-		asset.DurationSeconds <= 300
-}
-
+// falls back empty or past expiries to twenty-four hours from now.
 func defaultStoryExpiry(expiresAt time.Time) time.Time {
 	if expiresAt.IsZero() || expiresAt.Before(time.Now()) {
 		return time.Now().Add(24 * time.Hour)
@@ -56,6 +74,7 @@ func defaultStoryExpiry(expiresAt time.Time) time.Time {
 	return expiresAt
 }
 
+// loads one persona and verifies it belongs to the current user.
 func (p *StoryPipe) ownedPersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
@@ -70,6 +89,7 @@ func (p *StoryPipe) ownedPersona(ctx context.Context, userID uuid.UUID, personaI
 	return persona, ""
 }
 
+// resolves one optional viewer persona in an authenticated context.
 func (p *StoryPipe) viewerPersona(ctx context.Context, userID *uuid.UUID, personaID *uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	if personaID == nil {
 		return nil, ""
@@ -84,6 +104,7 @@ func (p *StoryPipe) viewerPersona(ctx context.Context, userID *uuid.UUID, person
 	return persona, ""
 }
 
+// loads one media asset and maps not-found cases into pipe messages.
 func (p *StoryPipe) mediaAsset(ctx context.Context, mediaAssetID uuid.UUID) (*models.MediaAsset, shared.PipeMessage) {
 	asset, err := p.mediaRepo.FindMediaAssetByID(ctx, mediaAssetID)
 	if err != nil {
@@ -95,6 +116,7 @@ func (p *StoryPipe) mediaAsset(ctx context.Context, mediaAssetID uuid.UUID) (*mo
 	return asset, ""
 }
 
+// checks whether one persona is allowed to contribute to a story.
 func (p *StoryPipe) canContribute(ctx context.Context, story *models.Story, contributorPersonaID uuid.UUID) (bool, error) {
 	if story.OwnerPersonaID == contributorPersonaID {
 		return true, nil
@@ -105,6 +127,7 @@ func (p *StoryPipe) canContribute(ctx context.Context, story *models.Story, cont
 	return p.followRepo.IsFollowing(ctx, contributorPersonaID, story.OwnerPersonaID)
 }
 
+// checks whether one viewer is allowed to see a story.
 func (p *StoryPipe) canView(ctx context.Context, story *models.Story, viewerPersonaID *uuid.UUID) (bool, error) {
 	if story.ContributionMode == models.PublicStoryContributionMode {
 		return true, nil
@@ -118,7 +141,8 @@ func (p *StoryPipe) canView(ctx context.Context, story *models.Story, viewerPers
 	return p.followRepo.IsFollowing(ctx, *viewerPersonaID, story.OwnerPersonaID)
 }
 
-func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, viewerPersonaID *uuid.UUID, includeItems bool) (*StoryResponse, error) {
+// Maps one story into the API response shape and optionally includes its items.
+func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, viewerPersonaID *uuid.UUID, includeItems bool, includeExpiredItems bool) (*StoryResponse, error) {
 	owner, err := p.personaRepo.FindPersonaByID(ctx, story.OwnerPersonaID)
 	if err != nil {
 		return nil, err
@@ -145,24 +169,61 @@ func (p *StoryPipe) storyResponse(ctx context.Context, story *models.Story, view
 		UpdatedAt:            story.UpdatedAt,
 	}
 	if includeItems {
-		items, err := p.storyItemResponses(ctx, story.ID)
+		items, err := p.storyItemResponses(ctx, story.ID, viewerPersonaID, includeExpiredItems)
 		if err != nil {
 			return nil, err
 		}
 		response.Items = items
+		response.TotalDurationSeconds = storyItemsDuration(items)
+		if expiresAt, ok := latestStoryItemExpiry(items); ok {
+			response.ExpiresAt = expiresAt
+		}
 	}
 	return response, nil
 }
 
-func anonymousLabel(storyID uuid.UUID, personaID uuid.UUID) string {
-	sum := sha256.Sum256([]byte(storyID.String() + ":" + personaID.String()))
-	return fmt.Sprintf("anonymous-%x", sum[:4])
-}
+// anonymousLabel derives one stable anonymous label per story and persona.
+// func anonymousLabel(storyID uuid.UUID, personaID uuid.UUID) string {
+// 	sum := sha256.Sum256([]byte(storyID.String() + ":" + personaID.String()))
+// 	return fmt.Sprintf("anonymous-%x", sum[:4])
+// }
 
-func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID) ([]StoryItemResponse, error) {
-	items, err := p.storyRepo.FindStoryItems(ctx, storyID)
+// Maps story items into API response values for either active or preserved highlight views.
+func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID, viewerPersonaID *uuid.UUID, includeExpiredItems bool) ([]StoryItemResponse, error) {
+	var (
+		items []*models.StoryItem
+		err   error
+	)
+	if includeExpiredItems {
+		items, err = p.storyRepo.FindStoryItemsAny(ctx, storyID)
+	} else {
+		items, err = p.storyRepo.FindStoryItems(ctx, storyID)
+	}
 	if err != nil {
 		return nil, err
+	}
+	viewCounts, err := p.storyRepo.FindStoryItemViewCounts(ctx, storyID)
+	if err != nil {
+		return nil, err
+	}
+	reactionCounts, err := p.storyRepo.FindStoryItemReactionCounts(ctx, storyID)
+	if err != nil {
+		return nil, err
+	}
+	viewed := map[uuid.UUID]bool{}
+	reactions := map[uuid.UUID]models.StoryReactionType{}
+	if viewerPersonaID != nil {
+		viewedIDs, err := p.storyRepo.FindViewedStoryItemIDs(ctx, storyID, *viewerPersonaID)
+		if err != nil {
+			return nil, err
+		}
+		for _, itemID := range viewedIDs {
+			viewed[itemID] = true
+		}
+		reactions, err = p.storyRepo.FindStoryItemReactionsByPersona(ctx, storyID, *viewerPersonaID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	responses := make([]StoryItemResponse, 0, len(items))
 	for _, item := range items {
@@ -177,7 +238,17 @@ func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID) (
 			PostingMode:     item.PostingMode,
 			DurationSeconds: item.DurationSeconds,
 			Position:        item.Position,
+			ViewCount:       viewCounts[item.ID],
+			Viewed:          viewed[item.ID],
+			ReactionCounts:  reactionCounts[item.ID],
+			ExpiresAt:       item.ExpiresAt,
 			CreatedAt:       item.CreatedAt,
+		}
+		if response.ReactionCounts == nil {
+			response.ReactionCounts = map[models.StoryReactionType]int{}
+		}
+		if reactionType, ok := reactions[item.ID]; ok {
+			response.ViewerReaction = &reactionType
 		}
 		if item.PostingMode == models.AnonymousPostingMode {
 			response.AnonymousLabel = item.AnonymousLabel
@@ -194,6 +265,7 @@ func (p *StoryPipe) storyItemResponses(ctx context.Context, storyID uuid.UUID) (
 	return responses, nil
 }
 
+// bounds one incoming page size.
 func normalizeLimit(limit int) int {
 	if limit <= 0 {
 		return 20
@@ -204,6 +276,7 @@ func normalizeLimit(limit int) int {
 	return limit
 }
 
+// clamps one incoming page offset.
 func normalizeOffset(offset int) int {
 	if offset < 0 {
 		return 0

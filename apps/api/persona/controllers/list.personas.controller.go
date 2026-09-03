@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"github.com/emmanuella-codes/nox/middleware"
+	"github.com/emmanuella-codes/nox/models"
+	"github.com/emmanuella-codes/nox/shared"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -12,7 +14,25 @@ func (c *PersonaController) GetPersona(ctx *fiber.Ctx) error {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
 	}
 
-	res := c.pipe.GetPersonaPipe(ctx.Context(), personaID)
+	viewerPersonaID := ctx.Query("viewer_persona_id")
+	var res *shared.PipeRes[models.Persona]
+	if viewerPersonaID != "" {
+		userID, ok := middleware.CurrentUserID(ctx)
+		if !ok {
+			return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+		}
+		parsedViewerPersonaID, err := uuid.Parse(viewerPersonaID)
+		if err != nil {
+			return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+		}
+		persona, message := c.pipe.FindViewerPersona(ctx.Context(), userID, parsedViewerPersonaID)
+		if message != "" {
+			return pipeError(ctx, pipeErrorStatus(message), message)
+		}
+		res = c.pipe.GetPersonaForViewerPipe(ctx.Context(), personaID, persona.ID)
+	} else {
+		res = c.pipe.GetPersonaPipe(ctx.Context(), personaID)
+	}
 	if !res.Success {
 		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
 	}

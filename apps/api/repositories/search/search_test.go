@@ -8,9 +8,9 @@ func TestNormalizeOptionsDefaultsAndCapsLimit(t *testing.T) {
 		in   Options
 		want Options
 	}{
-		{name: "defaults limit", in: Options{}, want: Options{Limit: 10}},
-		{name: "caps limit", in: Options{Limit: 100, Offset: 2}, want: Options{Limit: 30, Offset: 2}},
-		{name: "resets negative offset", in: Options{Limit: 5, Offset: -4}, want: Options{Limit: 5}},
+		{name: "defaults limit", in: Options{}, want: Options{Limit: 10, Scope: "all"}},
+		{name: "caps limit", in: Options{Limit: 100, Offset: 2}, want: Options{Limit: 30, Offset: 2, Scope: "all"}},
+		{name: "resets negative offset", in: Options{Limit: 5, Offset: -4}, want: Options{Limit: 5, Scope: "all"}},
 	}
 
 	for _, tt := range tests {

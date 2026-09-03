@@ -7,14 +7,21 @@ import (
 	"github.com/emmanuella-codes/nox/follow/messages"
 	"github.com/emmanuella-codes/nox/models"
 	follow_repo "github.com/emmanuella-codes/nox/repositories/follow"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/google/uuid"
 )
 
 type FollowPipe struct {
-	followRepo  follow_repo.FollowRepository
-	personaRepo persona_repo.PersonaRepository
+	followRepo            follow_repo.FollowRepository
+	personaRepo           persona_repo.PersonaRepository
+	notificationRepo      notification_repo.NotificationRepository
+	preferenceRepo        preference_repo.PreferenceRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+	}
 }
 
 type FollowStatusResponse struct {
@@ -47,30 +54,56 @@ type FollowPersonaResponse struct {
 	UpdatedAt      time.Time              `json:"updated_at"`
 }
 
-func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository) *FollowPipe {
-	return &FollowPipe{followRepo: followRepo, personaRepo: personaRepo}
+// NewFollowPipe builds the follow orchestration layer from repositories.
+func NewFollowPipe(followRepo follow_repo.FollowRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *FollowPipe {
+	pipe := &FollowPipe{followRepo: followRepo, personaRepo: personaRepo}
+	for _, dep := range deps {
+		if repo, ok := dep.(notification_repo.NotificationRepository); ok {
+			pipe.notificationRepo = repo
+		}
+		if repo, ok := dep.(preference_repo.PreferenceRepository); ok {
+			pipe.preferenceRepo = repo
+		}
+		if publisher, ok := dep.(interface {
+			PublishCreatedNotification(ctx context.Context, notification *models.Notification)
+		}); ok {
+			pipe.notificationPublisher = publisher
+		}
+	}
+	return pipe
 }
 
-func (p *FollowPipe) validateFollowAction(ctx context.Context, userID uuid.UUID, followerPersonaID uuid.UUID, targetPersonaID uuid.UUID) *shared.PipeRes[any] {
-	followerPersona, res := p.validateOwnedVisiblePersona(ctx, userID, followerPersonaID)
+// validateFollowAction checks the follower and target public profiles before a follow action.
+func (p *FollowPipe) validateFollowAction(ctx context.Context, userID uuid.UUID, followerPersonaID uuid.UUID, targetPersonaID uuid.UUID) (*models.Persona, *models.Persona, *shared.PipeRes[any]) {
+	followerPersona, res := p.validateOwnedProfile(ctx, userID, followerPersonaID)
 	if res != nil {
-		return res
+		return nil, nil, res
 	}
 
-	targetPersona, res := p.findVisiblePersona(ctx, targetPersonaID)
+	targetPersona, res := p.findProfile(ctx, targetPersonaID)
 	if res != nil {
-		return res
+		return nil, nil, res
 	}
 
 	if followerPersona.ID == targetPersona.ID {
-		return shared.PipeError[any](messages.Self_Follow_Not_Allowed)
+		return nil, nil, shared.PipeError[any](messages.Self_Follow_Not_Allowed)
+	}
+	if p.preferenceRepo != nil {
+		blocked, err := p.preferenceRepo.IsBlockedBetween(ctx, followerPersona.UserID, targetPersona.UserID)
+		if err != nil {
+			return nil, nil, pipeInternalError[any](err, "follow.block_status")
+		}
+		if blocked {
+			return nil, nil, shared.PipeError[any](messages.Forbidden)
+		}
 	}
 
-	return nil
+	return followerPersona, targetPersona, nil
 }
 
-func (p *FollowPipe) validateOwnedVisiblePersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[any]) {
-	persona, res := p.findVisiblePersona(ctx, personaID)
+// validateOwnedProfile checks that the current user owns the acting public profile.
+func (p *FollowPipe) validateOwnedProfile(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[any]) {
+	persona, res := p.findProfile(ctx, personaID)
 	if res != nil {
 		return nil, res
 	}
@@ -80,12 +113,14 @@ func (p *FollowPipe) validateOwnedVisiblePersona(ctx context.Context, userID uui
 	return persona, nil
 }
 
-func (p *FollowPipe) validateVisiblePersona(ctx context.Context, personaID uuid.UUID) *shared.PipeRes[any] {
-	_, res := p.findVisiblePersona(ctx, personaID)
+// validateProfile checks that the target public profile exists.
+func (p *FollowPipe) validateProfile(ctx context.Context, personaID uuid.UUID) *shared.PipeRes[any] {
+	_, res := p.findProfile(ctx, personaID)
 	return res
 }
 
-func (p *FollowPipe) findVisiblePersona(ctx context.Context, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[any]) {
+// findProfile fetches one public profile by id.
+func (p *FollowPipe) findProfile(ctx context.Context, personaID uuid.UUID) (*models.Persona, *shared.PipeRes[any]) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
 		if err == persona_repo.ErrPersonaNotFound {
@@ -93,12 +128,10 @@ func (p *FollowPipe) findVisiblePersona(ctx context.Context, personaID uuid.UUID
 		}
 		return nil, pipeInternalError[any](err, "follow.find_persona")
 	}
-	if persona.PersonaType != models.VisiblePersonaType {
-		return nil, shared.PipeError[any](messages.Persona_Not_Found)
-	}
 	return persona, nil
 }
 
+// mapFollowError maps repository follow errors to pipe responses.
 func (p *FollowPipe) mapFollowError(err error, operation string) *shared.PipeRes[any] {
 	switch err {
 	case follow_repo.ErrAlreadyFollowing:
@@ -112,10 +145,12 @@ func (p *FollowPipe) mapFollowError(err error, operation string) *shared.PipeRes
 	}
 }
 
+// pipeInternalError maps internal follow errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "follow", operation, messages.Internal_Error)
 }
 
+// followListResponse maps follow list pagination and profiles into the API shape.
 func followListResponse(personas []*models.Persona, options follow_repo.ListOptions, following map[uuid.UUID]bool) FollowListResponse {
 	hasMore := len(personas) > options.Limit
 	if hasMore {
@@ -131,6 +166,7 @@ func followListResponse(personas []*models.Persona, options follow_repo.ListOpti
 	}
 }
 
+// nextOffset calculates the next offset when more results are available.
 func nextOffset(options follow_repo.ListOptions, hasMore bool) *int {
 	if !hasMore {
 		return nil
@@ -139,6 +175,7 @@ func nextOffset(options follow_repo.ListOptions, hasMore bool) *int {
 	return &next
 }
 
+// followPersonaResponses maps public profiles into the follow list response shape.
 func followPersonaResponses(personas []*models.Persona, following map[uuid.UUID]bool) []FollowPersonaResponse {
 	responses := make([]FollowPersonaResponse, 0, len(personas))
 	for _, persona := range personas {
@@ -163,10 +200,46 @@ func followPersonaResponses(personas []*models.Persona, following map[uuid.UUID]
 	return responses
 }
 
+// personaIDs extracts ids from a slice of public profiles.
 func personaIDs(personas []*models.Persona) []uuid.UUID {
 	ids := make([]uuid.UUID, 0, len(personas))
 	for _, persona := range personas {
 		ids = append(ids, persona.ID)
 	}
 	return ids
+}
+
+func (p *FollowPipe) visibleToViewer(ctx context.Context, viewerPersonaID uuid.UUID, target *models.Persona) (bool, error) {
+	if p.preferenceRepo == nil || target == nil {
+		return true, nil
+	}
+	viewer, err := p.personaRepo.FindPersonaByID(ctx, viewerPersonaID)
+	if err != nil {
+		return false, err
+	}
+	if viewer.UserID == target.UserID {
+		return true, nil
+	}
+	blocked, err := p.preferenceRepo.IsBlockedBetween(ctx, viewer.UserID, target.UserID)
+	if err != nil {
+		return false, err
+	}
+	return !blocked, nil
+}
+
+func (p *FollowPipe) filterBlockedPersonas(ctx context.Context, viewerPersonaID uuid.UUID, personas []*models.Persona) ([]*models.Persona, error) {
+	if p.preferenceRepo == nil {
+		return personas, nil
+	}
+	filtered := make([]*models.Persona, 0, len(personas))
+	for _, persona := range personas {
+		visible, err := p.visibleToViewer(ctx, viewerPersonaID, persona)
+		if err != nil {
+			return nil, err
+		}
+		if visible {
+			filtered = append(filtered, persona)
+		}
+	}
+	return filtered, nil
 }
