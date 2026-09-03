@@ -11,6 +11,7 @@ import (
 	notification_pipes "github.com/emmanuella-codes/nox/notification/pipes"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	"github.com/emmanuella-codes/nox/shared/push"
+	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
@@ -34,19 +35,12 @@ func NewWorker(cfg *config.Config, repo notification_repo.NotificationRepository
 
 // Polls the outbox until shutdown.
 func (w *Worker) Run(ctx context.Context) error {
-	ticker := time.NewTicker(w.cfg.PushWorkerPollInterval)
-	defer ticker.Stop()
-
-	for {
+	return workerruntime.RunLoop(ctx, w.cfg.PushWorkerPollInterval, func(ctx context.Context) error {
 		if err := w.tick(ctx); err != nil {
 			log.Error().Err(err).Msg("notification worker tick failed")
 		}
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-	}
+		return nil
+	})
 }
 
 // Claims one batch and processes each queued delivery.

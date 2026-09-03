@@ -6,6 +6,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/config"
 	story_repo "github.com/emmanuella-codes/nox/repositories/story"
+	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,19 +22,12 @@ func NewWorker(cfg *config.Config, repo story_repo.StoryRepository) *Worker {
 
 // Polls story cleanup work until shutdown.
 func (w *Worker) Run(ctx context.Context) error {
-	ticker := time.NewTicker(w.cfg.StoryCleanupInterval)
-	defer ticker.Stop()
-
-	for {
+	return workerruntime.RunLoop(ctx, w.cfg.StoryCleanupInterval, func(ctx context.Context) error {
 		if err := w.tick(ctx); err != nil {
 			log.Error().Err(err).Msg("story cleanup tick failed")
 		}
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-	}
+		return nil
+	})
 }
 
 // Rejects stale requests and purges expired non-highlighted story data in batches.

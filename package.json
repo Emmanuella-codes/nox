@@ -9,6 +9,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "yarn workspace web dev",
+    "dev:api": "cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run .",
+    "dev:notifications": "cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/notifications",
+    "dev:stories": "cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/stories",
+    "dev:media": "cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/media",
+    "dev:backend": "sh ./scripts/dev-backend.sh",
+    "dev:all": "sh ./scripts/dev-all.sh",
     "build": "yarn workspace web build",
     "lint": "yarn workspace web lint"
   },

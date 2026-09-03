@@ -1,37 +1,23 @@
 package main
 
 import (
-	"context"
-	"os/signal"
-	"syscall"
-
-	"github.com/emmanuella-codes/nox/config"
-	"github.com/emmanuella-codes/nox/db"
-	"github.com/emmanuella-codes/nox/repositories"
+	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := workerruntime.SignalContext()
 	defer stop()
 
-	cfg, err := config.Load()
+	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true})
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load config")
+		log.Fatal().Err(err).Msg("failed to bootstrap notification worker")
 	}
-	if err := db.RunMigrations(cfg.DatabaseURL); err != nil {
-		log.Fatal().Err(err).Msg("failed to run database migrations")
-	}
-	pool, err := db.Connect(ctx, cfg.DatabaseURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect database")
-	}
-	defer pool.Close()
+	defer app.Close()
 
-	repos := repositories.Init(pool)
-	provider := newProvider(cfg)
-	worker := NewWorker(cfg, repos.Notification, provider)
-	if err := worker.Run(ctx); err != nil {
+	provider := newProvider(app.Config)
+	worker := NewWorker(app.Config, app.Repos.Notification, provider)
+	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("notification worker failed")
 	}
 }

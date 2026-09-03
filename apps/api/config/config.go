@@ -34,6 +34,10 @@ type Config struct {
 	PushProvider           string
 	PushWorkerBatchSize    int
 	PushWorkerPollInterval time.Duration
+	MediaCleanupBatchSize  int
+	MediaCleanupInterval   time.Duration
+	MediaPendingRetention  time.Duration
+	MediaFailedRetention   time.Duration
 	StoryCleanupBatchSize  int
 	StoryCleanupInterval   time.Duration
 	StoryExpiryRetention   time.Duration
@@ -73,6 +77,10 @@ func Load() (*Config, error) {
 		PushProvider:           getEnv("PUSH_PROVIDER", "log"),
 		PushWorkerBatchSize:    getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
 		PushWorkerPollInterval: getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
+		MediaCleanupBatchSize:  getIntEnv("MEDIA_CLEANUP_BATCH_SIZE", 25),
+		MediaCleanupInterval:   getDurationEnv("MEDIA_CLEANUP_INTERVAL", 10*time.Minute),
+		MediaPendingRetention:  getDurationEnv("MEDIA_PENDING_RETENTION", 24*time.Hour),
+		MediaFailedRetention:   getDurationEnv("MEDIA_FAILED_RETENTION", 168*time.Hour),
 		StoryCleanupBatchSize:  getIntEnv("STORY_CLEANUP_BATCH_SIZE", 25),
 		StoryCleanupInterval:   getDurationEnv("STORY_CLEANUP_INTERVAL", 10*time.Minute),
 		StoryExpiryRetention:   getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
