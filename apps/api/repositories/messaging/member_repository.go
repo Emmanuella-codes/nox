@@ -22,7 +22,7 @@ func (r *pgRepository) FindConversationMembers(ctx context.Context, conversation
 	return scanMembers(rows)
 }
 
-// FindConversationMemberUserIDs fetches active member user ids for one conversation.
+// fetches active member user ids for one conversation.
 func (r *pgRepository) FindConversationMemberUserIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT DISTINCT user_id
@@ -36,7 +36,7 @@ func (r *pgRepository) FindConversationMemberUserIDs(ctx context.Context, conver
 	return scanUUIDs(rows)
 }
 
-// FindRelatedConversationUserIDs fetches users who share active conversations with one user.
+// fetches users who share active conversations with one user.
 func (r *pgRepository) FindRelatedConversationUserIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT DISTINCT peers.user_id

@@ -48,6 +48,7 @@ type NotificationResponse struct {
 	CommentID                  *string                   `json:"comment_id,omitempty"`
 	EventID                    *string                   `json:"event_id,omitempty"`
 	StoryID                    *string                   `json:"story_id,omitempty"`
+	StoryItemID                *string                   `json:"story_item_id,omitempty"`
 	StoryContributionRequestID *string                   `json:"story_contribution_request_id,omitempty"`
 	IsRead                     bool                      `json:"is_read"`
 	ReadAt                     *string                   `json:"read_at,omitempty"`
@@ -68,7 +69,6 @@ type NotificationUnreadCountResponse struct {
 	UnreadCount int `json:"unread_count"`
 }
 
-// NewNotificationPipe builds the notification orchestration layer from repositories.
 func NewNotificationPipe(notificationRepo notification_repo.NotificationRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *NotificationPipe {
 	pipe := &NotificationPipe{notificationRepo: notificationRepo, personaRepo: personaRepo}
 	for _, dep := range deps {
@@ -79,12 +79,10 @@ func NewNotificationPipe(notificationRepo notification_repo.NotificationReposito
 	return pipe
 }
 
-// pipeInternalError maps internal notification errors to pipe responses.
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
 	return shared.PipeInternalError[T](err, "notification", operation, messages.Internal_Error)
 }
 
-// profilePersona validates that one persona belongs to the current user.
 func (p *NotificationPipe) profilePersona(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (*models.Persona, shared.PipeMessage) {
 	persona, err := p.personaRepo.FindPersonaByID(ctx, personaID)
 	if err != nil {
@@ -99,7 +97,6 @@ func (p *NotificationPipe) profilePersona(ctx context.Context, userID uuid.UUID,
 	return persona, ""
 }
 
-// notificationResponse maps one notification into the API response shape.
 func (p *NotificationPipe) notificationResponse(ctx context.Context, notification *models.Notification) NotificationResponse {
 	var conversationID *string
 	var messageID *string
@@ -107,6 +104,7 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 	var commentID *string
 	var eventID *string
 	var storyID *string
+	var storyItemID *string
 	var storyContributionRequestID *string
 	var readAt *string
 	if notification.ConversationID != nil {
@@ -133,6 +131,10 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 		value := notification.StoryID.String()
 		storyID = &value
 	}
+	if notification.StoryItemID != nil {
+		value := notification.StoryItemID.String()
+		storyItemID = &value
+	}
 	if notification.StoryContributionRequestID != nil {
 		value := notification.StoryContributionRequestID.String()
 		storyContributionRequestID = &value
@@ -151,6 +153,7 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 		CommentID:                  commentID,
 		EventID:                    eventID,
 		StoryID:                    storyID,
+		StoryItemID:                storyItemID,
 		StoryContributionRequestID: storyContributionRequestID,
 		IsRead:                     notification.IsRead,
 		ReadAt:                     readAt,
@@ -179,7 +182,6 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 	return response
 }
 
-// notificationResponses maps many notifications into API response shape.
 func (p *NotificationPipe) notificationResponses(ctx context.Context, notifications []*models.Notification) []NotificationResponse {
 	responses := make([]NotificationResponse, 0, len(notifications))
 	for _, notification := range notifications {

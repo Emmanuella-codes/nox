@@ -2,8 +2,11 @@ package notification
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
+	notification_dtos "github.com/emmanuella-codes/nox/notification/dtos"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -27,23 +30,28 @@ type CreateNotificationInput struct {
 }
 
 type NotificationRepository interface {
-	// CreateNotifications persists a batch of notification records.
 	CreateNotifications(ctx context.Context, inputs []CreateNotificationInput) ([]*models.Notification, error)
-	// FindPersonaNotifications lists one persona's notifications.
 	FindPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*models.Notification, error)
-	// CountUnreadPersonaNotifications returns the unread notification count for one persona.
 	CountUnreadPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (int, error)
-	// MarkNotificationRead marks one notification as read.
 	MarkNotificationRead(ctx context.Context, notificationID uuid.UUID, userID uuid.UUID, personaID uuid.UUID) (*models.Notification, error)
-	// MarkPersonaNotificationsRead marks all persona notifications as read.
 	MarkPersonaNotificationsRead(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (int64, error)
-	// MarkConversationNotificationsRead marks message notifications read through one message cursor.
 	MarkConversationNotificationsRead(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, conversationID uuid.UUID, messageID uuid.UUID) (int64, error)
-	// DeleteMessageNotifications removes notifications tied to one deleted message.
 	DeleteMessageNotifications(ctx context.Context, messageID uuid.UUID) error
+	UpsertNotificationDevice(ctx context.Context, userID uuid.UUID, dto notification_dtos.UpsertNotificationDeviceDTO) (*models.NotificationDevice, error)
+	FindNotificationDevices(ctx context.Context, userID uuid.UUID) ([]*models.NotificationDevice, error)
+	DisableNotificationDevice(ctx context.Context, userID uuid.UUID, deviceID uuid.UUID) error
+	DisableNotificationDeviceByToken(ctx context.Context, pushToken string) error
+	FindNotificationPreferences(ctx context.Context, personaID uuid.UUID) ([]*models.NotificationPreference, error)
+	UpsertNotificationPreference(ctx context.Context, personaID uuid.UUID, notificationType models.NotificationType, pushEnabled bool) (*models.NotificationPreference, error)
+	PushEnabledForPersona(ctx context.Context, personaID uuid.UUID, notificationType models.NotificationType) (bool, error)
+	EnqueueNotificationPush(ctx context.Context, notification *models.Notification, payload json.RawMessage) (*models.NotificationOutbox, error)
+	ClaimNotificationPushes(ctx context.Context, workerID string, limit int) ([]*models.NotificationOutbox, error)
+	MarkNotificationPushSent(ctx context.Context, outboxID uuid.UUID) error
+	MarkNotificationPushRetry(ctx context.Context, outboxID uuid.UUID, nextAttemptAt time.Time, lastError string) error
+	MarkNotificationPushDead(ctx context.Context, outboxID uuid.UUID, lastError string) error
+	MarkNotificationPushSkipped(ctx context.Context, outboxID uuid.UUID, reason string) error
 }
 
-// NewNotificationRepository builds the notification repository from a database pool.
 func NewNotificationRepository(db *pgxpool.Pool) NotificationRepository {
 	return newPgRepository(db)
 }

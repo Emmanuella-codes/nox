@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// StreamNotifications opens one authenticated notification event stream.
 func (c *NotificationController) StreamNotifications(ctx *fiber.Ctx) error {
 	if c.realtimeHub == nil || c.pipe == nil {
 		return pipeError(ctx, fiber.StatusInternalServerError, messages.Internal_Error)
@@ -52,7 +51,6 @@ func (c *NotificationController) StreamNotifications(ctx *fiber.Ctx) error {
 	return nil
 }
 
-// sends the initial unread count snapshot for the stream.
 func (c *NotificationController) writeNotificationBootstrap(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, w *bufio.Writer) {
 	res := c.pipe.GetUnreadCountPipe(ctx, userID, personaID)
 	if !res.Success || res.Data == nil {

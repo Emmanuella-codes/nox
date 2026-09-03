@@ -2,11 +2,13 @@ package pipes
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	messaging_dtos "github.com/emmanuella-codes/nox/messaging/dtos"
 	"github.com/emmanuella-codes/nox/models"
+	notification_dtos "github.com/emmanuella-codes/nox/notification/dtos"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	"github.com/google/uuid"
 )
@@ -65,6 +67,71 @@ func (r *notificationRepoStub) MarkConversationNotificationsRead(ctx context.Con
 // DeleteMessageNotifications records one deleted-message cleanup call.
 func (r *notificationRepoStub) DeleteMessageNotifications(ctx context.Context, messageID uuid.UUID) error {
 	r.deletedMessageIDs = append(r.deletedMessageIDs, messageID)
+	return nil
+}
+
+// UpsertNotificationDevice is unused in these tests.
+func (r *notificationRepoStub) UpsertNotificationDevice(ctx context.Context, userID uuid.UUID, dto notification_dtos.UpsertNotificationDeviceDTO) (*models.NotificationDevice, error) {
+	return nil, nil
+}
+
+// FindNotificationDevices is unused in these tests.
+func (r *notificationRepoStub) FindNotificationDevices(ctx context.Context, userID uuid.UUID) ([]*models.NotificationDevice, error) {
+	return nil, nil
+}
+
+// DisableNotificationDevice is unused in these tests.
+func (r *notificationRepoStub) DisableNotificationDevice(ctx context.Context, userID uuid.UUID, deviceID uuid.UUID) error {
+	return nil
+}
+
+// DisableNotificationDeviceByToken is unused in these tests.
+func (r *notificationRepoStub) DisableNotificationDeviceByToken(ctx context.Context, pushToken string) error {
+	return nil
+}
+
+// FindNotificationPreferences is unused in these tests.
+func (r *notificationRepoStub) FindNotificationPreferences(ctx context.Context, personaID uuid.UUID) ([]*models.NotificationPreference, error) {
+	return nil, nil
+}
+
+// UpsertNotificationPreference is unused in these tests.
+func (r *notificationRepoStub) UpsertNotificationPreference(ctx context.Context, personaID uuid.UUID, notificationType models.NotificationType, pushEnabled bool) (*models.NotificationPreference, error) {
+	return nil, nil
+}
+
+// PushEnabledForPersona is unused in these tests.
+func (r *notificationRepoStub) PushEnabledForPersona(ctx context.Context, personaID uuid.UUID, notificationType models.NotificationType) (bool, error) {
+	return true, nil
+}
+
+// EnqueueNotificationPush is unused in these tests.
+func (r *notificationRepoStub) EnqueueNotificationPush(ctx context.Context, notification *models.Notification, payload json.RawMessage) (*models.NotificationOutbox, error) {
+	return nil, nil
+}
+
+// ClaimNotificationPushes is unused in these tests.
+func (r *notificationRepoStub) ClaimNotificationPushes(ctx context.Context, workerID string, limit int) ([]*models.NotificationOutbox, error) {
+	return nil, nil
+}
+
+// MarkNotificationPushSent is unused in these tests.
+func (r *notificationRepoStub) MarkNotificationPushSent(ctx context.Context, outboxID uuid.UUID) error {
+	return nil
+}
+
+// MarkNotificationPushRetry is unused in these tests.
+func (r *notificationRepoStub) MarkNotificationPushRetry(ctx context.Context, outboxID uuid.UUID, nextAttemptAt time.Time, lastError string) error {
+	return nil
+}
+
+// MarkNotificationPushDead is unused in these tests.
+func (r *notificationRepoStub) MarkNotificationPushDead(ctx context.Context, outboxID uuid.UUID, lastError string) error {
+	return nil
+}
+
+// MarkNotificationPushSkipped is unused in these tests.
+func (r *notificationRepoStub) MarkNotificationPushSkipped(ctx context.Context, outboxID uuid.UUID, reason string) error {
 	return nil
 }
 

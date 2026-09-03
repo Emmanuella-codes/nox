@@ -9,7 +9,12 @@ const (
 	Forbidden              shared.PipeMessage = "forbidden"
 	Internal_Error         shared.PipeMessage = "internal_error"
 
-	Notifications_Listed shared.PipeMessage = "notifications_listed_successfully"
-	Notification_Read    shared.PipeMessage = "notification_marked_read_successfully"
-	Notifications_Read   shared.PipeMessage = "notifications_marked_read_successfully"
+	Notifications_Listed            shared.PipeMessage = "notifications_listed_successfully"
+	Notification_Read               shared.PipeMessage = "notification_marked_read_successfully"
+	Notifications_Read              shared.PipeMessage = "notifications_marked_read_successfully"
+	Notification_Device_Upserted    shared.PipeMessage = "notification_device_upserted_successfully"
+	Notification_Devices_Listed     shared.PipeMessage = "notification_devices_listed_successfully"
+	Notification_Device_Removed     shared.PipeMessage = "notification_device_removed_successfully"
+	Notification_Preferences_Listed shared.PipeMessage = "notification_preferences_listed_successfully"
+	Notification_Preference_Updated shared.PipeMessage = "notification_preference_updated_successfully"
 )

@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -30,6 +31,9 @@ type Config struct {
 	CloudinaryAPIKey       string
 	CloudinaryAPISecret    string
 	CloudinaryUploadFolder string
+	PushProvider           string
+	PushWorkerBatchSize    int
+	PushWorkerPollInterval time.Duration
 	GhostPersonaSecret     string
 	Environment            string
 }
@@ -63,6 +67,9 @@ func Load() (*Config, error) {
 		CloudinaryAPIKey:       getEnv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "nox/posts"),
+		PushProvider:           getEnv("PUSH_PROVIDER", "log"),
+		PushWorkerBatchSize:    getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
+		PushWorkerPollInterval: getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
 		GhostPersonaSecret:     getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:            getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 	}
@@ -108,4 +115,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getIntEnv(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }

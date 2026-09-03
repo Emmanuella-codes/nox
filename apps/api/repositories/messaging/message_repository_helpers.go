@@ -29,7 +29,7 @@ func normalizedAttachmentIDs(dto dtos.SendMessageDTO) []uuid.UUID {
 	return ids
 }
 
-// normalizedIdempotencyKey trims and bounds one message request key.
+// trims and bounds one message request key.
 func normalizedIdempotencyKey(value string) string {
 	return strings.TrimSpace(value)
 }
@@ -42,7 +42,7 @@ func firstAttachmentID(attachmentIDs []uuid.UUID) any {
 	return attachmentIDs[0]
 }
 
-// findMessageByRequestKey resolves one existing message for a repeated send request.
+// resolves one existing message for a repeated send request.
 func findMessageByRequestKey(ctx context.Context, db execQuerier, conversationID uuid.UUID, senderUserID uuid.UUID, key string) (*models.Message, error) {
 	row := db.QueryRow(ctx, `
 		SELECT m.id, m.conversation_id, m.sender_user_id, m.sender_persona_id, m.body, m.message_type,
@@ -56,7 +56,7 @@ func findMessageByRequestKey(ctx context.Context, db execQuerier, conversationID
 	return scanMessage(row)
 }
 
-// storeMessageRequestKey persists one idempotent send mapping for later retries.
+// persists one idempotent send mapping for later retries.
 func storeMessageRequestKey(ctx context.Context, db execQuerier, conversationID uuid.UUID, senderUserID uuid.UUID, key string, messageID uuid.UUID) error {
 	return db.QueryRow(ctx, `
 		INSERT INTO message_request_keys (conversation_id, sender_user_id, idempotency_key, message_id)
@@ -102,7 +102,7 @@ func refreshConversationLastMessage(ctx context.Context, db execQuerier, convers
 	return err
 }
 
-// messageCursorAfter reports whether one message is newer than another message cursor.
+// reports whether one message is newer than another message cursor.
 func messageCursorAfter(candidate *models.Message, current *models.Message) bool {
 	if candidate.CreatedAt.After(current.CreatedAt) {
 		return true

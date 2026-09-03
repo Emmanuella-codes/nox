@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateNotifications persists a batch of notification records.
 func (r *pgRepository) CreateNotifications(ctx context.Context, inputs []CreateNotificationInput) ([]*models.Notification, error) {
 	notifications := make([]*models.Notification, 0, len(inputs))
 	for _, input := range inputs {
@@ -36,7 +35,6 @@ func (r *pgRepository) CreateNotifications(ctx context.Context, inputs []CreateN
 	return notifications, nil
 }
 
-// FindPersonaNotifications lists one persona's notifications.
 func (r *pgRepository) FindPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) ([]*models.Notification, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, recipient_user_id, recipient_persona_id, actor_persona_id, actor_posting_mode,
@@ -55,7 +53,6 @@ func (r *pgRepository) FindPersonaNotifications(ctx context.Context, userID uuid
 	return scanNotifications(rows)
 }
 
-// CountUnreadPersonaNotifications returns the unread notification count for one persona.
 func (r *pgRepository) CountUnreadPersonaNotifications(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRow(ctx, `
@@ -66,7 +63,6 @@ func (r *pgRepository) CountUnreadPersonaNotifications(ctx context.Context, user
 	return count, err
 }
 
-// MarkNotificationRead marks one notification as read.
 func (r *pgRepository) MarkNotificationRead(ctx context.Context, notificationID uuid.UUID, userID uuid.UUID, personaID uuid.UUID) (*models.Notification, error) {
 	row := r.db.QueryRow(ctx, `
 		UPDATE notifications
@@ -81,7 +77,6 @@ func (r *pgRepository) MarkNotificationRead(ctx context.Context, notificationID 
 	return scanNotification(row)
 }
 
-// MarkPersonaNotificationsRead marks all persona notifications as read.
 func (r *pgRepository) MarkPersonaNotificationsRead(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) (int64, error) {
 	tag, err := r.db.Exec(ctx, `
 		UPDATE notifications
@@ -92,7 +87,6 @@ func (r *pgRepository) MarkPersonaNotificationsRead(ctx context.Context, userID 
 	return tag.RowsAffected(), err
 }
 
-// MarkConversationNotificationsRead marks message notifications read through one message cursor.
 func (r *pgRepository) MarkConversationNotificationsRead(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, conversationID uuid.UUID, messageID uuid.UUID) (int64, error) {
 	tag, err := r.db.Exec(ctx, `
 		UPDATE notifications n
@@ -114,7 +108,6 @@ func (r *pgRepository) MarkConversationNotificationsRead(ctx context.Context, us
 	return tag.RowsAffected(), err
 }
 
-// DeleteMessageNotifications removes notifications tied to one deleted message.
 func (r *pgRepository) DeleteMessageNotifications(ctx context.Context, messageID uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `
 		DELETE FROM notifications
@@ -123,7 +116,6 @@ func (r *pgRepository) DeleteMessageNotifications(ctx context.Context, messageID
 	return err
 }
 
-// DeleteStoryReactionNotification removes one story reaction notification when the reaction is undone.
 func (r *pgRepository) DeleteStoryReactionNotification(ctx context.Context, recipientPersonaID uuid.UUID, actorPersonaID uuid.UUID, storyItemID uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `
 		DELETE FROM notifications

@@ -13,7 +13,6 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-// scanNotification scans one notification row into the model shape.
 func scanNotification(row scanner) (*models.Notification, error) {
 	var notification models.Notification
 	err := row.Scan(
@@ -46,7 +45,6 @@ func scanNotification(row scanner) (*models.Notification, error) {
 	return &notification, nil
 }
 
-// scanNotifications scans many notification rows into model values.
 func scanNotifications(rows pgx.Rows) ([]*models.Notification, error) {
 	notifications := make([]*models.Notification, 0)
 	for rows.Next() {
@@ -57,4 +55,73 @@ func scanNotifications(rows pgx.Rows) ([]*models.Notification, error) {
 		notifications = append(notifications, notification)
 	}
 	return notifications, rows.Err()
+}
+
+func scanNotificationDevice(row scanner) (*models.NotificationDevice, error) {
+	var device models.NotificationDevice
+	if err := row.Scan(&device.ID, &device.UserID, &device.InstallID, &device.Platform, &device.PushToken, &device.AppVersion, &device.LastSeenAt, &device.DisabledAt, &device.CreatedAt, &device.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotificationNotFound
+		}
+		return nil, err
+	}
+	return &device, nil
+}
+
+func scanNotificationDevices(rows pgx.Rows) ([]*models.NotificationDevice, error) {
+	devices := make([]*models.NotificationDevice, 0)
+	for rows.Next() {
+		device, err := scanNotificationDevice(rows)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, device)
+	}
+	return devices, rows.Err()
+}
+
+func scanNotificationPreference(row scanner) (*models.NotificationPreference, error) {
+	var preference models.NotificationPreference
+	if err := row.Scan(&preference.PersonaID, &preference.NotificationType, &preference.PushEnabled, &preference.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotificationNotFound
+		}
+		return nil, err
+	}
+	return &preference, nil
+}
+
+func scanNotificationPreferences(rows pgx.Rows) ([]*models.NotificationPreference, error) {
+	preferences := make([]*models.NotificationPreference, 0)
+	for rows.Next() {
+		preference, err := scanNotificationPreference(rows)
+		if err != nil {
+			return nil, err
+		}
+		preferences = append(preferences, preference)
+	}
+	return preferences, rows.Err()
+}
+
+func scanNotificationOutbox(row scanner) (*models.NotificationOutbox, error) {
+	var outbox models.NotificationOutbox
+	if err := row.Scan(&outbox.ID, &outbox.NotificationID, &outbox.RecipientUserID, &outbox.RecipientPersonaID, &outbox.Channel, &outbox.Status, &outbox.Payload, &outbox.AttemptCount, &outbox.NextAttemptAt, &outbox.LastError, &outbox.WorkerID, &outbox.ClaimedAt, &outbox.SentAt, &outbox.CreatedAt, &outbox.UpdatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotificationNotFound
+		}
+		return nil, err
+	}
+	return &outbox, nil
+}
+
+func scanNotificationOutboxes(rows pgx.Rows) ([]*models.NotificationOutbox, error) {
+	outboxes := make([]*models.NotificationOutbox, 0)
+	for rows.Next() {
+		outbox, err := scanNotificationOutbox(rows)
+		if err != nil {
+			return nil, err
+		}
+		outboxes = append(outboxes, outbox)
+	}
+	return outboxes, rows.Err()
 }

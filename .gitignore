@@ -39,6 +39,8 @@ yarn-error.log*
 AGENTS.md
 CLAUDE.md
 
+.cache/
+
 STRUCTURE.md
 DESIGN.md
 SCREENS.md

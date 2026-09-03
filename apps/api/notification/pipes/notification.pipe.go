@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// ListNotificationsPipe lists notifications for one owned persona.
 func (p *NotificationPipe) ListNotificationsPipe(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, limit int, offset int) *shared.PipeRes[NotificationListResponse] {
 	if _, message := p.profilePersona(ctx, userID, personaID); message != "" {
 		return shared.PipeError[NotificationListResponse](message)
@@ -43,7 +42,6 @@ func (p *NotificationPipe) ListNotificationsPipe(ctx context.Context, userID uui
 	return shared.PipeSuccess(messages.Notifications_Listed, &response)
 }
 
-// GetUnreadCountPipe returns the unread notification count for one owned persona.
 func (p *NotificationPipe) GetUnreadCountPipe(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) *shared.PipeRes[NotificationUnreadCountResponse] {
 	if _, message := p.profilePersona(ctx, userID, personaID); message != "" {
 		return shared.PipeError[NotificationUnreadCountResponse](message)
@@ -56,7 +54,6 @@ func (p *NotificationPipe) GetUnreadCountPipe(ctx context.Context, userID uuid.U
 	return shared.PipeSuccess(messages.Notifications_Listed, &response)
 }
 
-// MarkNotificationReadPipe marks one notification as read for the current persona.
 func (p *NotificationPipe) MarkNotificationReadPipe(ctx context.Context, userID uuid.UUID, notificationID uuid.UUID, personaID uuid.UUID) *shared.PipeRes[NotificationResponse] {
 	if _, message := p.profilePersona(ctx, userID, personaID); message != "" {
 		return shared.PipeError[NotificationResponse](message)
@@ -74,7 +71,6 @@ func (p *NotificationPipe) MarkNotificationReadPipe(ctx context.Context, userID 
 	return shared.PipeSuccess(messages.Notification_Read, &response)
 }
 
-// MarkAllNotificationsReadPipe marks all notifications as read for one owned persona.
 func (p *NotificationPipe) MarkAllNotificationsReadPipe(ctx context.Context, userID uuid.UUID, personaID uuid.UUID) *shared.PipeRes[any] {
 	if _, message := p.profilePersona(ctx, userID, personaID); message != "" {
 		return shared.PipeError[any](message)
@@ -90,7 +86,6 @@ func (p *NotificationPipe) MarkAllNotificationsReadPipe(ctx context.Context, use
 	return shared.PipeSuccess[any](messages.Notifications_Read, nil)
 }
 
-// normalizeLimit bounds list sizes to the accepted window.
 func normalizeLimit(limit int, fallback int, max int) int {
 	if limit <= 0 {
 		return fallback
@@ -101,7 +96,6 @@ func normalizeLimit(limit int, fallback int, max int) int {
 	return limit
 }
 
-// nextOffset calculates the next offset when more results are available.
 func nextOffset(limit int, offset int, hasMore bool) *int {
 	if !hasMore {
 		return nil
@@ -110,7 +104,6 @@ func nextOffset(limit int, offset int, hasMore bool) *int {
 	return &next
 }
 
-// buildNotificationInput prepares one notification creation payload.
 func buildNotificationInput(recipient *models.Persona, actor *models.Persona, notificationType models.NotificationType) notification_repo.CreateNotificationInput {
 	input := notification_repo.CreateNotificationInput{
 		RecipientUserID:    recipient.UserID,
