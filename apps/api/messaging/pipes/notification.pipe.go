@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// createMessageNotifications persists recipient notifications for one new message.
+// Persists recipient notifications for a newly created message.
 func (p *MessagingPipe) createMessageNotifications(ctx context.Context, conversation *models.Conversation, message *models.Message) {
 	if p.notificationRepo == nil || p.messagingRepo == nil {
 		return
@@ -44,7 +44,7 @@ func (p *MessagingPipe) createMessageNotifications(ctx context.Context, conversa
 	}
 }
 
-// markConversationNotificationsRead marks conversation message notifications as read through one cursor.
+// Clears message notifications up to the member's latest read cursor.
 func (p *MessagingPipe) markConversationNotificationsRead(ctx context.Context, userID uuid.UUID, personaID uuid.UUID, conversationID uuid.UUID, messageID uuid.UUID) {
 	if p.notificationRepo == nil {
 		return
@@ -52,7 +52,7 @@ func (p *MessagingPipe) markConversationNotificationsRead(ctx context.Context, u
 	_, _ = p.notificationRepo.MarkConversationNotificationsRead(ctx, userID, personaID, conversationID, messageID)
 }
 
-// deleteMessageNotifications removes notification rows tied to one deleted message.
+// Removes notification rows tied to a deleted message.
 func (p *MessagingPipe) deleteMessageNotifications(ctx context.Context, messageID uuid.UUID) {
 	if p.notificationRepo == nil {
 		return
@@ -60,7 +60,7 @@ func (p *MessagingPipe) deleteMessageNotifications(ctx context.Context, messageI
 	_ = p.notificationRepo.DeleteMessageNotifications(ctx, messageID)
 }
 
-// messageNotificationType resolves the notification type for one conversation shape.
+// Chooses the notification type from the conversation shape.
 func messageNotificationType(conversationType models.ConversationType) models.NotificationType {
 	if conversationType == models.GroupConversationType {
 		return models.GroupMessageNotificationType

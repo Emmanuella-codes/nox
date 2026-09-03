@@ -46,6 +46,7 @@ type NotificationRepository interface {
 	PushEnabledForPersona(ctx context.Context, personaID uuid.UUID, notificationType models.NotificationType) (bool, error)
 	EnqueueNotificationPush(ctx context.Context, notification *models.Notification, payload json.RawMessage) (*models.NotificationOutbox, error)
 	ClaimNotificationPushes(ctx context.Context, workerID string, limit int) ([]*models.NotificationOutbox, error)
+	CanDeliverNotificationPush(ctx context.Context, outboxID uuid.UUID) (bool, string, error)
 	MarkNotificationPushSent(ctx context.Context, outboxID uuid.UUID) error
 	MarkNotificationPushRetry(ctx context.Context, outboxID uuid.UUID, nextAttemptAt time.Time, lastError string) error
 	MarkNotificationPushDead(ctx context.Context, outboxID uuid.UUID, lastError string) error

@@ -115,6 +115,10 @@ func (r *notificationRepoStub) ClaimNotificationPushes(ctx context.Context, work
 	return nil, nil
 }
 
+func (r *notificationRepoStub) CanDeliverNotificationPush(ctx context.Context, outboxID uuid.UUID) (bool, string, error) {
+	return true, "", nil
+}
+
 // MarkNotificationPushSent is unused in these tests.
 func (r *notificationRepoStub) MarkNotificationPushSent(ctx context.Context, outboxID uuid.UUID) error {
 	return nil
@@ -190,6 +194,54 @@ func TestSendMessagePipeCreatesMessageNotifications(t *testing.T) {
 	}
 	if notifications.createdInputs[0].RecipientUserID != recipientUserID || notifications.createdInputs[0].RecipientPersonaID != recipientPersonaID {
 		t.Fatal("expected notification to target the non-sender member")
+	}
+}
+
+// TestSendMessagePipeSkipsSelfDMNotifications verifies self-DMs stay inbox-only without push notifications.
+func TestSendMessagePipeSkipsSelfDMNotifications(t *testing.T) {
+	userID, personaID := uuid.New(), uuid.New()
+	conversationID, messageID := uuid.New(), uuid.New()
+	repo := &notificationMessagingTestRepo{
+		messagingTestRepo: messagingTestRepo{
+			conversations: map[uuid.UUID]*models.Conversation{
+				conversationID: {ID: conversationID, ConversationType: models.DirectConversationType, CreatedBy: personaID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			},
+			memberByConversationPersona: map[string]*models.ConversationMember{
+				memberKey(conversationID, personaID): testMember(conversationID, userID, personaID, models.ConversationMemberRoleMember),
+			},
+			membersByConversation: map[uuid.UUID][]*models.ConversationMember{
+				conversationID: {testMember(conversationID, userID, personaID, models.ConversationMemberRoleMember)},
+			},
+			createMessageCreated: true,
+			createMessageResult: &models.Message{
+				ID:              messageID,
+				ConversationID:  conversationID,
+				SenderUserID:    userID,
+				SenderPersonaID: personaID,
+				Body:            "note to self",
+				MessageType:     models.TextMessageType,
+				CreatedAt:       time.Now(),
+			},
+		},
+	}
+	notifications := &notificationRepoStub{}
+	pipe := NewMessagingPipe(
+		repo,
+		&messagingTestPersonaRepo{personas: map[uuid.UUID]*models.Persona{personaID: testPersona(userID, personaID, "self")}},
+		&messagingTestMediaRepo{},
+		&messagingTestFollowRepo{},
+		notifications,
+	)
+
+	res := pipe.SendMessagePipe(context.Background(), userID, conversationID, messaging_dtos.SendMessageDTO{
+		SenderPersonaID: personaID,
+		Body:            "note to self",
+	})
+	if !res.Success {
+		t.Fatalf("expected success, got %q", res.Message)
+	}
+	if len(notifications.createdInputs) != 0 {
+		t.Fatalf("expected no notification inputs, got %d", len(notifications.createdInputs))
 	}
 }
 

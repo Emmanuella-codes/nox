@@ -21,6 +21,7 @@ type NotificationPushPayload struct {
 	Data           map[string]string `json:"data"`
 }
 
+// Queues a push delivery when the recipient has that notification type enabled.
 func (p *NotificationPipe) enqueuePushDelivery(ctx context.Context, notification *models.Notification) {
 	if p == nil || p.notificationRepo == nil {
 		return
@@ -41,6 +42,7 @@ func (p *NotificationPipe) enqueuePushDelivery(ctx context.Context, notification
 	_, _ = p.notificationRepo.EnqueueNotificationPush(ctx, notification, bytes)
 }
 
+// Snapshots the push payload so delivery does not depend on later reads.
 func (p *NotificationPipe) notificationPushPayload(ctx context.Context, notification *models.Notification) (*NotificationPushPayload, error) {
 	actorName := "Someone"
 	if notification.ActorPostingMode == models.AnonymousPostingMode && notification.ActorAnonymousHandle != "" {
@@ -74,6 +76,7 @@ func (p *NotificationPipe) notificationPushPayload(ctx context.Context, notifica
 	}, nil
 }
 
+// Maps notification types into push copy and deep links.
 func notificationCopy(notification *models.Notification, actorName string) (string, string, string) {
 	switch notification.NotificationType {
 	case models.FollowNotificationType:
@@ -103,6 +106,7 @@ func notificationCopy(notification *models.Notification, actorName string) (stri
 	}
 }
 
+// Returns a conversation deep link when available.
 func pathOrFallback(conversationID *uuid.UUID, fallback string) string {
 	if conversationID == nil {
 		return fallback

@@ -128,6 +128,10 @@ func (r *notificationTestRepo) ClaimNotificationPushes(ctx context.Context, work
 	return r.outbox, nil
 }
 
+func (r *notificationTestRepo) CanDeliverNotificationPush(ctx context.Context, outboxID uuid.UUID) (bool, string, error) {
+	return true, "", nil
+}
+
 func (r *notificationTestRepo) MarkNotificationPushSent(ctx context.Context, outboxID uuid.UUID) error {
 	return nil
 }
