@@ -9,6 +9,7 @@ import (
 	"github.com/emmanuella-codes/nox/db"
 	"github.com/emmanuella-codes/nox/repositories"
 	"github.com/emmanuella-codes/nox/server"
+	shared_logger "github.com/emmanuella-codes/nox/shared/logger"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,6 +20,9 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to load config")
+	}
+	if err := shared_logger.Setup(cfg, "nox-api"); err != nil {
+		log.Fatal().Err(err).Msg("failed to setup logger")
 	}
 
 	if err := db.RunMigrations(cfg.DatabaseURL); err != nil {

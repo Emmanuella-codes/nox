@@ -10,7 +10,7 @@ func main() {
 	ctx, stop := workerruntime.SignalContext()
 	defer stop()
 
-	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true})
+	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true, ServiceName: "nox-media-worker"})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to bootstrap media worker")
 	}

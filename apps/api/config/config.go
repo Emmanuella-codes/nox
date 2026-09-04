@@ -43,6 +43,14 @@ type Config struct {
 	StoryExpiryRetention   time.Duration
 	GhostPersonaSecret     string
 	Environment            string
+	LogLevel               string
+	LogFormat              string
+	LogFileEnabled         bool
+	LogFilePath            string
+	LogFileMaxSizeMB       int
+	LogFileMaxBackups      int
+	LogFileMaxAgeDays      int
+	LogFileCompress        bool
 }
 
 func Load() (*Config, error) {
@@ -86,6 +94,14 @@ func Load() (*Config, error) {
 		StoryExpiryRetention:   getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
 		GhostPersonaSecret:     getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:            getEnv("ENVIRONMENT", getEnv("ENV", "development")),
+		LogLevel:               getEnv("LOG_LEVEL", "info"),
+		LogFormat:              getEnv("LOG_FORMAT", "json"),
+		LogFileEnabled:         getBoolEnv("LOG_FILE_ENABLED", false),
+		LogFilePath:            getEnv("LOG_FILE_PATH", "logs/nox-api.log"),
+		LogFileMaxSizeMB:       getIntEnv("LOG_FILE_MAX_SIZE_MB", 100),
+		LogFileMaxBackups:      getIntEnv("LOG_FILE_MAX_BACKUPS", 7),
+		LogFileMaxAgeDays:      getIntEnv("LOG_FILE_MAX_AGE_DAYS", 14),
+		LogFileCompress:        getBoolEnv("LOG_FILE_COMPRESS", true),
 	}
 
 	return cfg, cfg.validate()
@@ -137,6 +153,18 @@ func getIntEnv(key string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func getBoolEnv(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(v)
 	if err != nil {
 		return fallback
 	}

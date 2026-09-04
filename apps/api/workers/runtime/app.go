@@ -8,6 +8,7 @@ import (
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/db"
 	"github.com/emmanuella-codes/nox/repositories"
+	shared_logger "github.com/emmanuella-codes/nox/shared/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -15,6 +16,7 @@ import (
 type Options struct {
 	ConnectRedis  bool
 	RunMigrations bool
+	ServiceName   string
 }
 
 type App struct {
@@ -34,6 +36,11 @@ func Bootstrap(ctx context.Context, options Options) (*App, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
+	}
+	if options.ServiceName != "" {
+		if err := shared_logger.Setup(cfg, options.ServiceName); err != nil {
+			return nil, err
+		}
 	}
 	if options.RunMigrations {
 		if err := db.RunMigrations(cfg.DatabaseURL); err != nil {

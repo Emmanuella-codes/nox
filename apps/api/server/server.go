@@ -74,7 +74,9 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		IdleTimeout:  120 * time.Second,
 	})
 
+	app.Use(middleware.RequestID())
 	app.Use(middleware.Logger())
+	app.Use(middleware.Recover())
 
 	app.Use(cors.New(cors.Config{
 		AllowMethods: "GET,POST,PUT,PATCH,OPTIONS,DELETE",

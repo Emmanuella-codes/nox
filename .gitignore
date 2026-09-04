@@ -30,6 +30,8 @@ tmp/
 *.tsbuildinfo
 
 # logs
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -46,6 +48,7 @@ DESIGN.md
 SCREENS.md
 LANDING.md
 ENDPOINTS.md
+ADMIN_FLOW.md
 NOX_ARCHITECTURE.md
 backend-structure-status.md
 
