@@ -55,6 +55,72 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
 			Handler:     controller.Me,
 		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/staff",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ListAdminUsers,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/staff/:userID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.GetAdminUser,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/staff",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.CreateAdminUser,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/staff/:userID/role",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.UpdateAdminUserRole,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/staff/:userID/status",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.UpdateAdminUserStatus,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/users",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ListUsers,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/users/:userID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.GetUser,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/users/:userID/status",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.UpdateUserStatus,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/users/:userID/revoke-sessions",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.RevokeUserSessions,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/users/:userID/resend-verification",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ResendUserVerification,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/users/:userID/mark-email-verified",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.MarkUserEmailVerified,
+		},
 	}
 }
 

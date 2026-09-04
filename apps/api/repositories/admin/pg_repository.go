@@ -8,8 +8,11 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const adminUniqueViolationCode = "23505"
 
 type pgRepository struct {
 	db *pgxpool.Pool
@@ -17,6 +20,30 @@ type pgRepository struct {
 
 func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
+}
+
+func (r *pgRepository) ListIdentities(ctx context.Context) ([]models.AdminIdentity, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT u.id, u.fullname, u.email, am.role, am.is_active, am.created_at, am.updated_at
+		FROM admin_memberships am
+		INNER JOIN users u ON u.id = am.user_id
+		ORDER BY am.created_at ASC, u.email ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	identities := []models.AdminIdentity{}
+	for rows.Next() {
+		identity, err := scanAdminIdentity(rows)
+		if err != nil {
+			return nil, err
+		}
+		identities = append(identities, *identity)
+	}
+
+	return identities, rows.Err()
 }
 
 func (r *pgRepository) FindMembershipByUserID(ctx context.Context, userID uuid.UUID) (*models.AdminMembership, error) {
@@ -43,21 +70,12 @@ func (r *pgRepository) FindMembershipByUserID(ctx context.Context, userID uuid.U
 }
 
 func (r *pgRepository) FindIdentityByUserID(ctx context.Context, userID uuid.UUID) (*models.AdminIdentity, error) {
-	identity := &models.AdminIdentity{}
-	err := r.db.QueryRow(ctx, `
+	identity, err := scanAdminIdentity(r.db.QueryRow(ctx, `
 		SELECT u.id, u.fullname, u.email, am.role, am.is_active, am.created_at, am.updated_at
 		FROM admin_memberships am
 		INNER JOIN users u ON u.id = am.user_id
 		WHERE am.user_id = $1
-	`, userID).Scan(
-		&identity.UserID,
-		&identity.Fullname,
-		&identity.Email,
-		&identity.Role,
-		&identity.IsActive,
-		&identity.CreatedAt,
-		&identity.UpdatedAt,
-	)
+	`, userID))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -65,8 +83,66 @@ func (r *pgRepository) FindIdentityByUserID(ctx context.Context, userID uuid.UUI
 		return nil, err
 	}
 
-	identity.Scopes = models.AdminScopesForRole(identity.Role)
 	return identity, nil
+}
+
+func (r *pgRepository) CreateMembership(ctx context.Context, userID uuid.UUID, role models.AdminRole) (*models.AdminIdentity, error) {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO admin_memberships (user_id, role)
+		VALUES ($1, $2)
+	`, userID, role)
+	if err != nil {
+		if isAdminUniqueViolation(err) {
+			return nil, ErrMembershipAlreadyExists
+		}
+		return nil, err
+	}
+
+	return r.FindIdentityByUserID(ctx, userID)
+}
+
+func (r *pgRepository) UpdateMembershipRole(ctx context.Context, userID uuid.UUID, role models.AdminRole) (*models.AdminIdentity, error) {
+	commandTag, err := r.db.Exec(ctx, `
+		UPDATE admin_memberships
+		SET role = $2,
+			updated_at = now()
+		WHERE user_id = $1
+	`, userID, role)
+	if err != nil {
+		return nil, err
+	}
+	if commandTag.RowsAffected() == 0 {
+		return nil, ErrMembershipNotFound
+	}
+
+	return r.FindIdentityByUserID(ctx, userID)
+}
+
+func (r *pgRepository) UpdateMembershipStatus(ctx context.Context, userID uuid.UUID, isActive bool) (*models.AdminIdentity, error) {
+	commandTag, err := r.db.Exec(ctx, `
+		UPDATE admin_memberships
+		SET is_active = $2,
+			updated_at = now()
+		WHERE user_id = $1
+	`, userID, isActive)
+	if err != nil {
+		return nil, err
+	}
+	if commandTag.RowsAffected() == 0 {
+		return nil, ErrMembershipNotFound
+	}
+
+	return r.FindIdentityByUserID(ctx, userID)
+}
+
+func (r *pgRepository) CountActiveMembershipsByRole(ctx context.Context, role models.AdminRole) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM admin_memberships
+		WHERE role = $1 AND is_active = TRUE
+	`, role).Scan(&count)
+	return count, err
 }
 
 func (r *pgRepository) CreateAuditLog(ctx context.Context, params CreateAuditLogParams) error {
@@ -92,4 +168,29 @@ func (r *pgRepository) CreateAuditLog(ctx context.Context, params CreateAuditLog
 		) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
 	`, params.AdminUserID, params.Action, params.TargetUserID, params.RequestID, params.IPAddress, params.UserAgent, string(encoded))
 	return err
+}
+
+func scanAdminIdentity(row interface {
+	Scan(dest ...any) error
+}) (*models.AdminIdentity, error) {
+	identity := &models.AdminIdentity{}
+	err := row.Scan(
+		&identity.UserID,
+		&identity.Fullname,
+		&identity.Email,
+		&identity.Role,
+		&identity.IsActive,
+		&identity.CreatedAt,
+		&identity.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return identity, nil
+}
+
+func isAdminUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == adminUniqueViolationCode
 }

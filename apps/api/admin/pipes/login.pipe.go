@@ -5,6 +5,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/admin/dtos"
 	"github.com/emmanuella-codes/nox/admin/messages"
+	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/shared"
 )
 
@@ -20,6 +21,9 @@ func (p *AdminPipe) LoginPipe(ctx context.Context, dto dtos.LoginDTO) *shared.Pi
 
 	if !p.hashService.ComparePassword(user.Password, dto.Password) {
 		return shared.PipeError[AuthResponse](messages.Invalid_Credentials)
+	}
+	if models.NormalizeUserStatus(user.Status) != models.UserStatusActive {
+		return shared.PipeError[AuthResponse](messages.Admin_Access_Denied)
 	}
 
 	membership, err := p.adminRepo.FindMembershipByUserID(ctx, user.ID)

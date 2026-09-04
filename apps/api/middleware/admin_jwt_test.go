@@ -110,6 +110,10 @@ type adminMiddlewareRepo struct {
 	membership *models.AdminMembership
 }
 
+func (r adminMiddlewareRepo) ListIdentities(ctx context.Context) ([]models.AdminIdentity, error) {
+	return nil, nil
+}
+
 func (r adminMiddlewareRepo) FindMembershipByUserID(ctx context.Context, userID uuid.UUID) (*models.AdminMembership, error) {
 	if r.membership == nil || r.membership.UserID != userID {
 		return nil, nil
@@ -118,6 +122,34 @@ func (r adminMiddlewareRepo) FindMembershipByUserID(ctx context.Context, userID 
 }
 
 func (r adminMiddlewareRepo) FindIdentityByUserID(ctx context.Context, userID uuid.UUID) (*models.AdminIdentity, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) CreateMembership(ctx context.Context, userID uuid.UUID, role models.AdminRole) (*models.AdminIdentity, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) UpdateMembershipRole(ctx context.Context, userID uuid.UUID, role models.AdminRole) (*models.AdminIdentity, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) UpdateMembershipStatus(ctx context.Context, userID uuid.UUID, isActive bool) (*models.AdminIdentity, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) CountActiveMembershipsByRole(ctx context.Context, role models.AdminRole) (int, error) {
+	return 0, nil
+}
+
+func (r adminMiddlewareRepo) ListManagedUsers(ctx context.Context) ([]models.AdminManagedUser, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) FindManagedUserByID(ctx context.Context, userID uuid.UUID) (*models.AdminManagedUser, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) UpdateUserStatus(ctx context.Context, userID uuid.UUID, status models.UserStatus) (*models.AdminManagedUser, error) {
 	return nil, nil
 }
 

@@ -61,7 +61,17 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusUnauthorized
 	case messages.Admin_Access_Denied:
 		return fiber.StatusForbidden
+	case messages.Admin_User_Not_Found:
+		return fiber.StatusNotFound
+	case messages.Admin_User_Exists:
+		return fiber.StatusConflict
+	case messages.User_Not_Found:
+		return fiber.StatusNotFound
+	case messages.User_Already_Verified:
+		return fiber.StatusConflict
 	case messages.Invalid_Payload:
+		return fiber.StatusBadRequest
+	case messages.Invalid_Admin_Role, messages.Invalid_User_Status, messages.Last_Super_Admin_Required:
 		return fiber.StatusBadRequest
 	case messages.Internal_Error:
 		return fiber.StatusInternalServerError

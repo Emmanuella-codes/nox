@@ -14,6 +14,7 @@ import (
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/models"
 	adminrepo "github.com/emmanuella-codes/nox/repositories/admin"
+	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -23,7 +24,7 @@ func TestLoginPipeIssuesAdminTokensForActiveMembership(t *testing.T) {
 	user := adminTestUser(t, "ada@example.com", "password123", true)
 	adminStore := &adminTestRepo{
 		membership: &models.AdminMembership{UserID: user.ID, Role: models.AdminRoleSupport, IsActive: true},
-		identity:   &models.AdminIdentity{UserID: user.ID, Fullname: user.Fullname, Email: user.Email, Role: models.AdminRoleSupport, IsActive: true, Scopes: models.AdminScopesForRole(models.AdminRoleSupport)},
+		identity:   &models.AdminIdentity{UserID: user.ID, Fullname: user.Fullname, Email: user.Email, Role: models.AdminRoleSupport, IsActive: true},
 	}
 	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{userByEmail: user}, adminStore)
 
@@ -82,7 +83,6 @@ func TestMePipeReturnsAdminIdentity(t *testing.T) {
 			Fullname: "Ada Lovelace",
 			Email:    "ada@example.com",
 			Role:     models.AdminRoleOps,
-			Scopes:   models.AdminScopesForRole(models.AdminRoleOps),
 			IsActive: true,
 		},
 	}
@@ -94,6 +94,217 @@ func TestMePipeReturnsAdminIdentity(t *testing.T) {
 	}
 	if res.Data == nil || res.Data.Role != models.AdminRoleOps {
 		t.Fatal("expected admin identity")
+	}
+}
+
+func TestListAdminUsersPipeRequiresSuperAdmin(t *testing.T) {
+	actorID := uuid.New()
+	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSupport, IsActive: true},
+	})
+
+	res := pipe.ListAdminUsersPipe(context.Background(), actorID)
+	if res.Message != adminmessages.Admin_Access_Denied {
+		t.Fatalf("expected access denied, got %q", res.Message)
+	}
+}
+
+func TestCreateAdminUserPipeCreatesMembership(t *testing.T) {
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{
+		userByID: &models.User{ID: targetUserID, Fullname: "Target User", Email: "target@example.com"},
+	}, &adminTestRepo{
+		membership:         &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		membershipByUserID: map[uuid.UUID]*models.AdminMembership{},
+		identityByUserID:   map[uuid.UUID]*models.AdminIdentity{},
+	})
+
+	res := pipe.CreateAdminUserPipe(context.Background(), actorID, admindtos.CreateAdminUserDTO{
+		UserID: targetUserID.String(),
+		Role:   models.AdminRoleSupport,
+	})
+	if !res.Success {
+		t.Fatalf("expected create success, got %q", res.Message)
+	}
+	if res.Data == nil || res.Data.UserID != targetUserID || res.Data.Role != models.AdminRoleSupport {
+		t.Fatal("expected created admin identity")
+	}
+}
+
+func TestUpdateAdminUserRolePipeProtectsLastSuperAdmin(t *testing.T) {
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		membershipByUserID: map[uuid.UUID]*models.AdminMembership{
+			targetUserID: {UserID: targetUserID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		},
+		identityByUserID: map[uuid.UUID]*models.AdminIdentity{
+			targetUserID: {UserID: targetUserID, Fullname: "Target User", Email: "target@example.com", Role: models.AdminRoleSuperAdmin, IsActive: true},
+		},
+		activeCountByRole: map[models.AdminRole]int{models.AdminRoleSuperAdmin: 1},
+	})
+
+	res := pipe.UpdateAdminUserRolePipe(context.Background(), actorID, targetUserID, admindtos.UpdateAdminRoleDTO{
+		Role: models.AdminRoleSupport,
+	})
+	if res.Message != adminmessages.Last_Super_Admin_Required {
+		t.Fatalf("expected last super admin protection, got %q", res.Message)
+	}
+}
+
+func TestUpdateAdminUserStatusPipeDeactivatesNonFinalSuperAdmin(t *testing.T) {
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		membershipByUserID: map[uuid.UUID]*models.AdminMembership{
+			targetUserID: {UserID: targetUserID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		},
+		identityByUserID: map[uuid.UUID]*models.AdminIdentity{
+			targetUserID: {UserID: targetUserID, Fullname: "Target User", Email: "target@example.com", Role: models.AdminRoleSuperAdmin, IsActive: true},
+		},
+		activeCountByRole: map[models.AdminRole]int{models.AdminRoleSuperAdmin: 2},
+	})
+
+	res := pipe.UpdateAdminUserStatusPipe(context.Background(), actorID, targetUserID, admindtos.UpdateAdminStatusDTO{
+		IsActive: false,
+	})
+	if !res.Success {
+		t.Fatalf("expected status update success, got %q", res.Message)
+	}
+	if res.Data == nil || res.Data.IsActive {
+		t.Fatal("expected admin user to be inactive")
+	}
+}
+
+func TestGetUserPipeReturnsManagedUser(t *testing.T) {
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		managedUsersByID: map[uuid.UUID]*models.AdminManagedUser{
+			targetUserID: {
+				ID:            targetUserID,
+				Fullname:      "Ada Lovelace",
+				Email:         "ada@example.com",
+				EmailVerified: true,
+				Status:        models.UserStatusActive,
+			},
+		},
+	})
+
+	res := pipe.GetUserPipe(context.Background(), actorID, targetUserID)
+	if !res.Success {
+		t.Fatalf("expected user lookup success, got %q", res.Message)
+	}
+	if res.Data == nil || res.Data.UserID != targetUserID {
+		t.Fatal("expected managed user response")
+	}
+}
+
+func TestUpdateUserStatusPipeSuspendsAndRevokesSessions(t *testing.T) {
+	ctx := context.Background()
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	pipe, redisServer := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		managedUsersByID: map[uuid.UUID]*models.AdminManagedUser{
+			targetUserID: {
+				ID:            targetUserID,
+				Fullname:      "Target User",
+				Email:         "target@example.com",
+				EmailVerified: true,
+				Status:        models.UserStatusActive,
+			},
+		},
+	})
+	redisServer.Set(appRefreshSessionKey("user-session-1"), targetUserID.String())
+	redisServer.SAdd(appUserRefreshSessionsKey(targetUserID), "user-session-1")
+
+	res := pipe.UpdateUserStatusPipe(ctx, actorID, targetUserID, models.UserStatusSuspended)
+	if !res.Success {
+		t.Fatalf("expected status update success, got %q", res.Message)
+	}
+	if res.Data == nil || res.Data.Status != models.UserStatusSuspended {
+		t.Fatal("expected suspended status")
+	}
+	if pipe.redis.Exists(ctx, appRefreshSessionKey("user-session-1")).Val() != 0 {
+		t.Fatal("expected user sessions to be revoked")
+	}
+}
+
+func TestRevokeUserSessionsPipeRevokesRegularAndAdminSessions(t *testing.T) {
+	ctx := context.Background()
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	pipe, redisServer := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		membershipByUserID: map[uuid.UUID]*models.AdminMembership{
+			targetUserID: {UserID: targetUserID, Role: models.AdminRoleSupport, IsActive: true},
+		},
+		managedUsersByID: map[uuid.UUID]*models.AdminManagedUser{
+			targetUserID: {
+				ID:            targetUserID,
+				Fullname:      "Target User",
+				Email:         "target@example.com",
+				EmailVerified: true,
+				Status:        models.UserStatusActive,
+			},
+		},
+	})
+	redisServer.Set(appRefreshSessionKey("user-session-1"), targetUserID.String())
+	redisServer.SAdd(appUserRefreshSessionsKey(targetUserID), "user-session-1")
+	redisServer.Set(refreshSessionKey("admin-session-1"), targetUserID.String())
+	redisServer.SAdd(userRefreshSessionsKey(targetUserID), "admin-session-1")
+
+	res := pipe.RevokeUserSessionsPipe(ctx, actorID, targetUserID)
+	if !res.Success {
+		t.Fatalf("expected revoke success, got %q", res.Message)
+	}
+	if pipe.redis.Exists(ctx, appRefreshSessionKey("user-session-1"), refreshSessionKey("admin-session-1")).Val() != 0 {
+		t.Fatal("expected all sessions to be revoked")
+	}
+}
+
+func TestMarkUserEmailVerifiedPipeMarksUserVerified(t *testing.T) {
+	ctx := context.Background()
+	actorID := uuid.New()
+	targetUserID := uuid.New()
+	userRepo := &adminTestUserRepo{
+		userByID: &models.User{
+			ID:            targetUserID,
+			Fullname:      "Target User",
+			Email:         "target@example.com",
+			EmailVerified: false,
+			Status:        models.UserStatusActive,
+		},
+	}
+	pipe, redisServer := newAdminTestPipe(t, userRepo, &adminTestRepo{
+		membership: &models.AdminMembership{UserID: actorID, Role: models.AdminRoleSuperAdmin, IsActive: true},
+		managedUsersByID: map[uuid.UUID]*models.AdminManagedUser{
+			targetUserID: {
+				ID:            targetUserID,
+				Fullname:      "Target User",
+				Email:         "target@example.com",
+				EmailVerified: true,
+				Status:        models.UserStatusActive,
+			},
+		},
+	})
+	redisServer.Set(appEmailVerificationKey(targetUserID.String()), "otp")
+	redisServer.Set(appEmailVerificationAttemptsKey(targetUserID.String()), "2")
+
+	res := pipe.MarkUserEmailVerifiedPipe(ctx, actorID, targetUserID)
+	if !res.Success {
+		t.Fatalf("expected mark verified success, got %q", res.Message)
+	}
+	if userRepo.markedVerifiedUserID != targetUserID.String() {
+		t.Fatal("expected user repo to mark email verified")
+	}
+	if pipe.redis.Exists(ctx, appEmailVerificationKey(targetUserID.String()), appEmailVerificationAttemptsKey(targetUserID.String())).Val() != 0 {
+		t.Fatal("expected verification state to be cleared")
 	}
 }
 
@@ -119,6 +330,8 @@ func newAdminTestPipe(t *testing.T, userStore *adminTestUserRepo, adminStore *ad
 		AdminRepo:    adminStore,
 		UserRepo:     userStore,
 		HashService:  authservices.NewHashService(),
+		OTPService:   authservices.NewOTPService(),
+		EmailService: authservices.NewEmailService(&adminTestMailProvider{}),
 		TokenService: adminservices.NewTokenService(cfg),
 		Redis:        redisClient,
 		Config:       cfg,
@@ -128,7 +341,9 @@ func newAdminTestPipe(t *testing.T, userStore *adminTestUserRepo, adminStore *ad
 }
 
 type adminTestUserRepo struct {
-	userByEmail *models.User
+	userByEmail          *models.User
+	userByID             *models.User
+	markedVerifiedUserID string
 }
 
 func (r *adminTestUserRepo) CreateUser(ctx context.Context, fullname string, email string, passwordHash string) (*models.User, error) {
@@ -143,20 +358,36 @@ func (r *adminTestUserRepo) FindUserByEmail(ctx context.Context, email string) (
 }
 
 func (r *adminTestUserRepo) FindUserByID(ctx context.Context, userID string) (*models.User, error) {
+	if r.userByID != nil && r.userByID.ID.String() == userID {
+		return r.userByID, nil
+	}
 	return nil, nil
 }
 
 func (r *adminTestUserRepo) MarkEmailVerified(ctx context.Context, userID string) error {
+	r.markedVerifiedUserID = userID
 	return nil
 }
 
 type adminTestRepo struct {
-	membership   *models.AdminMembership
-	identity     *models.AdminIdentity
-	auditActions []string
+	membership         *models.AdminMembership
+	membershipByUserID map[uuid.UUID]*models.AdminMembership
+	identity           *models.AdminIdentity
+	identityByUserID   map[uuid.UUID]*models.AdminIdentity
+	identities         []models.AdminIdentity
+	managedUsersByID   map[uuid.UUID]*models.AdminManagedUser
+	activeCountByRole  map[models.AdminRole]int
+	auditActions       []string
+}
+
+func (r *adminTestRepo) ListIdentities(ctx context.Context) ([]models.AdminIdentity, error) {
+	return r.identities, nil
 }
 
 func (r *adminTestRepo) FindMembershipByUserID(ctx context.Context, userID uuid.UUID) (*models.AdminMembership, error) {
+	if membership, ok := r.membershipByUserID[userID]; ok {
+		return membership, nil
+	}
 	if r.membership == nil || r.membership.UserID != userID {
 		return nil, nil
 	}
@@ -164,10 +395,88 @@ func (r *adminTestRepo) FindMembershipByUserID(ctx context.Context, userID uuid.
 }
 
 func (r *adminTestRepo) FindIdentityByUserID(ctx context.Context, userID uuid.UUID) (*models.AdminIdentity, error) {
+	if identity, ok := r.identityByUserID[userID]; ok {
+		return identity, nil
+	}
 	if r.identity == nil || r.identity.UserID != userID {
 		return nil, nil
 	}
 	return r.identity, nil
+}
+
+func (r *adminTestRepo) CreateMembership(ctx context.Context, userID uuid.UUID, role models.AdminRole) (*models.AdminIdentity, error) {
+	if _, ok := r.membershipByUserID[userID]; ok {
+		return nil, adminrepo.ErrMembershipAlreadyExists
+	}
+	if r.membershipByUserID == nil {
+		r.membershipByUserID = map[uuid.UUID]*models.AdminMembership{}
+	}
+	if r.identityByUserID == nil {
+		r.identityByUserID = map[uuid.UUID]*models.AdminIdentity{}
+	}
+
+	r.membershipByUserID[userID] = &models.AdminMembership{UserID: userID, Role: role, IsActive: true}
+	r.identityByUserID[userID] = &models.AdminIdentity{UserID: userID, Fullname: "Target User", Email: "target@example.com", Role: role, IsActive: true}
+	return r.identityByUserID[userID], nil
+}
+
+func (r *adminTestRepo) UpdateMembershipRole(ctx context.Context, userID uuid.UUID, role models.AdminRole) (*models.AdminIdentity, error) {
+	membership, ok := r.membershipByUserID[userID]
+	if !ok {
+		return nil, adminrepo.ErrMembershipNotFound
+	}
+	identity, ok := r.identityByUserID[userID]
+	if !ok {
+		return nil, adminrepo.ErrMembershipNotFound
+	}
+	membership.Role = role
+	identity.Role = role
+	return identity, nil
+}
+
+func (r *adminTestRepo) UpdateMembershipStatus(ctx context.Context, userID uuid.UUID, isActive bool) (*models.AdminIdentity, error) {
+	membership, ok := r.membershipByUserID[userID]
+	if !ok {
+		return nil, adminrepo.ErrMembershipNotFound
+	}
+	identity, ok := r.identityByUserID[userID]
+	if !ok {
+		return nil, adminrepo.ErrMembershipNotFound
+	}
+	membership.IsActive = isActive
+	identity.IsActive = isActive
+	return identity, nil
+}
+
+func (r *adminTestRepo) CountActiveMembershipsByRole(ctx context.Context, role models.AdminRole) (int, error) {
+	if r.activeCountByRole == nil {
+		return 0, nil
+	}
+	return r.activeCountByRole[role], nil
+}
+
+func (r *adminTestRepo) ListManagedUsers(ctx context.Context) ([]models.AdminManagedUser, error) {
+	users := []models.AdminManagedUser{}
+	for _, user := range r.managedUsersByID {
+		users = append(users, *user)
+	}
+	return users, nil
+}
+
+func (r *adminTestRepo) FindManagedUserByID(ctx context.Context, userID uuid.UUID) (*models.AdminManagedUser, error) {
+	if user, ok := r.managedUsersByID[userID]; ok {
+		return user, nil
+	}
+	return nil, nil
+}
+
+func (r *adminTestRepo) UpdateUserStatus(ctx context.Context, userID uuid.UUID, status models.UserStatus) (*models.AdminManagedUser, error) {
+	user, ok := r.managedUsersByID[userID]
+	if !ok {
+		return nil, adminrepo.ErrUserNotFound
+	}
+	user.Status = status
+	return user, nil
 }
 
 func (r *adminTestRepo) CreateAuditLog(ctx context.Context, params adminrepo.CreateAuditLogParams) error {
@@ -190,5 +499,12 @@ func adminTestUser(t *testing.T, email string, password string, verified bool) *
 		Email:         email,
 		Password:      passwordHash,
 		EmailVerified: verified,
+		Status:        models.UserStatusActive,
 	}
+}
+
+type adminTestMailProvider struct{}
+
+func (p *adminTestMailProvider) Send(ctx context.Context, message mail.Message) error {
+	return nil
 }

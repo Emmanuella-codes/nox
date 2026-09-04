@@ -11,6 +11,7 @@ const (
 	Internal_Error         shared.PipeMessage = "internal_error"
 	Email_Not_Verified     shared.PipeMessage = "email_not_verified"
 	Email_Already_Verified shared.PipeMessage = "email_already_verified"
+	Account_Suspended      shared.PipeMessage = "account_suspended"
 	Invalid_OTP            shared.PipeMessage = "invalid_otp"
 	OTP_Expired            shared.PipeMessage = "otp_expired"
 	OTP_Locked             shared.PipeMessage = "otp_locked"

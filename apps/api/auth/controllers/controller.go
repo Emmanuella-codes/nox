@@ -62,6 +62,8 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusBadRequest
 	case messages.Email_Not_Verified:
 		return fiber.StatusForbidden
+	case messages.Account_Suspended:
+		return fiber.StatusForbidden
 	case messages.Email_Already_Verified:
 		return fiber.StatusConflict
 	case messages.Invalid_OTP, messages.OTP_Expired:

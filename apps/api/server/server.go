@@ -115,6 +115,8 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		AdminRepo:    repos.Admin,
 		UserRepo:     repos.User,
 		HashService:  services.NewHashService(),
+		OTPService:   services.NewOTPService(),
+		EmailService: services.NewEmailService(mailProvider),
 		TokenService: admin_services.NewTokenService(cfg),
 		Redis:        redisClient,
 		Config:       cfg,

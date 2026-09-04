@@ -27,6 +27,8 @@ type AdminPipe struct {
 	adminRepo    adminrepo.AdminRepository
 	userRepo     userrepo.UserRepository
 	hashService  *authservices.HashService
+	otpService   *authservices.OTPService
+	emailService *authservices.EmailService
 	tokenService *adminservices.TokenService
 	redis        *redis.Client
 	cfg          *config.Config
@@ -36,6 +38,8 @@ type AdminPipeDeps struct {
 	AdminRepo    adminrepo.AdminRepository
 	UserRepo     userrepo.UserRepository
 	HashService  *authservices.HashService
+	OTPService   *authservices.OTPService
+	EmailService *authservices.EmailService
 	TokenService *adminservices.TokenService
 	Redis        *redis.Client
 	Config       *config.Config
@@ -46,12 +50,11 @@ type AuthResponse struct {
 }
 
 type MeResponse struct {
-	UserID   uuid.UUID           `json:"user_id"`
-	Fullname string              `json:"fullname"`
-	Email    string              `json:"email"`
-	Role     models.AdminRole    `json:"role"`
-	Scopes   []models.AdminScope `json:"scopes"`
-	IsActive bool                `json:"is_active"`
+	UserID   uuid.UUID        `json:"user_id"`
+	Fullname string           `json:"fullname"`
+	Email    string           `json:"email"`
+	Role     models.AdminRole `json:"role"`
+	IsActive bool             `json:"is_active"`
 }
 
 func NewAdminPipe(deps AdminPipeDeps) *AdminPipe {
@@ -59,6 +62,8 @@ func NewAdminPipe(deps AdminPipeDeps) *AdminPipe {
 		adminRepo:    deps.AdminRepo,
 		userRepo:     deps.UserRepo,
 		hashService:  deps.HashService,
+		otpService:   deps.OTPService,
+		emailService: deps.EmailService,
 		tokenService: deps.TokenService,
 		redis:        deps.Redis,
 		cfg:          deps.Config,
@@ -133,7 +138,6 @@ func meResponse(identity *models.AdminIdentity) *MeResponse {
 		Fullname: identity.Fullname,
 		Email:    identity.Email,
 		Role:     identity.Role,
-		Scopes:   identity.Scopes,
 		IsActive: identity.IsActive,
 	}
 }
@@ -163,6 +167,22 @@ func userRefreshSessionsKey(userID uuid.UUID) string {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func appRefreshSessionKey(tokenID string) string {
+	return "session:" + tokenID
+}
+
+func appUserRefreshSessionsKey(userID uuid.UUID) string {
+	return "sessions:user:" + userID.String()
+}
+
+func appEmailVerificationKey(userID string) string {
+	return "email_verify:" + userID
+}
+
+func appEmailVerificationAttemptsKey(userID string) string {
+	return "email_verify_attempts:" + userID
 }
 
 func RequestIDContextKey() any {
