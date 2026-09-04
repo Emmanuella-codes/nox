@@ -4,6 +4,10 @@ import (
 	"context"
 	"time"
 
+	admin_controllers "github.com/emmanuella-codes/nox/admin/controllers"
+	admin_pipes "github.com/emmanuella-codes/nox/admin/pipes"
+	admin_routers "github.com/emmanuella-codes/nox/admin/routers"
+	admin_services "github.com/emmanuella-codes/nox/admin/services"
 	"github.com/emmanuella-codes/nox/auth/controllers"
 	"github.com/emmanuella-codes/nox/auth/pipes"
 	"github.com/emmanuella-codes/nox/auth/routers"
@@ -107,6 +111,14 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	})
 
 	authController := controllers.NewAuthController(authPipe)
+	adminController := admin_controllers.NewAdminController(admin_pipes.NewAdminPipe(admin_pipes.AdminPipeDeps{
+		AdminRepo:    repos.Admin,
+		UserRepo:     repos.User,
+		HashService:  services.NewHashService(),
+		TokenService: admin_services.NewTokenService(cfg),
+		Redis:        redisClient,
+		Config:       cfg,
+	}))
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona, repos.Preference))
 	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media, redisClient, repos.Preference))
 	notificationPipe := notification_pipes.NewNotificationPipe(repos.Notification, repos.Persona, notificationHub)
@@ -127,6 +139,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	api := app.Group("/api/v1")
 
 	shared_api.BaseRouter(api.Group("/auth"), routers.AuthRoutes(authController, redisClient))
+	shared_api.BaseRouter(api.Group("/admin"), admin_routers.AdminRoutes(adminController, cfg, redisClient, repos.Admin))
 	shared_api.BaseRouter(api.Group("/personas"), persona_routers.PersonaRoutes(personaController, cfg, repos.Persona))
 	shared_api.BaseRouter(api.Group("/posts"), post_routers.PostRoutes(postController, cfg, repos.Persona))
 	shared_api.BaseRouter(api, comment_routers.CommentRoutes(commentController, cfg))

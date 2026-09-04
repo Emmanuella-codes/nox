@@ -417,6 +417,13 @@ func (r *pipeTestUserRepo) FindUserByEmail(ctx context.Context, email string) (*
 	return r.foundUser, nil
 }
 
+func (r *pipeTestUserRepo) FindUserByID(ctx context.Context, userID string) (*models.User, error) {
+	if r.foundUser == nil || r.foundUser.ID.String() != userID {
+		return nil, nil
+	}
+	return r.foundUser, nil
+}
+
 func (r *pipeTestUserRepo) MarkEmailVerified(ctx context.Context, userID string) error {
 	if r.markErr != nil {
 		return r.markErr

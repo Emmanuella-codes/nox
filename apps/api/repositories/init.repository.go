@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/admin"
 	"github.com/emmanuella-codes/nox/repositories/comment"
 	"github.com/emmanuella-codes/nox/repositories/crew"
 	"github.com/emmanuella-codes/nox/repositories/event"
@@ -21,6 +22,7 @@ import (
 )
 
 type Repositories struct {
+	Admin        admin.AdminRepository
 	User         user.UserRepository
 	Persona      persona.PersonaRepository
 	Post         post.PostRepository
@@ -41,6 +43,7 @@ type Repositories struct {
 
 func Init(pool *pgxpool.Pool) *Repositories {
 	return &Repositories{
+		Admin:        admin.NewAdminRepository(pool),
 		User:         user.NewUserRepository(pool),
 		Persona:      persona.NewPersonaRepository(pool),
 		Post:         post.NewPostRepository(pool),

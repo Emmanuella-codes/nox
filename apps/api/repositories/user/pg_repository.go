@@ -60,6 +60,21 @@ func (r *pgRepository) FindUserByEmail(ctx context.Context, email string) (*mode
 	return user, nil
 }
 
+func (r *pgRepository) FindUserByID(ctx context.Context, userID string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.QueryRow(ctx,
+		`SELECT id, fullname, email, password, email_verified, email_verified_at, created_at, updated_at FROM users WHERE id = $1`,
+		userID,
+	).Scan(&user.ID, &user.Fullname, &user.Email, &user.Password, &user.EmailVerified, &user.EmailVerifiedAt, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
 func (r *pgRepository) MarkEmailVerified(ctx context.Context, userID string) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE users

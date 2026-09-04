@@ -19,6 +19,12 @@ type Config struct {
 	JWTAudience            string
 	JWTAccessTTL           time.Duration
 	JWTRefreshTTL          time.Duration
+	AdminJWTAccessSecret   string
+	AdminJWTRefreshSecret  string
+	AdminJWTIssuer         string
+	AdminJWTAudience       string
+	AdminJWTAccessTTL      time.Duration
+	AdminJWTRefreshTTL     time.Duration
 	EmailOTPTTL            time.Duration
 	BrevoAPIKey            string
 	BrevoBaseURL           string
@@ -70,6 +76,12 @@ func Load() (*Config, error) {
 		JWTAudience:            getEnv("JWT_AUDIENCE", "nox-client"),
 		JWTAccessTTL:           getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
 		JWTRefreshTTL:          getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
+		AdminJWTAccessSecret:   getEnv("ADMIN_JWT_ACCESS_SECRET", getEnv("JWT_ACCESS_SECRET", getEnv("JWT_SECRET", ""))),
+		AdminJWTRefreshSecret:  getEnv("ADMIN_JWT_REFRESH_SECRET", getEnv("JWT_REFRESH_SECRET", "")),
+		AdminJWTIssuer:         getEnv("ADMIN_JWT_ISSUER", getEnv("JWT_ISSUER", "nox-api")),
+		AdminJWTAudience:       getEnv("ADMIN_JWT_AUDIENCE", "nox-admin"),
+		AdminJWTAccessTTL:      getDurationEnv("ADMIN_JWT_ACCESS_TTL", 15*time.Minute),
+		AdminJWTRefreshTTL:     getDurationEnv("ADMIN_JWT_REFRESH_TTL", 24*time.Hour),
 		EmailOTPTTL:            getDurationEnv("EMAIL_OTP_TTL", 10*time.Minute),
 		BrevoAPIKey:            getEnv("BREVO_API_KEY", ""),
 		BrevoBaseURL:           getEnv("BREVO_BASE_URL", "https://api.brevo.com"),
@@ -119,6 +131,12 @@ func (c *Config) validate() error {
 	}
 	if c.JWTRefreshSecret == "" {
 		return errors.New("JWT_REFRESH_SECRET is required")
+	}
+	if c.AdminJWTAccessSecret == "" {
+		return errors.New("ADMIN_JWT_ACCESS_SECRET is required")
+	}
+	if c.AdminJWTRefreshSecret == "" {
+		return errors.New("ADMIN_JWT_REFRESH_SECRET is required")
 	}
 	if c.GhostPersonaSecret == "" {
 		return errors.New("GHOST_PERSONA_SECRET is required")
