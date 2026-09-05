@@ -164,3 +164,23 @@ func (r adminMiddlewareRepo) Moderate(ctx context.Context, params adminrepo.Mode
 func (r adminMiddlewareRepo) ListModerationActions(ctx context.Context, params adminrepo.ListModerationActionsParams) ([]models.ModerationAction, error) {
 	return nil, nil
 }
+
+func (r adminMiddlewareRepo) CreateReport(ctx context.Context, params adminrepo.CreateReportParams) (*models.Report, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ListReports(ctx context.Context, params adminrepo.ListReportsParams) ([]models.Report, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) FindReportByID(ctx context.Context, reportID uuid.UUID) (*models.Report, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) UpdateReport(ctx context.Context, params adminrepo.UpdateReportParams) (*models.Report, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ResolveReport(ctx context.Context, params adminrepo.ResolveReportParams) (*models.Report, error) {
+	return nil, nil
+}

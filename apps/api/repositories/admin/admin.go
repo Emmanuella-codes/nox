@@ -14,7 +14,42 @@ var (
 	ErrMembershipNotFound       = errors.New("admin membership not found")
 	ErrUserNotFound             = errors.New("user not found")
 	ErrModerationEntityNotFound = errors.New("moderation entity not found")
+	ErrReportAlreadyExists      = errors.New("open report already exists")
+	ErrReportNotFound           = errors.New("report not found")
+	ErrSelfReport               = errors.New("users cannot report their own content")
 )
+
+type CreateReportParams struct {
+	ReporterUserID    uuid.UUID
+	ReporterPersonaID uuid.UUID
+	TargetType        models.ReportTargetType
+	TargetID          uuid.UUID
+	Reason            string
+	Description       string
+}
+
+type ListReportsParams struct {
+	Status     *models.ReportStatus
+	TargetType *models.ReportTargetType
+	AssignedID *uuid.UUID
+	Limit      int
+	Offset     int
+}
+
+type UpdateReportParams struct {
+	ReportID        uuid.UUID
+	Status          models.ReportStatus
+	AssignedAdminID *uuid.UUID
+	ResolutionNote  string
+}
+
+type ResolveReportParams struct {
+	ReportID   uuid.UUID
+	Status     models.ModerationStatus
+	Reason     string
+	AdminID    uuid.UUID
+	Resolution string
+}
 
 type ModerateParams struct {
 	EntityType models.ModerationEntityType
@@ -55,6 +90,11 @@ type AdminRepository interface {
 	CreateAuditLog(ctx context.Context, params CreateAuditLogParams) error
 	Moderate(ctx context.Context, params ModerateParams) (*models.ModerationState, error)
 	ListModerationActions(ctx context.Context, params ListModerationActionsParams) ([]models.ModerationAction, error)
+	CreateReport(ctx context.Context, params CreateReportParams) (*models.Report, error)
+	ListReports(ctx context.Context, params ListReportsParams) ([]models.Report, error)
+	FindReportByID(ctx context.Context, reportID uuid.UUID) (*models.Report, error)
+	UpdateReport(ctx context.Context, params UpdateReportParams) (*models.Report, error)
+	ResolveReport(ctx context.Context, params ResolveReportParams) (*models.Report, error)
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {

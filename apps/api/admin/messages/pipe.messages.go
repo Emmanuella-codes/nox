@@ -35,4 +35,11 @@ const (
 	Moderation_Actions_Loaded   shared.PipeMessage = "moderation_actions_loaded_successfully"
 	Invalid_Moderation_Status   shared.PipeMessage = "invalid_moderation_status"
 	Moderation_Entity_Not_Found shared.PipeMessage = "moderation_entity_not_found"
+	Reports_Loaded              shared.PipeMessage = "reports_loaded_successfully"
+	Report_Loaded               shared.PipeMessage = "report_loaded_successfully"
+	Report_Updated              shared.PipeMessage = "report_updated_successfully"
+	Report_Resolved             shared.PipeMessage = "report_resolved_successfully"
+	Invalid_Report_Status       shared.PipeMessage = "invalid_report_status"
+	Invalid_Report_Action       shared.PipeMessage = "invalid_report_action"
+	Report_Not_Found            shared.PipeMessage = "report_not_found"
 )

@@ -50,6 +50,9 @@ import (
 	preference_controllers "github.com/emmanuella-codes/nox/preference/controllers"
 	preference_pipes "github.com/emmanuella-codes/nox/preference/pipes"
 	preference_routers "github.com/emmanuella-codes/nox/preference/routers"
+	report_controllers "github.com/emmanuella-codes/nox/report/controllers"
+	report_pipes "github.com/emmanuella-codes/nox/report/pipes"
+	report_routers "github.com/emmanuella-codes/nox/report/routers"
 	"github.com/emmanuella-codes/nox/repositories"
 	search_controllers "github.com/emmanuella-codes/nox/search/controllers"
 	search_pipes "github.com/emmanuella-codes/nox/search/pipes"
@@ -136,6 +139,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification, notificationPipe, repos.Preference), repos.Messaging, realtimeHub)
 	notificationController := notification_controllers.NewNotificationController(notificationPipe, notificationHub)
 	preferenceController := preference_controllers.NewPreferenceController(preference_pipes.NewPreferencePipe(repos.Preference, repos.Persona, repos.Post, repos.Event, repos.Set))
+	reportController := report_controllers.NewReportController(report_pipes.NewReportPipe(repos.Admin, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 
@@ -156,6 +160,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	shared_api.BaseRouter(api, messaging_routers.MessagingRoutes(messagingController, cfg))
 	shared_api.BaseRouter(api, notification_routers.NotificationRoutes(notificationController, cfg))
 	shared_api.BaseRouter(api.Group("/preferences"), preference_routers.PreferenceRoutes(preferenceController, cfg))
+	shared_api.BaseRouter(api.Group("/reports"), report_routers.ReportRoutes(reportController, cfg))
 	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
 	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 

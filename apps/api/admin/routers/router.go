@@ -104,6 +104,30 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Handler:     controller.ListModerationActions,
 		},
 		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/reports",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ListReports,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/reports/:reportID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.GetReport,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/reports/:reportID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.UpdateReport,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/reports/:reportID/actions",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ResolveReport,
+		},
+		{
 			RouteMethod: api.RouteMethod("PATCH"),
 			Path:        "/moderation/:entityType/:entityID",
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},

@@ -508,6 +508,26 @@ func (r *adminTestRepo) ListModerationActions(ctx context.Context, params adminr
 	return []models.ModerationAction{}, nil
 }
 
+func (r *adminTestRepo) CreateReport(ctx context.Context, params adminrepo.CreateReportParams) (*models.Report, error) {
+	return nil, nil
+}
+
+func (r *adminTestRepo) ListReports(ctx context.Context, params adminrepo.ListReportsParams) ([]models.Report, error) {
+	return []models.Report{}, nil
+}
+
+func (r *adminTestRepo) FindReportByID(ctx context.Context, reportID uuid.UUID) (*models.Report, error) {
+	return nil, adminrepo.ErrReportNotFound
+}
+
+func (r *adminTestRepo) UpdateReport(ctx context.Context, params adminrepo.UpdateReportParams) (*models.Report, error) {
+	return nil, adminrepo.ErrReportNotFound
+}
+
+func (r *adminTestRepo) ResolveReport(ctx context.Context, params adminrepo.ResolveReportParams) (*models.Report, error) {
+	return nil, adminrepo.ErrReportNotFound
+}
+
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {
 	t.Helper()
 
