@@ -63,6 +63,12 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 		},
 		{
 			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/dashboard",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.Dashboard,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
 			Path:        "/staff",
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
 			Handler:     controller.ListAdminUsers,

@@ -77,6 +77,8 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusBadRequest
 	case messages.Invalid_Report_Status, messages.Invalid_Report_Action:
 		return fiber.StatusBadRequest
+	case messages.Admin_Dashboard_Loaded:
+		return fiber.StatusOK
 	case messages.Invalid_Payload:
 		return fiber.StatusBadRequest
 	case messages.Invalid_Admin_Role, messages.Invalid_User_Status, messages.Last_Super_Admin_Required:

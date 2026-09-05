@@ -184,3 +184,7 @@ func (r adminMiddlewareRepo) UpdateReport(ctx context.Context, params adminrepo.
 func (r adminMiddlewareRepo) ResolveReport(ctx context.Context, params adminrepo.ResolveReportParams) (*models.Report, error) {
 	return nil, nil
 }
+
+func (r adminMiddlewareRepo) Dashboard(ctx context.Context) (*models.AdminDashboard, error) {
+	return nil, nil
+}

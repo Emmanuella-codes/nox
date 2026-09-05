@@ -528,6 +528,10 @@ func (r *adminTestRepo) ResolveReport(ctx context.Context, params adminrepo.Reso
 	return nil, adminrepo.ErrReportNotFound
 }
 
+func (r *adminTestRepo) Dashboard(ctx context.Context) (*models.AdminDashboard, error) {
+	return &models.AdminDashboard{}, nil
+}
+
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {
 	t.Helper()
 

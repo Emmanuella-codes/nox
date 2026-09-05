@@ -95,6 +95,7 @@ type AdminRepository interface {
 	FindReportByID(ctx context.Context, reportID uuid.UUID) (*models.Report, error)
 	UpdateReport(ctx context.Context, params UpdateReportParams) (*models.Report, error)
 	ResolveReport(ctx context.Context, params ResolveReportParams) (*models.Report, error)
+	Dashboard(ctx context.Context) (*models.AdminDashboard, error)
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {
