@@ -11,6 +11,7 @@ import (
 	adminrepo "github.com/emmanuella-codes/nox/repositories/admin"
 	userrepo "github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
@@ -30,6 +31,7 @@ type AdminPipe struct {
 	otpService   *authservices.OTPService
 	emailService *authservices.EmailService
 	tokenService *adminservices.TokenService
+	db           *pgxpool.Pool
 	redis        *redis.Client
 	cfg          *config.Config
 }
@@ -41,6 +43,7 @@ type AdminPipeDeps struct {
 	OTPService   *authservices.OTPService
 	EmailService *authservices.EmailService
 	TokenService *adminservices.TokenService
+	DB           *pgxpool.Pool
 	Redis        *redis.Client
 	Config       *config.Config
 }
@@ -65,6 +68,7 @@ func NewAdminPipe(deps AdminPipeDeps) *AdminPipe {
 		otpService:   deps.OTPService,
 		emailService: deps.EmailService,
 		tokenService: deps.TokenService,
+		db:           deps.DB,
 		redis:        deps.Redis,
 		cfg:          deps.Config,
 	}

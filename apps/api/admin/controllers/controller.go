@@ -69,6 +69,10 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusNotFound
 	case messages.User_Already_Verified:
 		return fiber.StatusConflict
+	case messages.Moderation_Entity_Not_Found:
+		return fiber.StatusNotFound
+	case messages.Invalid_Moderation_Status:
+		return fiber.StatusBadRequest
 	case messages.Invalid_Payload:
 		return fiber.StatusBadRequest
 	case messages.Invalid_Admin_Role, messages.Invalid_User_Status, messages.Last_Super_Admin_Required:

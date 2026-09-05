@@ -39,7 +39,7 @@ func TestTickUsesConfiguredMediaRetentionWindows(t *testing.T) {
 		MediaPendingRetention: 24 * time.Hour,
 		MediaFailedRetention:  7 * 24 * time.Hour,
 	}
-	worker := NewWorker(cfg, repo)
+	worker := NewWorker(cfg, repo, nil)
 	before := time.Now()
 
 	if err := worker.tick(context.Background()); err != nil {
@@ -55,7 +55,7 @@ func TestTickUsesConfiguredMediaRetentionWindows(t *testing.T) {
 
 func TestTickStopsOnPendingCleanupError(t *testing.T) {
 	repo := &cleanupRepoStub{pendingErr: errors.New("pending failed")}
-	worker := NewWorker(&config.Config{MediaCleanupBatchSize: 5, MediaPendingRetention: time.Hour, MediaFailedRetention: 2 * time.Hour}, repo)
+	worker := NewWorker(&config.Config{MediaCleanupBatchSize: 5, MediaPendingRetention: time.Hour, MediaFailedRetention: 2 * time.Hour}, repo, nil)
 
 	if err := worker.tick(context.Background()); err == nil {
 		t.Fatal("expected pending cleanup error")
@@ -67,7 +67,7 @@ func TestTickStopsOnPendingCleanupError(t *testing.T) {
 
 func TestTickReturnsFailedCleanupError(t *testing.T) {
 	repo := &cleanupRepoStub{failedErr: errors.New("failed cleanup")}
-	worker := NewWorker(&config.Config{MediaCleanupBatchSize: 5, MediaPendingRetention: time.Hour, MediaFailedRetention: 2 * time.Hour}, repo)
+	worker := NewWorker(&config.Config{MediaCleanupBatchSize: 5, MediaPendingRetention: time.Hour, MediaFailedRetention: 2 * time.Hour}, repo, nil)
 
 	if err := worker.tick(context.Background()); err == nil {
 		t.Fatal("expected failed cleanup error")

@@ -65,12 +65,12 @@ import (
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
-// RunServer wires dependencies and starts the API server.
-func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Client, repos *repositories.Repositories) {
+func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, redisClient *redis.Client, repos *repositories.Repositories) {
 	app := fiber.New(fiber.Config{
 		AppName:      "nox-api",
 		ReadTimeout:  10 * time.Second,
@@ -118,6 +118,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		OTPService:   services.NewOTPService(),
 		EmailService: services.NewEmailService(mailProvider),
 		TokenService: admin_services.NewTokenService(cfg),
+		DB:           dbPool,
 		Redis:        redisClient,
 		Config:       cfg,
 	}))

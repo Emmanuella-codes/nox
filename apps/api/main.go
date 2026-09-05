@@ -47,5 +47,5 @@ func main() {
 
 	repos := repositories.Init(pool)
 
-	server.RunServer(ctx, cfg, redisClient, repos)
+	server.RunServer(ctx, cfg, pool, redisClient, repos)
 }

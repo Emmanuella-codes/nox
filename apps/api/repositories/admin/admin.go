@@ -10,10 +10,26 @@ import (
 )
 
 var (
-	ErrMembershipAlreadyExists = errors.New("admin membership already exists")
-	ErrMembershipNotFound      = errors.New("admin membership not found")
-	ErrUserNotFound            = errors.New("user not found")
+	ErrMembershipAlreadyExists  = errors.New("admin membership already exists")
+	ErrMembershipNotFound       = errors.New("admin membership not found")
+	ErrUserNotFound             = errors.New("user not found")
+	ErrModerationEntityNotFound = errors.New("moderation entity not found")
 )
+
+type ModerateParams struct {
+	EntityType models.ModerationEntityType
+	EntityID   uuid.UUID
+	Status     models.ModerationStatus
+	Reason     string
+	AdminID    uuid.UUID
+}
+
+type ListModerationActionsParams struct {
+	EntityType *models.ModerationEntityType
+	Status     *models.ModerationStatus
+	Limit      int
+	Offset     int
+}
 
 type CreateAuditLogParams struct {
 	AdminUserID  uuid.UUID
@@ -37,6 +53,8 @@ type AdminRepository interface {
 	FindManagedUserByID(ctx context.Context, userID uuid.UUID) (*models.AdminManagedUser, error)
 	UpdateUserStatus(ctx context.Context, userID uuid.UUID, status models.UserStatus) (*models.AdminManagedUser, error)
 	CreateAuditLog(ctx context.Context, params CreateAuditLogParams) error
+	Moderate(ctx context.Context, params ModerateParams) (*models.ModerationState, error)
+	ListModerationActions(ctx context.Context, params ListModerationActionsParams) ([]models.ModerationAction, error)
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {

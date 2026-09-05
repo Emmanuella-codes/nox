@@ -97,11 +97,14 @@ func (r *pgRepository) ReorderStoryItem(ctx context.Context, storyID uuid.UUID, 
 // FindStoryItems lists all items for one story in position order.
 func (r *pgRepository) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
-		       posting_mode, COALESCE(anonymous_label, ''), duration_seconds, position, expires_at, created_at
-		FROM story_items
-		WHERE story_id = $1 AND expires_at > now()
-		ORDER BY position ASC
+		SELECT si.id, si.story_id, si.media_asset_id, si.contributor_user_id, si.contributor_persona_id,
+		       si.posting_mode, COALESCE(si.anonymous_label, ''), si.duration_seconds, si.position, si.expires_at, si.created_at
+		FROM story_items si
+		INNER JOIN stories s ON s.id = si.story_id AND s.moderation_status = 'active'
+		WHERE si.story_id = $1 AND si.expires_at > now() AND si.moderation_status = 'active'
+		  AND EXISTS (SELECT 1 FROM personas p INNER JOIN events e ON e.id = s.event_id
+		             WHERE p.id = s.owner_persona_id AND p.moderation_status = 'active' AND e.moderation_status = 'active')
+		ORDER BY si.position ASC
 	`, storyID)
 	if err != nil {
 		return nil, err
@@ -113,11 +116,11 @@ func (r *pgRepository) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([
 // Lists all items for one story regardless of expiry.
 func (r *pgRepository) FindStoryItemsAny(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
-		       posting_mode, COALESCE(anonymous_label, ''), duration_seconds, position, expires_at, created_at
-		FROM story_items
-		WHERE story_id = $1
-		ORDER BY position ASC
+		SELECT si.id, si.story_id, si.media_asset_id, si.contributor_user_id, si.contributor_persona_id,
+		       si.posting_mode, COALESCE(si.anonymous_label, ''), si.duration_seconds, si.position, si.expires_at, si.created_at
+		FROM story_items si
+		WHERE si.story_id = $1
+		ORDER BY si.position ASC
 	`, storyID)
 	if err != nil {
 		return nil, err
@@ -129,10 +132,13 @@ func (r *pgRepository) FindStoryItemsAny(ctx context.Context, storyID uuid.UUID)
 // FindStoryItemByID loads one story item scoped to one story.
 func (r *pgRepository) FindStoryItemByID(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, story_id, media_asset_id, contributor_user_id, contributor_persona_id,
-		       posting_mode, COALESCE(anonymous_label, ''), duration_seconds, position, expires_at, created_at
-		FROM story_items
-		WHERE story_id = $1 AND id = $2 AND expires_at > now()
+		SELECT si.id, si.story_id, si.media_asset_id, si.contributor_user_id, si.contributor_persona_id,
+		       si.posting_mode, COALESCE(si.anonymous_label, ''), si.duration_seconds, si.position, si.expires_at, si.created_at
+		FROM story_items si
+		INNER JOIN stories s ON s.id = si.story_id AND s.moderation_status = 'active'
+		WHERE si.story_id = $1 AND si.id = $2 AND si.expires_at > now() AND si.moderation_status = 'active'
+		  AND EXISTS (SELECT 1 FROM personas p INNER JOIN events e ON e.id = s.event_id
+		             WHERE p.id = s.owner_persona_id AND p.moderation_status = 'active' AND e.moderation_status = 'active')
 	`, storyID, itemID)
 	item, err := scanStoryItem(row)
 	if err != nil {

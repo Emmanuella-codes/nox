@@ -16,7 +16,7 @@ func main() {
 	}
 	defer app.Close()
 
-	worker := NewWorker(app.Config, media_repo.NewCleanupRepository(app.DB))
+	worker := NewWorker(app.Config, media_repo.NewCleanupRepository(app.DB), app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("media cleanup worker failed")
 	}

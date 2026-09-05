@@ -15,6 +15,7 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 	adminrepo "github.com/emmanuella-codes/nox/repositories/admin"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -94,6 +95,21 @@ func TestMePipeReturnsAdminIdentity(t *testing.T) {
 	}
 	if res.Data == nil || res.Data.Role != models.AdminRoleOps {
 		t.Fatal("expected admin identity")
+	}
+}
+
+func TestHealthPipeReturnsOfflineWorkersWithoutHeartbeats(t *testing.T) {
+	pipe, _ := newAdminTestPipe(t, &adminTestUserRepo{}, &adminTestRepo{})
+
+	res := pipe.HealthPipe(context.Background())
+	if !res.Success {
+		t.Fatalf("expected health success, got %q", res.Message)
+	}
+	if res.Data == nil || res.Data.Redis.Status != "ok" {
+		t.Fatal("expected redis health to be ok")
+	}
+	if res.Data.Workers[workerruntime.WorkerMediaKey].Status != "offline" {
+		t.Fatal("expected media worker to report offline without heartbeat")
 	}
 }
 
@@ -482,6 +498,14 @@ func (r *adminTestRepo) UpdateUserStatus(ctx context.Context, userID uuid.UUID, 
 func (r *adminTestRepo) CreateAuditLog(ctx context.Context, params adminrepo.CreateAuditLogParams) error {
 	r.auditActions = append(r.auditActions, params.Action)
 	return nil
+}
+
+func (r *adminTestRepo) Moderate(ctx context.Context, params adminrepo.ModerateParams) (*models.ModerationState, error) {
+	return &models.ModerationState{EntityType: params.EntityType, EntityID: params.EntityID, Status: params.Status, Reason: params.Reason, ModeratedBy: &params.AdminID}, nil
+}
+
+func (r *adminTestRepo) ListModerationActions(ctx context.Context, params adminrepo.ListModerationActionsParams) ([]models.ModerationAction, error) {
+	return []models.ModerationAction{}, nil
 }
 
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {

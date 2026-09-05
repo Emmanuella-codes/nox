@@ -19,6 +19,8 @@ func (r *pgRepository) searchSets(ctx context.Context, query string, limit int, 
 		INNER JOIN personas p ON p.id = s.persona_id
 		INNER JOIN media_assets m ON m.id = s.media_asset_id
 		WHERE p.persona_type = 'visible'
+		  AND p.moderation_status = 'active'
+		  AND s.moderation_status = 'active'
 		  AND (
 		    s.title ILIKE $1
 		    OR s.description ILIKE $1

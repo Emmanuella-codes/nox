@@ -37,10 +37,11 @@ func (r *pgRepository) CreateSet(ctx context.Context, authorUserID uuid.UUID, du
 
 func (r *pgRepository) FindSetByID(ctx context.Context, setID uuid.UUID) (*models.Set, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, author_user_id, persona_id, media_asset_id, title, description, genre_tags,
-		       duration_seconds, like_count, comment_count, play_count, created_at, updated_at
-		FROM sets
-		WHERE id = $1
+		SELECT s.id, s.author_user_id, s.persona_id, s.media_asset_id, s.title, s.description, s.genre_tags,
+		       s.duration_seconds, s.like_count, s.comment_count, s.play_count, s.created_at, s.updated_at
+		FROM sets s
+		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
+		WHERE s.id = $1 AND s.moderation_status = 'active'
 	`, setID)
 
 	set, err := scanSet(row)
@@ -55,20 +56,22 @@ func (r *pgRepository) FindSets(ctx context.Context, limit int, offset int) ([]*
 }
 
 func (r *pgRepository) FindSetsWithFilters(ctx context.Context, genreTag string, sort string, limit int, offset int) ([]*models.Set, error) {
-	orderBy := "created_at DESC"
+	orderBy := "s.created_at DESC"
 	switch sort {
 	case "most_played":
-		orderBy = "play_count DESC, created_at DESC"
+		orderBy = "s.play_count DESC, s.created_at DESC"
 	case "most_liked":
-		orderBy = "like_count DESC, created_at DESC"
+		orderBy = "s.like_count DESC, s.created_at DESC"
 	case "most_discussed":
-		orderBy = "comment_count DESC, created_at DESC"
+		orderBy = "s.comment_count DESC, s.created_at DESC"
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT id, author_user_id, persona_id, media_asset_id, title, description, genre_tags,
-		       duration_seconds, like_count, comment_count, play_count, created_at, updated_at
-		FROM sets
-		WHERE ($1 = '' OR $1 = ANY(genre_tags))
+		SELECT s.id, s.author_user_id, s.persona_id, s.media_asset_id, s.title, s.description, s.genre_tags,
+		       s.duration_seconds, s.like_count, s.comment_count, s.play_count, s.created_at, s.updated_at
+		FROM sets s
+		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
+		WHERE ($1 = '' OR $1 = ANY(s.genre_tags))
+		  AND s.moderation_status = 'active'
 		ORDER BY `+orderBy+`
 		LIMIT $2 OFFSET $3
 	`, genreTag, normalizeLimit(limit), normalizeOffset(offset))
@@ -81,11 +84,12 @@ func (r *pgRepository) FindSetsWithFilters(ctx context.Context, genreTag string,
 
 func (r *pgRepository) FindSetsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int, offset int) ([]*models.Set, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, author_user_id, persona_id, media_asset_id, title, description, genre_tags,
-		       duration_seconds, like_count, comment_count, play_count, created_at, updated_at
-		FROM sets
-		WHERE persona_id = $1
-		ORDER BY created_at DESC
+		SELECT s.id, s.author_user_id, s.persona_id, s.media_asset_id, s.title, s.description, s.genre_tags,
+		       s.duration_seconds, s.like_count, s.comment_count, s.play_count, s.created_at, s.updated_at
+		FROM sets s
+		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
+		WHERE s.persona_id = $1 AND s.moderation_status = 'active'
+		ORDER BY s.created_at DESC
 		LIMIT $2 OFFSET $3
 	`, personaID, normalizeLimit(limit), normalizeOffset(offset))
 	if err != nil {

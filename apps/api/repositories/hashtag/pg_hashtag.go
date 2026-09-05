@@ -164,6 +164,8 @@ func (r *pgRepository) FindPostsByTag(ctx context.Context, tag string, limit int
 		LEFT JOIN personas pe ON pe.id = p.persona_id
 		WHERE h.tag = $1
 		  AND (p.posting_mode = 'anonymous' OR pe.persona_type = 'visible')
+		  AND p.moderation_status = 'active'
+		  AND (pe.id IS NULL OR pe.moderation_status = 'active')
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3
 	`, NormalizeTag(tag), normalizeLimit(limit), normalizeOffset(offset))

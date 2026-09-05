@@ -22,6 +22,87 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }
 
+var moderationTables = map[models.ModerationEntityType]string{
+	models.ModerationEntityPersona:   "personas",
+	models.ModerationEntityPost:      "posts",
+	models.ModerationEntityComment:   "comments",
+	models.ModerationEntityStory:     "stories",
+	models.ModerationEntityStoryItem: "story_items",
+	models.ModerationEntitySet:       "sets",
+	models.ModerationEntityEvent:     "events",
+}
+
+func (r *pgRepository) Moderate(ctx context.Context, params ModerateParams) (*models.ModerationState, error) {
+	table, ok := moderationTables[params.EntityType]
+	if !ok {
+		return nil, ErrModerationEntityNotFound
+	}
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var previous models.ModerationStatus
+	if err := tx.QueryRow(ctx, `SELECT moderation_status FROM `+table+` WHERE id = $1 FOR UPDATE`, params.EntityID).Scan(&previous); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrModerationEntityNotFound
+		}
+		return nil, err
+	}
+	row := tx.QueryRow(ctx, `UPDATE `+table+` SET moderation_status = $2, moderation_reason = $3,
+		moderated_at = now(), moderated_by_user_id = $4 WHERE id = $1
+		RETURNING moderation_status, moderation_reason, moderated_at, moderated_by_user_id`,
+		params.EntityID, params.Status, params.Reason, params.AdminID)
+	var state models.ModerationState
+	if err := row.Scan(&state.Status, &state.Reason, &state.ModeratedAt, &state.ModeratedBy); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrModerationEntityNotFound
+		}
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO moderation_actions
+		(entity_type, entity_id, previous_status, status, reason, admin_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6)`, params.EntityType, params.EntityID, previous, state.Status, state.Reason, params.AdminID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	state.EntityType = params.EntityType
+	state.EntityID = params.EntityID
+	return &state, nil
+}
+
+func (r *pgRepository) ListModerationActions(ctx context.Context, params ListModerationActionsParams) ([]models.ModerationAction, error) {
+	limit := params.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	rows, err := r.db.Query(ctx, `SELECT id, entity_type, entity_id, previous_status, status, reason, admin_user_id, created_at
+		FROM moderation_actions
+		WHERE ($1::text IS NULL OR entity_type = $1) AND ($2::text IS NULL OR status = $2)
+		ORDER BY created_at DESC, id DESC LIMIT $3 OFFSET $4`, params.EntityType, params.Status, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	actions := make([]models.ModerationAction, 0)
+	for rows.Next() {
+		var action models.ModerationAction
+		if err := rows.Scan(&action.ID, &action.EntityType, &action.EntityID, &action.PreviousStatus,
+			&action.Status, &action.Reason, &action.AdminUserID, &action.CreatedAt); err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+	}
+	return actions, rows.Err()
+}
+
 func (r *pgRepository) ListIdentities(ctx context.Context) ([]models.AdminIdentity, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT u.id, u.fullname, u.email, am.role, am.is_active, am.created_at, am.updated_at

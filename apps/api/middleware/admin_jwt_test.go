@@ -156,3 +156,11 @@ func (r adminMiddlewareRepo) UpdateUserStatus(ctx context.Context, userID uuid.U
 func (r adminMiddlewareRepo) CreateAuditLog(ctx context.Context, params adminrepo.CreateAuditLogParams) error {
 	return nil
 }
+
+func (r adminMiddlewareRepo) Moderate(ctx context.Context, params adminrepo.ModerateParams) (*models.ModerationState, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ListModerationActions(ctx context.Context, params adminrepo.ListModerationActionsParams) ([]models.ModerationAction, error) {
+	return nil, nil
+}

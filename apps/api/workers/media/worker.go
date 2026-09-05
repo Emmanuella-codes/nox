@@ -7,20 +7,25 @@ import (
 	"github.com/emmanuella-codes/nox/config"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
 type Worker struct {
-	cfg  *config.Config
-	repo media_repo.CleanupRepository
+	cfg   *config.Config
+	repo  media_repo.CleanupRepository
+	redis *redis.Client
 }
 
-func NewWorker(cfg *config.Config, repo media_repo.CleanupRepository) *Worker {
-	return &Worker{cfg: cfg, repo: repo}
+func NewWorker(cfg *config.Config, repo media_repo.CleanupRepository, redisClient *redis.Client) *Worker {
+	return &Worker{cfg: cfg, repo: repo, redis: redisClient}
 }
 
 func (w *Worker) Run(ctx context.Context) error {
 	return workerruntime.RunLoop(ctx, w.cfg.MediaCleanupInterval, func(ctx context.Context) error {
+		if err := workerruntime.RecordHeartbeat(ctx, w.redis, workerruntime.WorkerMediaKey, workerruntime.WorkerHeartbeatTTL(w.cfg.MediaCleanupInterval)); err != nil {
+			log.Error().Err(err).Msg("media worker heartbeat failed")
+		}
 		if err := w.tick(ctx); err != nil {
 			log.Error().Err(err).Msg("media cleanup tick failed")
 		}

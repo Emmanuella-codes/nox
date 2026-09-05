@@ -7,22 +7,25 @@ import (
 	"github.com/emmanuella-codes/nox/config"
 	story_repo "github.com/emmanuella-codes/nox/repositories/story"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
 type Worker struct {
-	cfg  *config.Config
-	repo story_repo.StoryRepository
+	cfg   *config.Config
+	repo  story_repo.StoryRepository
+	redis *redis.Client
 }
 
-// Builds one story cleanup worker from the shared config and repositories.
-func NewWorker(cfg *config.Config, repo story_repo.StoryRepository) *Worker {
-	return &Worker{cfg: cfg, repo: repo}
+func NewWorker(cfg *config.Config, repo story_repo.StoryRepository, redisClient *redis.Client) *Worker {
+	return &Worker{cfg: cfg, repo: repo, redis: redisClient}
 }
 
-// Polls story cleanup work until shutdown.
 func (w *Worker) Run(ctx context.Context) error {
 	return workerruntime.RunLoop(ctx, w.cfg.StoryCleanupInterval, func(ctx context.Context) error {
+		if err := workerruntime.RecordHeartbeat(ctx, w.redis, workerruntime.WorkerStoriesKey, workerruntime.WorkerHeartbeatTTL(w.cfg.StoryCleanupInterval)); err != nil {
+			log.Error().Err(err).Msg("story worker heartbeat failed")
+		}
 		if err := w.tick(ctx); err != nil {
 			log.Error().Err(err).Msg("story cleanup tick failed")
 		}

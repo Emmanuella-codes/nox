@@ -122,6 +122,13 @@ func TestLoginPipeRejectsMissingInvalidAndUnverifiedUsers(t *testing.T) {
 	if unverified.Message != messages.Email_Not_Verified {
 		t.Fatalf("expected unverified user to return %q, got %q", messages.Email_Not_Verified, unverified.Message)
 	}
+
+	repo.foundUser = pipeTestUser(t, "ada@example.com", "password123", true)
+	repo.foundUser.Status = models.UserStatusSuspended
+	suspended := pipe.LoginPipe(ctx, dtos.LoginDTO{Email: "ada@example.com", Password: "password123"})
+	if suspended.Message != messages.Account_Suspended {
+		t.Fatalf("expected suspended user to return %q, got %q", messages.Account_Suspended, suspended.Message)
+	}
 }
 
 func TestRefreshPipeRotatesRefreshTokenSession(t *testing.T) {

@@ -60,6 +60,7 @@ func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit i
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
 		WHERE persona_type = 'visible'
+		  AND moderation_status = 'active'
 		  AND (
 		    handle ILIKE $1
 		    OR display_name ILIKE $1
@@ -122,6 +123,8 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int,
 		FROM posts p
 		LEFT JOIN personas pe ON pe.id = p.persona_id
 		WHERE (p.posting_mode = 'anonymous' OR pe.persona_type = 'visible')
+		  AND p.moderation_status = 'active'
+		  AND (pe.id IS NULL OR pe.moderation_status = 'active')
 		  AND (
 		    p.body ILIKE $1
 		    OR p.location ILIKE $1
@@ -158,7 +161,9 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		SELECT id, title, venue, location, event_date, description, COALESCE(cover_url, ''),
 		       COALESCE(ticket_url, ''), price_ngn, genre_tags, organizer_id, created_at
 		FROM events
-		WHERE title ILIKE $1
+		WHERE moderation_status = 'active'
+		  AND (
+		   title ILIKE $1
 		   OR venue ILIKE $1
 		   OR location ILIKE $1
 		   OR description ILIKE $1
@@ -166,6 +171,7 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		   OR similarity(title, $3) > 0.25
 		   OR similarity(venue, $3) > 0.25
 		   OR similarity(location, $3) > 0.25
+		  )
 		ORDER BY
 		  CASE WHEN lower(title) = lower($3) THEN 0 ELSE 1 END,
 		  CASE WHEN title ILIKE $4 THEN 0 ELSE 1 END,

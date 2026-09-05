@@ -53,10 +53,12 @@ func (r *pgRepository) CreateComment(ctx context.Context, postID uuid.UUID, dto 
 // FindCommentsByPostID fetches comments for one post in ascending order.
 func (r *pgRepository) FindCommentsByPostID(ctx context.Context, postID uuid.UUID, limit int) ([]*models.Comment, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT author_user_id, id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
-		FROM comments
-		WHERE post_id = $1
-		ORDER BY created_at ASC
+		SELECT c.author_user_id, c.id, c.persona_id, c.post_id, c.posting_mode, c.body, c.parent_id, c.like_count, c.created_at
+		FROM comments c
+		INNER JOIN posts p ON p.id = c.post_id AND p.moderation_status = 'active'
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
+		WHERE c.post_id = $1 AND c.moderation_status = 'active'
+		ORDER BY c.created_at ASC
 		LIMIT $2
 	`, postID, normalizeLimit(limit))
 	if err != nil {
@@ -78,9 +80,11 @@ func (r *pgRepository) FindCommentsByPostID(ctx context.Context, postID uuid.UUI
 // FindCommentByID fetches one comment by id.
 func (r *pgRepository) FindCommentByID(ctx context.Context, commentID uuid.UUID) (*models.Comment, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT author_user_id, id, persona_id, post_id, posting_mode, body, parent_id, like_count, created_at
-		FROM comments
-		WHERE id = $1
+		SELECT c.author_user_id, c.id, c.persona_id, c.post_id, c.posting_mode, c.body, c.parent_id, c.like_count, c.created_at
+		FROM comments c
+		INNER JOIN posts p ON p.id = c.post_id AND p.moderation_status = 'active'
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
+		WHERE c.id = $1 AND c.moderation_status = 'active'
 	`, commentID)
 
 	comment, err := scanComment(row)

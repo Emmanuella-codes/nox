@@ -15,7 +15,7 @@ func main() {
 	}
 	defer app.Close()
 
-	worker := NewWorker(app.Config, app.Repos.Story)
+	worker := NewWorker(app.Config, app.Repos.Story, app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("story cleanup worker failed")
 	}
