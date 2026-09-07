@@ -30,7 +30,7 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 		Key:    emailRateLimitKey,
 	})
 
-	return []api.RouterSchema{
+	routes := []api.RouterSchema{
 		{
 			RouteMethod: api.RouteMethod("POST"),
 			Path:        "/auth/login",
@@ -170,6 +170,7 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Handler:     controller.MarkUserEmailVerified,
 		},
 	}
+	return append(routes, adminContentRoutes(controller, cfg, adminRepo)...)
 }
 
 type rateLimitConfig struct {

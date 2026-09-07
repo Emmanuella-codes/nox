@@ -532,6 +532,14 @@ func (r *adminTestRepo) Dashboard(ctx context.Context) (*models.AdminDashboard, 
 	return &models.AdminDashboard{}, nil
 }
 
+func (r *adminTestRepo) ListAdminContent(ctx context.Context, params adminrepo.ListAdminContentParams) (*models.AdminContentPage, error) {
+	return &models.AdminContentPage{}, nil
+}
+
+func (r *adminTestRepo) FindAdminContent(ctx context.Context, entityType models.ModerationEntityType, entityID uuid.UUID) (*models.AdminContentRecord, error) {
+	return nil, adminrepo.ErrModerationEntityNotFound
+}
+
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {
 	t.Helper()
 

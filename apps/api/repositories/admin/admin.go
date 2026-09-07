@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
@@ -51,6 +52,17 @@ type ResolveReportParams struct {
 	Resolution string
 }
 
+type ListAdminContentParams struct {
+	EntityType  models.ModerationEntityType
+	Status      *models.ModerationStatus
+	OwnerID     *uuid.UUID
+	ParentID    *uuid.UUID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Limit       int
+	Offset      int
+}
+
 type ModerateParams struct {
 	EntityType models.ModerationEntityType
 	EntityID   uuid.UUID
@@ -96,6 +108,8 @@ type AdminRepository interface {
 	UpdateReport(ctx context.Context, params UpdateReportParams) (*models.Report, error)
 	ResolveReport(ctx context.Context, params ResolveReportParams) (*models.Report, error)
 	Dashboard(ctx context.Context) (*models.AdminDashboard, error)
+	ListAdminContent(ctx context.Context, params ListAdminContentParams) (*models.AdminContentPage, error)
+	FindAdminContent(ctx context.Context, entityType models.ModerationEntityType, entityID uuid.UUID) (*models.AdminContentRecord, error)
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {

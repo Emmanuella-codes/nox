@@ -43,4 +43,5 @@ const (
 	Invalid_Report_Action       shared.PipeMessage = "invalid_report_action"
 	Report_Not_Found            shared.PipeMessage = "report_not_found"
 	Admin_Dashboard_Loaded      shared.PipeMessage = "admin_dashboard_loaded_successfully"
+	Admin_Content_Loaded        shared.PipeMessage = "admin_content_loaded_successfully"
 )

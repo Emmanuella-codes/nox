@@ -188,3 +188,11 @@ func (r adminMiddlewareRepo) ResolveReport(ctx context.Context, params adminrepo
 func (r adminMiddlewareRepo) Dashboard(ctx context.Context) (*models.AdminDashboard, error) {
 	return nil, nil
 }
+
+func (r adminMiddlewareRepo) ListAdminContent(ctx context.Context, params adminrepo.ListAdminContentParams) (*models.AdminContentPage, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) FindAdminContent(ctx context.Context, entityType models.ModerationEntityType, entityID uuid.UUID) (*models.AdminContentRecord, error) {
+	return nil, nil
+}
