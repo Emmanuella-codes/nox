@@ -54,4 +54,10 @@ const (
 	Admin_Search_Reindexed           shared.PipeMessage = "admin_search_reindexed_successfully"
 	Hashtag_Not_Found                shared.PipeMessage = "hashtag_not_found"
 	Search_Suppression_Not_Found     shared.PipeMessage = "search_suppression_not_found"
+	Admin_Media_Loaded               shared.PipeMessage = "admin_media_loaded_successfully"
+	Admin_Media_Retried              shared.PipeMessage = "admin_media_retried_successfully"
+	Admin_Media_Corrected            shared.PipeMessage = "admin_media_corrected_successfully"
+	Admin_Media_Moderated            shared.PipeMessage = "admin_media_moderated_successfully"
+	Admin_Media_Cleanup_Completed    shared.PipeMessage = "admin_media_cleanup_completed_successfully"
+	Media_Not_Found                  shared.PipeMessage = "media_asset_not_found"
 )

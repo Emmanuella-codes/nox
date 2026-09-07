@@ -568,6 +568,30 @@ func (r *adminTestRepo) DeleteSearchSuppression(ctx context.Context, id uuid.UUI
 	return adminrepo.ErrSearchSuppressionNotFound
 }
 
+func (r *adminTestRepo) ListAdminMedia(ctx context.Context, params adminrepo.ListAdminMediaParams) (*models.AdminMediaPage, error) {
+	return &models.AdminMediaPage{}, nil
+}
+
+func (r *adminTestRepo) FindAdminMedia(ctx context.Context, id uuid.UUID) (*models.AdminMediaAsset, error) {
+	return nil, adminrepo.ErrMediaNotFound
+}
+
+func (r *adminTestRepo) RetryMedia(ctx context.Context, id uuid.UUID, adminID uuid.UUID) (*models.AdminMediaAsset, error) {
+	return nil, adminrepo.ErrMediaNotFound
+}
+
+func (r *adminTestRepo) CorrectMedia(ctx context.Context, params adminrepo.CorrectMediaParams) (*models.AdminMediaAsset, error) {
+	return nil, adminrepo.ErrMediaNotFound
+}
+
+func (r *adminTestRepo) ModerateMedia(ctx context.Context, params adminrepo.ModerateMediaParams) (*models.AdminMediaAsset, error) {
+	return nil, adminrepo.ErrMediaNotFound
+}
+
+func (r *adminTestRepo) CleanupOrphanedMedia(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	return 0, nil
+}
+
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {
 	t.Helper()
 

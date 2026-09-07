@@ -20,6 +20,7 @@ func (r *pgRepository) FindMediaAssetsByPostIDs(ctx context.Context, postIDs []u
 		FROM post_media_assets pma
 		INNER JOIN media_assets ma ON ma.id = pma.media_asset_id
 		WHERE pma.post_id = ANY($1)
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = ma.id), 'active') = 'active'
 		ORDER BY pma.position ASC
 	`, postIDs)
 	if err != nil {

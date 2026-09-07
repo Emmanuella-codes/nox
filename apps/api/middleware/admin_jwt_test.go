@@ -222,3 +222,27 @@ func (r adminMiddlewareRepo) ListAdminContent(ctx context.Context, params adminr
 func (r adminMiddlewareRepo) FindAdminContent(ctx context.Context, entityType models.ModerationEntityType, entityID uuid.UUID) (*models.AdminContentRecord, error) {
 	return nil, nil
 }
+
+func (r adminMiddlewareRepo) ListAdminMedia(ctx context.Context, params adminrepo.ListAdminMediaParams) (*models.AdminMediaPage, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) FindAdminMedia(ctx context.Context, id uuid.UUID) (*models.AdminMediaAsset, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) RetryMedia(ctx context.Context, id uuid.UUID, adminID uuid.UUID) (*models.AdminMediaAsset, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) CorrectMedia(ctx context.Context, params adminrepo.CorrectMediaParams) (*models.AdminMediaAsset, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ModerateMedia(ctx context.Context, params adminrepo.ModerateMediaParams) (*models.AdminMediaAsset, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) CleanupOrphanedMedia(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
+	return 0, nil
+}

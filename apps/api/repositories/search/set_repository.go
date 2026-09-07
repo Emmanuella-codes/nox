@@ -21,6 +21,7 @@ func (r *pgRepository) searchSets(ctx context.Context, query string, limit int, 
 		WHERE p.persona_type = 'visible'
 		  AND p.moderation_status = 'active'
 		  AND s.moderation_status = 'active'
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = m.id), 'active') = 'active'
 		  AND (
 		    s.title ILIKE $1
 		    OR s.description ILIKE $1

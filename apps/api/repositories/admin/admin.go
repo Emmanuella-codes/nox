@@ -20,6 +20,7 @@ var (
 	ErrSelfReport                = errors.New("users cannot report their own content")
 	ErrHashtagNotFound           = errors.New("hashtag not found")
 	ErrSearchSuppressionNotFound = errors.New("search suppression not found")
+	ErrMediaNotFound             = errors.New("media asset not found")
 )
 
 type CreateReportParams struct {
@@ -107,6 +108,36 @@ type ListSearchSuppressionsParams struct {
 	Offset int
 }
 
+type ListAdminMediaParams struct {
+	Status     *models.MediaProcessingStatus
+	Kind       *models.MediaKind
+	Moderation *models.ModerationStatus
+	OwnerID    *uuid.UUID
+	Orphaned   *bool
+	OlderThan  *time.Time
+	Limit      int
+	Offset     int
+}
+
+type CorrectMediaParams struct {
+	MediaAssetID uuid.UUID
+	Status       models.MediaProcessingStatus
+	PlaybackURL  string
+	ThumbnailURL string
+	MimeType     string
+	Duration     int
+	SizeBytes    int64
+	Reason       string
+	AdminID      uuid.UUID
+}
+
+type ModerateMediaParams struct {
+	MediaAssetID uuid.UUID
+	Status       models.ModerationStatus
+	Reason       string
+	AdminID      uuid.UUID
+}
+
 type ListModerationActionsParams struct {
 	EntityType *models.ModerationEntityType
 	Status     *models.ModerationStatus
@@ -153,6 +184,12 @@ type AdminRepository interface {
 	ListSearchSuppressions(ctx context.Context, params ListSearchSuppressionsParams) (*models.SearchSuppressionPage, error)
 	CreateSearchSuppression(ctx context.Context, params CreateSearchSuppressionParams) (*models.SearchSuppression, error)
 	DeleteSearchSuppression(ctx context.Context, id uuid.UUID) error
+	ListAdminMedia(ctx context.Context, params ListAdminMediaParams) (*models.AdminMediaPage, error)
+	FindAdminMedia(ctx context.Context, id uuid.UUID) (*models.AdminMediaAsset, error)
+	RetryMedia(ctx context.Context, id uuid.UUID, adminID uuid.UUID) (*models.AdminMediaAsset, error)
+	CorrectMedia(ctx context.Context, params CorrectMediaParams) (*models.AdminMediaAsset, error)
+	ModerateMedia(ctx context.Context, params ModerateMediaParams) (*models.AdminMediaAsset, error)
+	CleanupOrphanedMedia(ctx context.Context, olderThan time.Time, limit int) (int64, error)
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {

@@ -217,6 +217,42 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
 			Handler:     controller.ReindexSearch,
 		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/media-assets",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ListAdminMedia,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/media-assets/:mediaAssetID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.GetAdminMedia,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/media-assets/:mediaAssetID/retry",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.RetryAdminMedia,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/media-assets/:mediaAssetID/status",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.CorrectAdminMedia,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/media-assets/:mediaAssetID/moderation",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ModerateAdminMedia,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/media-assets/orphans/cleanup",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.CleanupAdminMedia,
+		},
 	}
 	return append(routes, adminContentRoutes(controller, cfg, adminRepo)...)
 }

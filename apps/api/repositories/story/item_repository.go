@@ -102,6 +102,7 @@ func (r *pgRepository) FindStoryItems(ctx context.Context, storyID uuid.UUID) ([
 		FROM story_items si
 		INNER JOIN stories s ON s.id = si.story_id AND s.moderation_status = 'active'
 		WHERE si.story_id = $1 AND si.expires_at > now() AND si.moderation_status = 'active'
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = si.media_asset_id), 'active') = 'active'
 		  AND EXISTS (SELECT 1 FROM personas p INNER JOIN events e ON e.id = s.event_id
 		             WHERE p.id = s.owner_persona_id AND p.moderation_status = 'active' AND e.moderation_status = 'active')
 		ORDER BY si.position ASC
@@ -137,6 +138,7 @@ func (r *pgRepository) FindStoryItemByID(ctx context.Context, storyID uuid.UUID,
 		FROM story_items si
 		INNER JOIN stories s ON s.id = si.story_id AND s.moderation_status = 'active'
 		WHERE si.story_id = $1 AND si.id = $2 AND si.expires_at > now() AND si.moderation_status = 'active'
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = si.media_asset_id), 'active') = 'active'
 		  AND EXISTS (SELECT 1 FROM personas p INNER JOIN events e ON e.id = s.event_id
 		             WHERE p.id = s.owner_persona_id AND p.moderation_status = 'active' AND e.moderation_status = 'active')
 	`, storyID, itemID)
