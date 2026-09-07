@@ -3,3 +3,4 @@ api: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go
 notifications: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/notifications
 stories: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/stories
 media: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/media
+crews: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/crews

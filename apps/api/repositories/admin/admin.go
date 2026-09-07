@@ -21,6 +21,7 @@ var (
 	ErrHashtagNotFound           = errors.New("hashtag not found")
 	ErrSearchSuppressionNotFound = errors.New("search suppression not found")
 	ErrMediaNotFound             = errors.New("media asset not found")
+	ErrCrewNotFound              = errors.New("crew not found")
 )
 
 type CreateReportParams struct {

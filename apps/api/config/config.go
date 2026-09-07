@@ -47,6 +47,7 @@ type Config struct {
 	StoryCleanupBatchSize  int
 	StoryCleanupInterval   time.Duration
 	StoryExpiryRetention   time.Duration
+	CrewCleanupInterval    time.Duration
 	GhostPersonaSecret     string
 	Environment            string
 	LogLevel               string
@@ -104,6 +105,7 @@ func Load() (*Config, error) {
 		StoryCleanupBatchSize:  getIntEnv("STORY_CLEANUP_BATCH_SIZE", 25),
 		StoryCleanupInterval:   getDurationEnv("STORY_CLEANUP_INTERVAL", 10*time.Minute),
 		StoryExpiryRetention:   getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
+		CrewCleanupInterval:    getDurationEnv("CREW_CLEANUP_INTERVAL", 10*time.Minute),
 		GhostPersonaSecret:     getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:            getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 		LogLevel:               getEnv("LOG_LEVEL", "info"),

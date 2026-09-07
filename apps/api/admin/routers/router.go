@@ -309,6 +309,26 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			RouteMethod: api.RouteMethod("GET"), Path: "/reports/:reportID/private-content",
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.GetReportScopedPrivateContent,
 		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/crews",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListCrews,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/crews/:crewID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.GetCrew,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/crews/:crewID/end",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.EndCrew,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/crews/:crewID/location-sharing/disable",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.DisableCrewSharing,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/crews/:crewID/locations",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListCrewLocations,
+		},
 	}
 	return append(routes, adminContentRoutes(controller, cfg, adminRepo)...)
 }
