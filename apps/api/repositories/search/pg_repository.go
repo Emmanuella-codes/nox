@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"strings"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,10 +17,16 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 }
 
 func (r *pgRepository) Search(ctx context.Context, query string, options Options) (*Results, error) {
+	suppressed, err := r.isSearchSuppressed(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	if suppressed {
+		return &Results{}, nil
+	}
 	normalizedOptions := NormalizeOptions(options)
 	fetchLimit := normalizedOptions.Limit + 1
 	results := &Results{}
-	var err error
 	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "personas" {
 		results.Personas, err = r.searchPersonas(ctx, query, fetchLimit, normalizedOptions.Offset)
 		if err != nil {
@@ -52,6 +59,16 @@ func (r *pgRepository) Search(ctx context.Context, query string, options Options
 	}
 	results.HasMore = trimResults(results, normalizedOptions.Limit)
 	return results, nil
+}
+
+func (r *pgRepository) isSearchSuppressed(ctx context.Context, query string) (bool, error) {
+	normalized := normalizeHashtagQuery(query)
+	var exists bool
+	err := r.db.QueryRow(ctx, `SELECT EXISTS (
+		SELECT 1 FROM search_suppressions
+		WHERE normalized_query = $1 AND (expires_at IS NULL OR expires_at > now())
+	)`, strings.ToLower(strings.TrimSpace(normalized))).Scan(&exists)
+	return exists, err
 }
 
 func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int, offset int) ([]*models.Persona, error) {
@@ -216,6 +233,8 @@ func (r *pgRepository) searchHashtags(ctx context.Context, query string, limit i
 		SELECT id, tag, post_count, created_at
 		FROM hashtags
 		WHERE post_count > 0
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = hashtags.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = hashtags.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 		  AND (
 		    tag ILIKE $1
 		    OR similarity(tag, $2) > 0.25

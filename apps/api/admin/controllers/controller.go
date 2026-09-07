@@ -71,6 +71,8 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusConflict
 	case messages.Moderation_Entity_Not_Found:
 		return fiber.StatusNotFound
+	case messages.Hashtag_Not_Found, messages.Search_Suppression_Not_Found:
+		return fiber.StatusNotFound
 	case messages.Report_Not_Found:
 		return fiber.StatusNotFound
 	case messages.Invalid_Moderation_Status:

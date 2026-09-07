@@ -1,9 +1,27 @@
 package dtos
 
 import (
+	"time"
+
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
 )
+
+type ModerateHashtagDTO struct {
+	Status models.ModerationStatus `json:"status" validate:"required"`
+	Reason string                  `json:"reason" validate:"max=500"`
+}
+
+type SuppressHashtagDTO struct {
+	Reason    string     `json:"reason" validate:"required,max=500"`
+	ExpiresAt *time.Time `json:"expires_at"`
+}
+
+type CreateSearchSuppressionDTO struct {
+	Query     string     `json:"query" validate:"required,max=80"`
+	Reason    string     `json:"reason" validate:"required,max=500"`
+	ExpiresAt *time.Time `json:"expires_at"`
+}
 
 type ModerateContentDTO struct {
 	Status models.ModerationStatus `json:"status" validate:"required"`

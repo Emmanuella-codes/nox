@@ -153,6 +153,32 @@ func (r adminMiddlewareRepo) UpdateUserStatus(ctx context.Context, userID uuid.U
 	return nil, nil
 }
 
+func (r adminMiddlewareRepo) ListAdminHashtags(ctx context.Context, params adminrepo.ListAdminHashtagsParams) (*models.AdminHashtagPage, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ModerateHashtag(ctx context.Context, params adminrepo.ModerateHashtagParams) (*models.AdminHashtag, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) SuppressHashtag(ctx context.Context, params adminrepo.SuppressHashtagParams) (*models.AdminHashtag, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) UnsuppressHashtag(ctx context.Context, tag string) error { return nil }
+
+func (r adminMiddlewareRepo) ListSearchSuppressions(ctx context.Context, params adminrepo.ListSearchSuppressionsParams) (*models.SearchSuppressionPage, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) CreateSearchSuppression(ctx context.Context, params adminrepo.CreateSearchSuppressionParams) (*models.SearchSuppression, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) DeleteSearchSuppression(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
 func (r adminMiddlewareRepo) CreateAuditLog(ctx context.Context, params adminrepo.CreateAuditLogParams) error {
 	return nil
 }

@@ -169,6 +169,54 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
 			Handler:     controller.MarkUserEmailVerified,
 		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/hashtags",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ListAdminHashtags,
+		},
+		{
+			RouteMethod: api.RouteMethod("PATCH"),
+			Path:        "/hashtags/:tag/moderation",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ModerateHashtag,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/hashtags/:tag/suppress",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.SuppressHashtag,
+		},
+		{
+			RouteMethod: api.RouteMethod("DELETE"),
+			Path:        "/hashtags/:tag/suppress",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.UnsuppressHashtag,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"),
+			Path:        "/search/suppressions",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ListSearchSuppressions,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/search/suppressions",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.CreateSearchSuppression,
+		},
+		{
+			RouteMethod: api.RouteMethod("DELETE"),
+			Path:        "/search/suppressions/:suppressionID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.DeleteSearchSuppression,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"),
+			Path:        "/search/reindex",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
+			Handler:     controller.ReindexSearch,
+		},
 	}
 	return append(routes, adminContentRoutes(controller, cfg, adminRepo)...)
 }

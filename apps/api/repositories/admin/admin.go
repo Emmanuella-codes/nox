@@ -11,13 +11,15 @@ import (
 )
 
 var (
-	ErrMembershipAlreadyExists  = errors.New("admin membership already exists")
-	ErrMembershipNotFound       = errors.New("admin membership not found")
-	ErrUserNotFound             = errors.New("user not found")
-	ErrModerationEntityNotFound = errors.New("moderation entity not found")
-	ErrReportAlreadyExists      = errors.New("open report already exists")
-	ErrReportNotFound           = errors.New("report not found")
-	ErrSelfReport               = errors.New("users cannot report their own content")
+	ErrMembershipAlreadyExists   = errors.New("admin membership already exists")
+	ErrMembershipNotFound        = errors.New("admin membership not found")
+	ErrUserNotFound              = errors.New("user not found")
+	ErrModerationEntityNotFound  = errors.New("moderation entity not found")
+	ErrReportAlreadyExists       = errors.New("open report already exists")
+	ErrReportNotFound            = errors.New("report not found")
+	ErrSelfReport                = errors.New("users cannot report their own content")
+	ErrHashtagNotFound           = errors.New("hashtag not found")
+	ErrSearchSuppressionNotFound = errors.New("search suppression not found")
 )
 
 type CreateReportParams struct {
@@ -71,6 +73,40 @@ type ModerateParams struct {
 	AdminID    uuid.UUID
 }
 
+type ListAdminHashtagsParams struct {
+	Query  string
+	Status *models.ModerationStatus
+	Limit  int
+	Offset int
+}
+
+type ModerateHashtagParams struct {
+	Tag     string
+	Status  models.ModerationStatus
+	Reason  string
+	AdminID uuid.UUID
+}
+
+type SuppressHashtagParams struct {
+	Tag       string
+	Reason    string
+	AdminID   uuid.UUID
+	ExpiresAt *time.Time
+}
+
+type CreateSearchSuppressionParams struct {
+	Query     string
+	Reason    string
+	AdminID   uuid.UUID
+	ExpiresAt *time.Time
+}
+
+type ListSearchSuppressionsParams struct {
+	Query  string
+	Limit  int
+	Offset int
+}
+
 type ListModerationActionsParams struct {
 	EntityType *models.ModerationEntityType
 	Status     *models.ModerationStatus
@@ -110,6 +146,13 @@ type AdminRepository interface {
 	Dashboard(ctx context.Context) (*models.AdminDashboard, error)
 	ListAdminContent(ctx context.Context, params ListAdminContentParams) (*models.AdminContentPage, error)
 	FindAdminContent(ctx context.Context, entityType models.ModerationEntityType, entityID uuid.UUID) (*models.AdminContentRecord, error)
+	ListAdminHashtags(ctx context.Context, params ListAdminHashtagsParams) (*models.AdminHashtagPage, error)
+	ModerateHashtag(ctx context.Context, params ModerateHashtagParams) (*models.AdminHashtag, error)
+	SuppressHashtag(ctx context.Context, params SuppressHashtagParams) (*models.AdminHashtag, error)
+	UnsuppressHashtag(ctx context.Context, tag string) error
+	ListSearchSuppressions(ctx context.Context, params ListSearchSuppressionsParams) (*models.SearchSuppressionPage, error)
+	CreateSearchSuppression(ctx context.Context, params CreateSearchSuppressionParams) (*models.SearchSuppression, error)
+	DeleteSearchSuppression(ctx context.Context, id uuid.UUID) error
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {

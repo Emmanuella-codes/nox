@@ -132,6 +132,20 @@ func (p *AdminPipe) audit(ctx context.Context, adminUserID uuid.UUID, action str
 	}
 }
 
+func (p *AdminPipe) invalidateSearchCache(ctx context.Context) int {
+	if p.redis == nil {
+		return 0
+	}
+	deleted := 0
+	iterator := p.redis.Scan(ctx, 0, "search:*", 0).Iterator()
+	for iterator.Next(ctx) {
+		if p.redis.Del(ctx, iterator.Val()).Val() > 0 {
+			deleted++
+		}
+	}
+	return deleted
+}
+
 func authResponse(tokens *adminservices.TokenPair) *AuthResponse {
 	return &AuthResponse{Tokens: *tokens}
 }

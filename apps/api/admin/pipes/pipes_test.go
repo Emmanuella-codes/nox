@@ -540,6 +540,34 @@ func (r *adminTestRepo) FindAdminContent(ctx context.Context, entityType models.
 	return nil, adminrepo.ErrModerationEntityNotFound
 }
 
+func (r *adminTestRepo) ListAdminHashtags(ctx context.Context, params adminrepo.ListAdminHashtagsParams) (*models.AdminHashtagPage, error) {
+	return &models.AdminHashtagPage{}, nil
+}
+
+func (r *adminTestRepo) ModerateHashtag(ctx context.Context, params adminrepo.ModerateHashtagParams) (*models.AdminHashtag, error) {
+	return nil, adminrepo.ErrHashtagNotFound
+}
+
+func (r *adminTestRepo) SuppressHashtag(ctx context.Context, params adminrepo.SuppressHashtagParams) (*models.AdminHashtag, error) {
+	return nil, adminrepo.ErrHashtagNotFound
+}
+
+func (r *adminTestRepo) UnsuppressHashtag(ctx context.Context, tag string) error {
+	return adminrepo.ErrHashtagNotFound
+}
+
+func (r *adminTestRepo) ListSearchSuppressions(ctx context.Context, params adminrepo.ListSearchSuppressionsParams) (*models.SearchSuppressionPage, error) {
+	return &models.SearchSuppressionPage{}, nil
+}
+
+func (r *adminTestRepo) CreateSearchSuppression(ctx context.Context, params adminrepo.CreateSearchSuppressionParams) (*models.SearchSuppression, error) {
+	return nil, nil
+}
+
+func (r *adminTestRepo) DeleteSearchSuppression(ctx context.Context, id uuid.UUID) error {
+	return adminrepo.ErrSearchSuppressionNotFound
+}
+
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {
 	t.Helper()
 
