@@ -253,6 +253,62 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)},
 			Handler:     controller.CleanupAdminMedia,
 		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/sets/:entityID/restore",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RestoreSet,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/sets/:entityID/remove",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RemoveSet,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/sets/featured",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListFeaturedSets,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/sets/:setID/feature",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.FeatureSet,
+		},
+		{
+			RouteMethod: api.RouteMethod("DELETE"), Path: "/sets/:setID/feature",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.UnfeatureSet,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/stories/:entityID/restore",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RestoreStory,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/stories/:entityID/remove",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RemoveStory,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/story-items/:entityID/restore",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RestoreStoryItem,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/story-items/:entityID/remove",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RemoveStoryItem,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/story-contributions",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListStoryContributions,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/story-contributions/:requestID/review",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ReviewStoryContribution,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/highlights",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListAdminHighlights,
+		},
+		{
+			RouteMethod: api.RouteMethod("DELETE"), Path: "/highlights/:highlightType/:highlightID",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RemoveAdminHighlight,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/reports/:reportID/private-content",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.GetReportScopedPrivateContent,
+		},
 	}
 	return append(routes, adminContentRoutes(controller, cfg, adminRepo)...)
 }

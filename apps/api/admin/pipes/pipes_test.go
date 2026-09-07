@@ -592,6 +592,34 @@ func (r *adminTestRepo) CleanupOrphanedMedia(ctx context.Context, olderThan time
 	return 0, nil
 }
 
+func (r *adminTestRepo) ListFeaturedSets(ctx context.Context, params adminrepo.ListFeaturedSetsParams) ([]models.AdminFeaturedSet, error) {
+	return []models.AdminFeaturedSet{}, nil
+}
+
+func (r *adminTestRepo) FeatureSet(ctx context.Context, setID uuid.UUID, adminID uuid.UUID, expiresAt *time.Time) (*models.AdminFeaturedSet, error) {
+	return nil, adminrepo.ErrModerationEntityNotFound
+}
+
+func (r *adminTestRepo) UnfeatureSet(ctx context.Context, setID uuid.UUID) error {
+	return adminrepo.ErrModerationEntityNotFound
+}
+
+func (r *adminTestRepo) ListStoryContributions(ctx context.Context, params adminrepo.ListStoryContributionsParams) ([]models.AdminStoryContribution, error) {
+	return []models.AdminStoryContribution{}, nil
+}
+
+func (r *adminTestRepo) ReviewStoryContribution(ctx context.Context, params adminrepo.ReviewStoryContributionParams) (*models.AdminStoryContribution, error) {
+	return nil, adminrepo.ErrModerationEntityNotFound
+}
+
+func (r *adminTestRepo) ListAdminHighlights(ctx context.Context, params adminrepo.ListAdminHighlightsParams) ([]models.AdminHighlight, error) {
+	return []models.AdminHighlight{}, nil
+}
+
+func (r *adminTestRepo) RemoveAdminHighlight(ctx context.Context, highlightType string, highlightID uuid.UUID) error {
+	return adminrepo.ErrModerationEntityNotFound
+}
+
 func adminTestUser(t *testing.T, email string, password string, verified bool) *models.User {
 	t.Helper()
 

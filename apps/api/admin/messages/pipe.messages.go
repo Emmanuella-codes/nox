@@ -60,4 +60,12 @@ const (
 	Admin_Media_Moderated            shared.PipeMessage = "admin_media_moderated_successfully"
 	Admin_Media_Cleanup_Completed    shared.PipeMessage = "admin_media_cleanup_completed_successfully"
 	Media_Not_Found                  shared.PipeMessage = "media_asset_not_found"
+	Admin_Featured_Sets_Loaded       shared.PipeMessage = "admin_featured_sets_loaded_successfully"
+	Admin_Set_Featured               shared.PipeMessage = "admin_set_featured_successfully"
+	Admin_Set_Unfeatured             shared.PipeMessage = "admin_set_unfeatured_successfully"
+	Admin_Contributions_Loaded       shared.PipeMessage = "admin_story_contributions_loaded_successfully"
+	Admin_Contribution_Reviewed      shared.PipeMessage = "admin_story_contribution_reviewed_successfully"
+	Admin_Highlights_Loaded          shared.PipeMessage = "admin_highlights_loaded_successfully"
+	Admin_Highlight_Removed          shared.PipeMessage = "admin_highlight_removed_successfully"
+	Admin_Private_Content_Loaded     shared.PipeMessage = "admin_private_content_loaded_successfully"
 )

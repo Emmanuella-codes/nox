@@ -30,6 +30,7 @@ func (r *pgRepository) searchSets(ctx context.Context, query string, limit int, 
 		    OR similarity(s.description, $3) > 0.18
 		  )
 		ORDER BY
+		  CASE WHEN EXISTS (SELECT 1 FROM set_features sf WHERE sf.set_id = s.id AND (sf.expires_at IS NULL OR sf.expires_at > now())) THEN 0 ELSE 1 END,
 		  CASE WHEN lower(s.title) = lower($3) THEN 0 ELSE 1 END,
 		  CASE WHEN s.title ILIKE $4 THEN 0 ELSE 1 END,
 		  GREATEST(similarity(s.title, $3), similarity(COALESCE(s.description, ''), $3)) DESC,

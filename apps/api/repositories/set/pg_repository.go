@@ -72,7 +72,8 @@ func (r *pgRepository) FindSetsWithFilters(ctx context.Context, genreTag string,
 		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
 		WHERE ($1 = '' OR $1 = ANY(s.genre_tags))
 		  AND s.moderation_status = 'active'
-		ORDER BY `+orderBy+`
+		ORDER BY CASE WHEN EXISTS (SELECT 1 FROM set_features sf WHERE sf.set_id = s.id AND (sf.expires_at IS NULL OR sf.expires_at > now())) THEN 0 ELSE 1 END,
+		`+orderBy+`
 		LIMIT $2 OFFSET $3
 	`, genreTag, normalizeLimit(limit), normalizeOffset(offset))
 	if err != nil {
@@ -89,7 +90,8 @@ func (r *pgRepository) FindSetsByPersonaID(ctx context.Context, personaID uuid.U
 		FROM sets s
 		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
 		WHERE s.persona_id = $1 AND s.moderation_status = 'active'
-		ORDER BY s.created_at DESC
+		ORDER BY CASE WHEN EXISTS (SELECT 1 FROM set_features sf WHERE sf.set_id = s.id AND (sf.expires_at IS NULL OR sf.expires_at > now())) THEN 0 ELSE 1 END,
+		 s.created_at DESC
 		LIMIT $2 OFFSET $3
 	`, personaID, normalizeLimit(limit), normalizeOffset(offset))
 	if err != nil {

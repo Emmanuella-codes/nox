@@ -246,3 +246,29 @@ func (r adminMiddlewareRepo) ModerateMedia(ctx context.Context, params adminrepo
 func (r adminMiddlewareRepo) CleanupOrphanedMedia(ctx context.Context, olderThan time.Time, limit int) (int64, error) {
 	return 0, nil
 }
+
+func (r adminMiddlewareRepo) ListFeaturedSets(ctx context.Context, params adminrepo.ListFeaturedSetsParams) ([]models.AdminFeaturedSet, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) FeatureSet(ctx context.Context, setID uuid.UUID, adminID uuid.UUID, expiresAt *time.Time) (*models.AdminFeaturedSet, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) UnfeatureSet(ctx context.Context, setID uuid.UUID) error { return nil }
+
+func (r adminMiddlewareRepo) ListStoryContributions(ctx context.Context, params adminrepo.ListStoryContributionsParams) ([]models.AdminStoryContribution, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ReviewStoryContribution(ctx context.Context, params adminrepo.ReviewStoryContributionParams) (*models.AdminStoryContribution, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) ListAdminHighlights(ctx context.Context, params adminrepo.ListAdminHighlightsParams) ([]models.AdminHighlight, error) {
+	return nil, nil
+}
+
+func (r adminMiddlewareRepo) RemoveAdminHighlight(ctx context.Context, highlightType string, highlightID uuid.UUID) error {
+	return nil
+}

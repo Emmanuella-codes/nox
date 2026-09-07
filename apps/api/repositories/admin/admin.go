@@ -138,6 +138,30 @@ type ModerateMediaParams struct {
 	AdminID      uuid.UUID
 }
 
+type ListFeaturedSetsParams struct {
+	Limit  int
+	Offset int
+}
+
+type ListStoryContributionsParams struct {
+	Status *models.StoryContributionRequestStatus
+	Limit  int
+	Offset int
+}
+
+type ReviewStoryContributionParams struct {
+	RequestID uuid.UUID
+	Action    string
+	Reason    string
+	AdminID   uuid.UUID
+}
+
+type ListAdminHighlightsParams struct {
+	HighlightType string
+	Limit         int
+	Offset        int
+}
+
 type ListModerationActionsParams struct {
 	EntityType *models.ModerationEntityType
 	Status     *models.ModerationStatus
@@ -190,6 +214,13 @@ type AdminRepository interface {
 	CorrectMedia(ctx context.Context, params CorrectMediaParams) (*models.AdminMediaAsset, error)
 	ModerateMedia(ctx context.Context, params ModerateMediaParams) (*models.AdminMediaAsset, error)
 	CleanupOrphanedMedia(ctx context.Context, olderThan time.Time, limit int) (int64, error)
+	ListFeaturedSets(ctx context.Context, params ListFeaturedSetsParams) ([]models.AdminFeaturedSet, error)
+	FeatureSet(ctx context.Context, setID uuid.UUID, adminID uuid.UUID, expiresAt *time.Time) (*models.AdminFeaturedSet, error)
+	UnfeatureSet(ctx context.Context, setID uuid.UUID) error
+	ListStoryContributions(ctx context.Context, params ListStoryContributionsParams) ([]models.AdminStoryContribution, error)
+	ReviewStoryContribution(ctx context.Context, params ReviewStoryContributionParams) (*models.AdminStoryContribution, error)
+	ListAdminHighlights(ctx context.Context, params ListAdminHighlightsParams) ([]models.AdminHighlight, error)
+	RemoveAdminHighlight(ctx context.Context, highlightType string, highlightID uuid.UUID) error
 }
 
 func NewAdminRepository(db *pgxpool.Pool) AdminRepository {
