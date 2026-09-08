@@ -79,6 +79,8 @@ func pipeErrorStatus(message shared.PipeMessage) int {
 		return fiber.StatusNotFound
 	case messages.Crew_Not_Found:
 		return fiber.StatusNotFound
+	case messages.Notification_Device_Not_Found, messages.Notification_Outbox_Not_Found:
+		return fiber.StatusNotFound
 	case messages.Invalid_Moderation_Status:
 		return fiber.StatusBadRequest
 	case messages.Invalid_Report_Status, messages.Invalid_Report_Action:

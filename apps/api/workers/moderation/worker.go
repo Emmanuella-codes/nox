@@ -28,6 +28,15 @@ func (w *Worker) Run(ctx context.Context) error {
 		if _, err := w.db.Exec(ctx, `DELETE FROM message_report_evidence WHERE expires_at <= now()`); err != nil {
 			log.Error().Err(err).Msg("message evidence cleanup tick failed")
 		}
+		if _, err := w.db.Exec(ctx, `UPDATE notification_outbox SET status = 'failed', last_error = 'stale_processing_recovered', next_attempt_at = now(), worker_id = '', claimed_at = NULL, updated_at = now() WHERE status = 'processing' AND claimed_at < now() - INTERVAL '15 minutes'`); err != nil {
+			log.Error().Err(err).Msg("notification processing recovery failed")
+		}
+		if _, err := w.db.Exec(ctx, `DELETE FROM notification_outbox WHERE status IN ('sent', 'skipped', 'dead') AND updated_at < now() - INTERVAL '90 days'`); err != nil {
+			log.Error().Err(err).Msg("notification outbox cleanup failed")
+		}
+		if _, err := w.db.Exec(ctx, `UPDATE notification_devices SET disabled_at = COALESCE(disabled_at, now()), updated_at = now() WHERE disabled_at IS NULL AND last_seen_at < now() - INTERVAL '180 days'`); err != nil {
+			log.Error().Err(err).Msg("stale notification device cleanup failed")
+		}
 		return nil
 	})
 }

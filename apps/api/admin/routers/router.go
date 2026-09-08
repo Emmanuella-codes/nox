@@ -310,6 +310,22 @@ func AdminRoutes(controller *controllers.AdminController, cfg *config.Config, re
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.GetReportScopedPrivateContent,
 		},
 		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/notifications/devices",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListNotificationDevices,
+		},
+		{
+			RouteMethod: api.RouteMethod("GET"), Path: "/notifications/outbox",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListNotificationOutbox,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/notifications/outbox/:outboxID/retry",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.RetryNotificationOutbox,
+		},
+		{
+			RouteMethod: api.RouteMethod("POST"), Path: "/notifications/devices/:deviceID/disable",
+			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.DisableNotificationDevice,
+		},
+		{
 			RouteMethod: api.RouteMethod("GET"), Path: "/crews",
 			Middlewares: []typings.FiberMiddleware{middleware.AdminJWT(cfg, adminRepo)}, Handler: controller.ListCrews,
 		},
