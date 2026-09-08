@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
@@ -23,6 +24,9 @@ var reportTargets = map[models.ReportTargetType]struct {
 }
 
 func (r *pgRepository) CreateReport(ctx context.Context, params CreateReportParams) (*models.Report, error) {
+	if params.TargetType == models.ReportTargetMessage {
+		return r.createMessageReport(ctx, params)
+	}
 	target, ok := reportTargets[params.TargetType]
 	if !ok {
 		return nil, ErrModerationEntityNotFound
@@ -54,6 +58,54 @@ func (r *pgRepository) CreateReport(ctx context.Context, params CreateReportPara
 		if isAdminUniqueViolation(err) {
 			return nil, ErrReportAlreadyExists
 		}
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
+func (r *pgRepository) createMessageReport(ctx context.Context, params CreateReportParams) (*models.Report, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	var senderID, conversationID, senderPersonaID uuid.UUID
+	var body string
+	var messageType models.MessageType
+	var createdAt time.Time
+	var editedAt, deletedAt *time.Time
+	err = tx.QueryRow(ctx, `SELECT m.sender_user_id, m.conversation_id, m.sender_persona_id, m.body, m.message_type, m.created_at, m.edited_at, m.deleted_at
+		FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id
+		WHERE m.id = $1 AND cm.user_id = $2 AND cm.left_at IS NULL`, params.TargetID, params.ReporterUserID).
+		Scan(&senderID, &conversationID, &senderPersonaID, &body, &messageType, &createdAt, &editedAt, &deletedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrModerationEntityNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if senderID == params.ReporterUserID {
+		return nil, ErrSelfReport
+	}
+	row := tx.QueryRow(ctx, `INSERT INTO reports (reporter_user_id, reporter_persona_id, target_type, target_id, reason, description)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, reporter_user_id, reporter_persona_id, target_type, target_id, reason, description, status, assigned_admin_id, resolution_note, created_at, updated_at, resolved_at`,
+		params.ReporterUserID, params.ReporterPersonaID, params.TargetType, params.TargetID, params.Reason, params.Description)
+	report, err := scanReport(row)
+	if err != nil {
+		if isAdminUniqueViolation(err) {
+			return nil, ErrReportAlreadyExists
+		}
+		return nil, err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO message_report_evidence
+		(report_id, message_id, conversation_id, sender_user_id, sender_persona_id, body, message_type, attachments, message_created_at, message_edited_at, message_deleted_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE((SELECT jsonb_agg(jsonb_build_object('media_asset_id', media_asset_id, 'position', position) ORDER BY position) FROM message_attachments WHERE message_id = $2), '[]'::jsonb), $8, $9, $10)`,
+		report.ID, params.TargetID, conversationID, senderID, senderPersonaID, body, messageType, createdAt, editedAt, deletedAt)
+	if err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {

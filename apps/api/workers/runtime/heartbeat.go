@@ -12,6 +12,7 @@ const (
 	WorkerNotificationsKey = "notifications"
 	WorkerStoriesKey       = "stories"
 	WorkerCrewsKey         = "crews"
+	WorkerModerationKey    = "moderation"
 )
 
 func WorkerHeartbeatKey(name string) string {

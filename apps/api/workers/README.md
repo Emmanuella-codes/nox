@@ -8,6 +8,7 @@ Commands:
 - `go run ./workers/stories`
 - `go run ./workers/media`
 - `go run ./workers/crews`
+- `go run ./workers/moderation`
 
 Shared runtime behavior:
 
@@ -34,3 +35,5 @@ Current worker-specific config:
   - `MEDIA_FAILED_RETENTION`
 - crews:
   - `CREW_CLEANUP_INTERVAL`
+- moderation:
+  - `MODERATION_CLEANUP_INTERVAL`

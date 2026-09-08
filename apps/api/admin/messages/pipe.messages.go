@@ -74,4 +74,5 @@ const (
 	Admin_Crew_Sharing_Disabled      shared.PipeMessage = "admin_crew_location_sharing_disabled_successfully"
 	Admin_Crew_Locations_Loaded      shared.PipeMessage = "admin_crew_locations_loaded_successfully"
 	Crew_Not_Found                   shared.PipeMessage = "crew_not_found"
+	Admin_Message_Evidence_Loaded    shared.PipeMessage = "admin_message_evidence_loaded_successfully"
 )

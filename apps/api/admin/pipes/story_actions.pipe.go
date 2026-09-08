@@ -121,9 +121,12 @@ func (p *AdminPipe) RemoveAdminHighlightPipe(ctx context.Context, actorID, highl
 	return shared.PipeSuccess[any](messages.Admin_Highlight_Removed, nil)
 }
 
-func (p *AdminPipe) GetReportScopedPrivateContentPipe(ctx context.Context, actorID, reportID uuid.UUID) *shared.PipeRes[models.AdminContentRecord] {
+func (p *AdminPipe) GetReportScopedPrivateContentPipe(ctx context.Context, actorID, reportID uuid.UUID, reason string) *shared.PipeRes[models.AdminContentRecord] {
 	if message := p.requireActiveAdmin(ctx, actorID); message != "" {
 		return shared.PipeError[models.AdminContentRecord](shared.CreatePipeMessage(message))
+	}
+	if strings.TrimSpace(reason) == "" {
+		return shared.PipeError[models.AdminContentRecord](messages.Invalid_Payload)
 	}
 	report, err := p.adminRepo.FindReportByID(ctx, reportID)
 	if err != nil {
@@ -135,6 +138,8 @@ func (p *AdminPipe) GetReportScopedPrivateContentPipe(ctx context.Context, actor
 	}
 	var entity models.ModerationEntityType
 	switch report.TargetType {
+	case models.ReportTargetMessage:
+		return p.getMessageEvidencePipe(ctx, actorID, reportID, report.TargetID, reason)
 	case models.ReportTargetStory:
 		entity = models.ModerationEntityStory
 	case models.ReportTargetStoryItem:
@@ -150,6 +155,6 @@ func (p *AdminPipe) GetReportScopedPrivateContentPipe(ctx context.Context, actor
 		logInternalError(err, "private_content.load")
 		return shared.PipeError[models.AdminContentRecord](messages.Internal_Error)
 	}
-	p.audit(ctx, actorID, "admin.private_content.read", map[string]any{"report_id": reportID.String(), "target_type": report.TargetType, "target_id": report.TargetID.String()})
+	p.audit(ctx, actorID, "admin.private_content.read", map[string]any{"report_id": reportID.String(), "target_type": report.TargetType, "target_id": report.TargetID.String(), "reason": reason})
 	return shared.PipeSuccess(messages.Admin_Private_Content_Loaded, item)
 }

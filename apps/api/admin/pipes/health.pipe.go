@@ -76,6 +76,7 @@ func (p *AdminPipe) HealthPipe(ctx context.Context) *shared.PipeRes[HealthRespon
 	p.loadWorkerHealth(ctx, &response, worker_runtime.WorkerNotificationsKey, p.cfg.PushWorkerPollInterval)
 	p.loadWorkerHealth(ctx, &response, worker_runtime.WorkerStoriesKey, p.cfg.StoryCleanupInterval)
 	p.loadWorkerHealth(ctx, &response, worker_runtime.WorkerCrewsKey, p.cfg.CrewCleanupInterval)
+	p.loadWorkerHealth(ctx, &response, worker_runtime.WorkerModerationKey, p.cfg.ModerationCleanupInterval)
 
 	if response.Database.Status == "down" && response.Redis.Status == "down" {
 		response.Status = "down"

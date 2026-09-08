@@ -201,7 +201,11 @@ func (ac *AdminController) GetReportScopedPrivateContent(ctx *fiber.Ctx) error {
 	if err != nil {
 		return pipeError(ctx, fiber.StatusBadRequest, "invalid_payload")
 	}
-	res := ac.pipe.GetReportScopedPrivateContentPipe(requestContext(ctx), adminUserID, reportID)
+	reason := strings.TrimSpace(ctx.Query("reason"))
+	if reason == "" {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_payload")
+	}
+	res := ac.pipe.GetReportScopedPrivateContentPipe(requestContext(ctx), adminUserID, reportID, reason)
 	if res.Success {
 		return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 	}

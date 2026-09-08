@@ -24,6 +24,7 @@ const (
 	ReportTargetStoryItem ReportTargetType = "story_item"
 	ReportTargetSet       ReportTargetType = "set"
 	ReportTargetEvent     ReportTargetType = "event"
+	ReportTargetMessage   ReportTargetType = "message"
 )
 
 type Report struct {

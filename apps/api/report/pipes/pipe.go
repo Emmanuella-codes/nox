@@ -62,6 +62,8 @@ func validTarget(target models.ReportTargetType) bool {
 	case models.ReportTargetPersona, models.ReportTargetPost, models.ReportTargetComment,
 		models.ReportTargetStory, models.ReportTargetStoryItem, models.ReportTargetSet, models.ReportTargetEvent:
 		return true
+	case models.ReportTargetMessage:
+		return true
 	default:
 		return false
 	}

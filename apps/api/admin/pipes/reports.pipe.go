@@ -85,12 +85,27 @@ func (p *AdminPipe) ResolveReportPipe(ctx context.Context, actorID, reportID uui
 	if !ok || (status != models.ModerationStatusActive && dto.Reason == "") {
 		return shared.PipeError[models.Report](messages.Invalid_Report_Action)
 	}
-	report, err := p.adminRepo.ResolveReport(ctx, adminrepo.ResolveReportParams{ReportID: reportID, Status: status, Reason: dto.Reason, AdminID: actorID, Resolution: dto.Resolution})
+	report, err := p.adminRepo.FindReportByID(ctx, reportID)
+	if err != nil {
+		return reportError[models.Report](err)
+	}
+	if report.TargetType == models.ReportTargetMessage {
+		if dto.Action != "remove" {
+			return shared.PipeError[models.Report](messages.Invalid_Report_Action)
+		}
+		resolved, err := p.resolveMessageReport(ctx, actorID, reportID, dto.Reason, dto.Resolution)
+		if err != nil {
+			return reportError[models.Report](err)
+		}
+		p.audit(ctx, actorID, "admin.messaging_abuse.resolve", map[string]any{"report_id": reportID.String(), "action": dto.Action})
+		return shared.PipeSuccess(messages.Report_Resolved, resolved)
+	}
+	resolvedReport, err := p.adminRepo.ResolveReport(ctx, adminrepo.ResolveReportParams{ReportID: reportID, Status: status, Reason: dto.Reason, AdminID: actorID, Resolution: dto.Resolution})
 	if err != nil {
 		return reportError[models.Report](err)
 	}
 	p.audit(ctx, actorID, "admin.reports.resolve", map[string]any{"report_id": reportID.String(), "action": dto.Action})
-	return shared.PipeSuccess(messages.Report_Resolved, report)
+	return shared.PipeSuccess(messages.Report_Resolved, resolvedReport)
 }
 
 func reportModerationStatus(action string) (models.ModerationStatus, bool) {

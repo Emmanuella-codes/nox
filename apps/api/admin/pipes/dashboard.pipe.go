@@ -30,6 +30,7 @@ func dashboardWorkers(health *HealthResponse) map[string]models.AdminDashboardWo
 		worker_runtime.WorkerNotificationsKey: {Status: "offline"},
 		worker_runtime.WorkerStoriesKey:       {Status: "offline"},
 		worker_runtime.WorkerCrewsKey:         {Status: "offline"},
+		worker_runtime.WorkerModerationKey:    {Status: "offline"},
 	}
 	if health == nil {
 		return workers
