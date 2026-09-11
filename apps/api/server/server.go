@@ -4,6 +4,10 @@ import (
 	"context"
 	"time"
 
+	admin_controllers "github.com/emmanuella-codes/nox/admin/controllers"
+	admin_pipes "github.com/emmanuella-codes/nox/admin/pipes"
+	admin_routers "github.com/emmanuella-codes/nox/admin/routers"
+	admin_services "github.com/emmanuella-codes/nox/admin/services"
 	"github.com/emmanuella-codes/nox/auth/controllers"
 	"github.com/emmanuella-codes/nox/auth/pipes"
 	"github.com/emmanuella-codes/nox/auth/routers"
@@ -46,6 +50,9 @@ import (
 	preference_controllers "github.com/emmanuella-codes/nox/preference/controllers"
 	preference_pipes "github.com/emmanuella-codes/nox/preference/pipes"
 	preference_routers "github.com/emmanuella-codes/nox/preference/routers"
+	report_controllers "github.com/emmanuella-codes/nox/report/controllers"
+	report_pipes "github.com/emmanuella-codes/nox/report/pipes"
+	report_routers "github.com/emmanuella-codes/nox/report/routers"
 	"github.com/emmanuella-codes/nox/repositories"
 	search_controllers "github.com/emmanuella-codes/nox/search/controllers"
 	search_pipes "github.com/emmanuella-codes/nox/search/pipes"
@@ -61,12 +68,12 @@ import (
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
-// RunServer wires dependencies and starts the API server.
-func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Client, repos *repositories.Repositories) {
+func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, redisClient *redis.Client, repos *repositories.Repositories) {
 	app := fiber.New(fiber.Config{
 		AppName:      "nox-api",
 		ReadTimeout:  10 * time.Second,
@@ -74,7 +81,9 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 		IdleTimeout:  120 * time.Second,
 	})
 
+	app.Use(middleware.RequestID())
 	app.Use(middleware.Logger())
+	app.Use(middleware.Recover())
 
 	app.Use(cors.New(cors.Config{
 		AllowMethods: "GET,POST,PUT,PATCH,OPTIONS,DELETE",
@@ -105,6 +114,17 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	})
 
 	authController := controllers.NewAuthController(authPipe)
+	adminController := admin_controllers.NewAdminController(admin_pipes.NewAdminPipe(admin_pipes.AdminPipeDeps{
+		AdminRepo:    repos.Admin,
+		UserRepo:     repos.User,
+		HashService:  services.NewHashService(),
+		OTPService:   services.NewOTPService(),
+		EmailService: services.NewEmailService(mailProvider),
+		TokenService: admin_services.NewTokenService(cfg),
+		DB:           dbPool,
+		Redis:        redisClient,
+		Config:       cfg,
+	}))
 	personaController := persona_controllers.NewPersonaController(persona_pipes.NewPersonaPipe(repos.Persona, repos.Preference))
 	postController := post_controllers.NewPostController(post_pipes.NewPostPipe(repos.Post, repos.Persona, repos.Like, repos.Hashtag, repos.Media, redisClient, repos.Preference))
 	notificationPipe := notification_pipes.NewNotificationPipe(repos.Notification, repos.Persona, notificationHub)
@@ -119,12 +139,14 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	messagingController := messaging_controllers.NewMessagingController(messaging_pipes.NewMessagingPipe(repos.Messaging, repos.Persona, repos.Media, repos.Follow, realtimeHub, repos.Notification, notificationPipe, repos.Preference), repos.Messaging, realtimeHub)
 	notificationController := notification_controllers.NewNotificationController(notificationPipe, notificationHub)
 	preferenceController := preference_controllers.NewPreferenceController(preference_pipes.NewPreferencePipe(repos.Preference, repos.Persona, repos.Post, repos.Event, repos.Set))
+	reportController := report_controllers.NewReportController(report_pipes.NewReportPipe(repos.Admin, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 
 	api := app.Group("/api/v1")
 
 	shared_api.BaseRouter(api.Group("/auth"), routers.AuthRoutes(authController, redisClient))
+	shared_api.BaseRouter(api.Group("/admin"), admin_routers.AdminRoutes(adminController, cfg, redisClient, repos.Admin))
 	shared_api.BaseRouter(api.Group("/personas"), persona_routers.PersonaRoutes(personaController, cfg, repos.Persona))
 	shared_api.BaseRouter(api.Group("/posts"), post_routers.PostRoutes(postController, cfg, repos.Persona))
 	shared_api.BaseRouter(api, comment_routers.CommentRoutes(commentController, cfg))
@@ -138,6 +160,7 @@ func RunServer(ctx context.Context, cfg *config.Config, redisClient *redis.Clien
 	shared_api.BaseRouter(api, messaging_routers.MessagingRoutes(messagingController, cfg))
 	shared_api.BaseRouter(api, notification_routers.NotificationRoutes(notificationController, cfg))
 	shared_api.BaseRouter(api.Group("/preferences"), preference_routers.PreferenceRoutes(preferenceController, cfg))
+	shared_api.BaseRouter(api.Group("/reports"), report_routers.ReportRoutes(reportController, cfg))
 	shared_api.BaseRouter(api.Group("/sets"), set_routers.SetRoutes(setController, cfg))
 	shared_api.BaseRouter(api, story_routers.StoryRoutes(storyController, cfg))
 

@@ -97,6 +97,8 @@ func (r *pgRepository) FindTagsByPostIDs(ctx context.Context, postIDs []uuid.UUI
 		FROM post_hashtags ph
 		INNER JOIN hashtags h ON h.id = ph.hashtag_id
 		WHERE ph.post_id = ANY($1)
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = h.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = h.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 		ORDER BY ph.created_at ASC
 	`, postIDs)
 	if err != nil {
@@ -120,6 +122,8 @@ func (r *pgRepository) FindTrending(ctx context.Context, limit int) ([]*models.H
 		SELECT id, tag, post_count, created_at
 		FROM hashtags
 		WHERE post_count > 0
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = hashtags.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = hashtags.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 		ORDER BY post_count DESC, tag ASC
 		LIMIT $1
 	`, normalizeLimit(limit))
@@ -144,6 +148,8 @@ func (r *pgRepository) FindByTag(ctx context.Context, tag string) (*models.Hasht
 		SELECT id, tag, post_count, created_at
 		FROM hashtags
 		WHERE tag = $1
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = hashtags.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = hashtags.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 	`, NormalizeTag(tag))
 
 	hashtag, err := scanHashtag(row)
@@ -163,7 +169,11 @@ func (r *pgRepository) FindPostsByTag(ctx context.Context, tag string, limit int
 		INNER JOIN posts p ON p.id = ph.post_id
 		LEFT JOIN personas pe ON pe.id = p.persona_id
 		WHERE h.tag = $1
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = h.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = h.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 		  AND (p.posting_mode = 'anonymous' OR pe.persona_type = 'visible')
+		  AND p.moderation_status = 'active'
+		  AND (pe.id IS NULL OR pe.moderation_status = 'active')
 		ORDER BY p.created_at DESC
 		LIMIT $2 OFFSET $3
 	`, NormalizeTag(tag), normalizeLimit(limit), normalizeOffset(offset))
@@ -188,6 +198,8 @@ func (r *pgRepository) Search(ctx context.Context, query string, limit int, offs
 		SELECT id, tag, post_count, created_at
 		FROM hashtags
 		WHERE post_count > 0
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = hashtags.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = hashtags.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 		  AND (
 		    tag ILIKE $1
 		    OR similarity(tag, $2) > 0.25

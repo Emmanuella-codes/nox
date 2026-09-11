@@ -122,6 +122,13 @@ func TestLoginPipeRejectsMissingInvalidAndUnverifiedUsers(t *testing.T) {
 	if unverified.Message != messages.Email_Not_Verified {
 		t.Fatalf("expected unverified user to return %q, got %q", messages.Email_Not_Verified, unverified.Message)
 	}
+
+	repo.foundUser = pipeTestUser(t, "ada@example.com", "password123", true)
+	repo.foundUser.Status = models.UserStatusSuspended
+	suspended := pipe.LoginPipe(ctx, dtos.LoginDTO{Email: "ada@example.com", Password: "password123"})
+	if suspended.Message != messages.Account_Suspended {
+		t.Fatalf("expected suspended user to return %q, got %q", messages.Account_Suspended, suspended.Message)
+	}
 }
 
 func TestRefreshPipeRotatesRefreshTokenSession(t *testing.T) {
@@ -413,6 +420,13 @@ func (r *pipeTestUserRepo) CreateUser(ctx context.Context, fullname string, emai
 func (r *pipeTestUserRepo) FindUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	if r.findErr != nil {
 		return nil, r.findErr
+	}
+	return r.foundUser, nil
+}
+
+func (r *pipeTestUserRepo) FindUserByID(ctx context.Context, userID string) (*models.User, error) {
+	if r.foundUser == nil || r.foundUser.ID.String() != userID {
+		return nil, nil
 	}
 	return r.foundUser, nil
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/auth/dtos"
 	"github.com/emmanuella-codes/nox/auth/messages"
+	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/shared"
 )
 
@@ -20,6 +21,9 @@ func (p *AuthPipe) LoginPipe(ctx context.Context, dto dtos.LoginDTO) *shared.Pip
 	}
 	if !p.hashService.ComparePassword(foundUser.Password, dto.Password) {
 		return shared.PipeError[AuthResponse](messages.Invalid_Credentials)
+	}
+	if models.NormalizeUserStatus(foundUser.Status) != models.UserStatusActive {
+		return shared.PipeError[AuthResponse](messages.Account_Suspended)
 	}
 	if !foundUser.EmailVerified {
 		return shared.PipeError[AuthResponse](messages.Email_Not_Verified)

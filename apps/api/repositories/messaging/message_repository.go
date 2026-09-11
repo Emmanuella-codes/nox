@@ -118,6 +118,7 @@ func (r *pgRepository) FindMessageAttachmentsByMessageIDs(ctx context.Context, m
 		FROM message_attachments ma
 		JOIN media_assets a ON a.id = ma.media_asset_id
 		WHERE ma.message_id = ANY($1)
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = a.id), 'active') = 'active'
 		ORDER BY ma.message_id, ma.position ASC
 	`, messageIDs)
 	if err != nil {

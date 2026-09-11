@@ -11,11 +11,13 @@ import (
 // FindPostByID fetches one post by id.
 func (r *pgRepository) FindPostByID(ctx context.Context, postID uuid.UUID) (*models.Post, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id, author_user_id, persona_id, posting_mode, event_id, body, post_type,
-		       COALESCE(media_url, ''), COALESCE(media_type, ''), COALESCE(location, ''),
-		       like_count, comment_count, repost_count, is_repost, repost_of, created_at
-		FROM posts
-		WHERE id = $1
+		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
+		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
+		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
+		FROM posts p
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
+		WHERE p.id = $1 AND p.moderation_status = 'active'
+		  AND (p.event_id IS NULL OR EXISTS (SELECT 1 FROM events e WHERE e.id = p.event_id AND e.moderation_status = 'active'))
 	`, postID)
 	post, err := scanPost(row)
 	if err != nil {
@@ -27,12 +29,14 @@ func (r *pgRepository) FindPostByID(ctx context.Context, postID uuid.UUID) (*mod
 // FindPostsByPersonaID fetches public posts for a public profile.
 func (r *pgRepository) FindPostsByPersonaID(ctx context.Context, personaID uuid.UUID, limit int) ([]*models.Post, error) {
 	return r.findPosts(ctx, `
-		SELECT id, author_user_id, persona_id, posting_mode, event_id, body, post_type,
-		       COALESCE(media_url, ''), COALESCE(media_type, ''), COALESCE(location, ''),
-		       like_count, comment_count, repost_count, is_repost, repost_of, created_at
-		FROM posts
-		WHERE persona_id = $1 AND posting_mode = 'public'
-		ORDER BY created_at DESC
+		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
+		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
+		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
+		FROM posts p
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
+		WHERE p.persona_id = $1 AND p.posting_mode = 'public' AND p.moderation_status = 'active'
+		  AND (p.event_id IS NULL OR EXISTS (SELECT 1 FROM events e WHERE e.id = p.event_id AND e.moderation_status = 'active'))
+		ORDER BY p.created_at DESC
 		LIMIT $2
 	`, personaID, normalizeLimit(limit))
 }
@@ -40,12 +44,14 @@ func (r *pgRepository) FindPostsByPersonaID(ctx context.Context, personaID uuid.
 // FindPostsByAuthorUserID fetches all posts for one owner, including anonymous posts.
 func (r *pgRepository) FindPostsByAuthorUserID(ctx context.Context, authorUserID uuid.UUID, limit int) ([]*models.Post, error) {
 	return r.findPosts(ctx, `
-		SELECT id, author_user_id, persona_id, posting_mode, event_id, body, post_type,
-		       COALESCE(media_url, ''), COALESCE(media_type, ''), COALESCE(location, ''),
-		       like_count, comment_count, repost_count, is_repost, repost_of, created_at
-		FROM posts
-		WHERE author_user_id = $1
-		ORDER BY created_at DESC
+		SELECT p.id, p.author_user_id, p.persona_id, p.posting_mode, p.event_id, p.body, p.post_type,
+		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
+		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
+		FROM posts p
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
+		WHERE p.author_user_id = $1 AND p.moderation_status = 'active'
+		  AND (p.event_id IS NULL OR EXISTS (SELECT 1 FROM events e WHERE e.id = p.event_id AND e.moderation_status = 'active'))
+		ORDER BY p.created_at DESC
 		LIMIT $2
 	`, authorUserID, normalizeLimit(limit))
 }
@@ -63,6 +69,7 @@ func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, o
 		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
 		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
 		FROM posts p
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
 		LEFT JOIN persona_follows pf
 		  ON pf.follower_id = $1 AND pf.following_id = p.persona_id
 		CROSS JOIN viewer v
@@ -87,6 +94,8 @@ func (r *pgRepository) FindFeedPosts(ctx context.Context, personaID uuid.UUID, o
 			OR p.created_at < $2
 			OR (p.created_at = $2 AND p.id < $3)
 		  )
+		  AND p.moderation_status = 'active'
+		  AND (p.event_id IS NULL OR EXISTS (SELECT 1 FROM events e WHERE e.id = p.event_id AND e.moderation_status = 'active'))
 		ORDER BY
 		  CASE
 		    WHEN p.author_user_id = v.user_id THEN 0
@@ -113,6 +122,7 @@ func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uui
 		       COALESCE(p.media_url, ''), COALESCE(p.media_type, ''), COALESCE(p.location, ''),
 		       p.like_count, p.comment_count, p.repost_count, p.is_repost, p.repost_of, p.created_at
 		FROM posts p
+		INNER JOIN personas pe ON pe.id = p.persona_id AND pe.moderation_status = 'active'
 		LEFT JOIN persona_follows pf
 		  ON pf.follower_id = $1 AND pf.following_id = p.persona_id
 		CROSS JOIN viewer v
@@ -134,6 +144,8 @@ func (r *pgRepository) FindFollowingFeedPosts(ctx context.Context, personaID uui
 			OR p.created_at < $2
 			OR (p.created_at = $2 AND p.id < $3)
 		  )
+		  AND p.moderation_status = 'active'
+		  AND (p.event_id IS NULL OR EXISTS (SELECT 1 FROM events e WHERE e.id = p.event_id AND e.moderation_status = 'active'))
 		ORDER BY
 		  CASE WHEN p.author_user_id = v.user_id THEN 0 ELSE 1 END ASC,
 		  p.created_at DESC,

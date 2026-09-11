@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"strings"
 
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,10 +17,16 @@ func newPgRepository(db *pgxpool.Pool) *pgRepository {
 }
 
 func (r *pgRepository) Search(ctx context.Context, query string, options Options) (*Results, error) {
+	suppressed, err := r.isSearchSuppressed(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	if suppressed {
+		return &Results{}, nil
+	}
 	normalizedOptions := NormalizeOptions(options)
 	fetchLimit := normalizedOptions.Limit + 1
 	results := &Results{}
-	var err error
 	if normalizedOptions.Scope == "all" || normalizedOptions.Scope == "personas" {
 		results.Personas, err = r.searchPersonas(ctx, query, fetchLimit, normalizedOptions.Offset)
 		if err != nil {
@@ -54,12 +61,23 @@ func (r *pgRepository) Search(ctx context.Context, query string, options Options
 	return results, nil
 }
 
+func (r *pgRepository) isSearchSuppressed(ctx context.Context, query string) (bool, error) {
+	normalized := normalizeHashtagQuery(query)
+	var exists bool
+	err := r.db.QueryRow(ctx, `SELECT EXISTS (
+		SELECT 1 FROM search_suppressions
+		WHERE normalized_query = $1 AND (expires_at IS NULL OR expires_at > now())
+	)`, strings.ToLower(strings.TrimSpace(normalized))).Scan(&exists)
+	return exists, err
+}
+
 func (r *pgRepository) searchPersonas(ctx context.Context, query string, limit int, offset int) ([]*models.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
 		WHERE persona_type = 'visible'
+		  AND moderation_status = 'active'
 		  AND (
 		    handle ILIKE $1
 		    OR display_name ILIKE $1
@@ -122,6 +140,8 @@ func (r *pgRepository) searchPosts(ctx context.Context, query string, limit int,
 		FROM posts p
 		LEFT JOIN personas pe ON pe.id = p.persona_id
 		WHERE (p.posting_mode = 'anonymous' OR pe.persona_type = 'visible')
+		  AND p.moderation_status = 'active'
+		  AND (pe.id IS NULL OR pe.moderation_status = 'active')
 		  AND (
 		    p.body ILIKE $1
 		    OR p.location ILIKE $1
@@ -158,7 +178,9 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		SELECT id, title, venue, location, event_date, description, COALESCE(cover_url, ''),
 		       COALESCE(ticket_url, ''), price_ngn, genre_tags, organizer_id, created_at
 		FROM events
-		WHERE title ILIKE $1
+		WHERE moderation_status = 'active'
+		  AND (
+		   title ILIKE $1
 		   OR venue ILIKE $1
 		   OR location ILIKE $1
 		   OR description ILIKE $1
@@ -166,6 +188,7 @@ func (r *pgRepository) searchEvents(ctx context.Context, query string, limit int
 		   OR similarity(title, $3) > 0.25
 		   OR similarity(venue, $3) > 0.25
 		   OR similarity(location, $3) > 0.25
+		  )
 		ORDER BY
 		  CASE WHEN lower(title) = lower($3) THEN 0 ELSE 1 END,
 		  CASE WHEN title ILIKE $4 THEN 0 ELSE 1 END,
@@ -210,6 +233,8 @@ func (r *pgRepository) searchHashtags(ctx context.Context, query string, limit i
 		SELECT id, tag, post_count, created_at
 		FROM hashtags
 		WHERE post_count > 0
+		  AND COALESCE((SELECT hm.status FROM hashtag_moderation hm WHERE hm.hashtag_id = hashtags.id), 'active') = 'active'
+		  AND NOT EXISTS (SELECT 1 FROM hashtag_suppressions hs WHERE hs.hashtag_id = hashtags.id AND (hs.expires_at IS NULL OR hs.expires_at > now()))
 		  AND (
 		    tag ILIKE $1
 		    OR similarity(tag, $2) > 0.25

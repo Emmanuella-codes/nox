@@ -130,7 +130,7 @@ func (p *workerProviderStub) Send(ctx context.Context, device *models.Notificati
 
 func TestProcessOutboxSkipsAlreadyReadMessagePush(t *testing.T) {
 	repo := &workerRepoStub{canDeliver: false, skipReason: "already_read"}
-	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, &workerProviderStub{})
+	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, &workerProviderStub{}, nil)
 	outbox := &models.NotificationOutbox{ID: uuid.New(), RecipientUserID: uuid.New(), Payload: mustPayload(t)}
 
 	if err := worker.processOutbox(context.Background(), outbox); err != nil {
@@ -143,7 +143,7 @@ func TestProcessOutboxSkipsAlreadyReadMessagePush(t *testing.T) {
 
 func TestProcessOutboxSkipsDeletedMessagePush(t *testing.T) {
 	repo := &workerRepoStub{canDeliver: false, skipReason: "message_deleted"}
-	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, &workerProviderStub{})
+	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, &workerProviderStub{}, nil)
 	outbox := &models.NotificationOutbox{ID: uuid.New(), RecipientUserID: uuid.New(), Payload: mustPayload(t)}
 
 	if err := worker.processOutbox(context.Background(), outbox); err != nil {
@@ -156,7 +156,7 @@ func TestProcessOutboxSkipsDeletedMessagePush(t *testing.T) {
 
 func TestProcessOutboxRetriesGuardFailure(t *testing.T) {
 	repo := &workerRepoStub{canDeliverErr: errors.New("db unavailable")}
-	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, &workerProviderStub{})
+	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, &workerProviderStub{}, nil)
 	outbox := &models.NotificationOutbox{ID: uuid.New(), RecipientUserID: uuid.New(), AttemptCount: 1, Payload: mustPayload(t)}
 
 	if err := worker.processOutbox(context.Background(), outbox); err != nil {
@@ -183,7 +183,7 @@ func TestProcessOutboxSendsDeliverableMessagePush(t *testing.T) {
 		devices:    []*models.NotificationDevice{device},
 	}
 	provider := &workerProviderStub{}
-	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, provider)
+	worker := NewWorker(&config.Config{PushWorkerPollInterval: time.Second, PushWorkerBatchSize: 1}, repo, provider, nil)
 	outbox := &models.NotificationOutbox{ID: uuid.New(), RecipientUserID: device.UserID, Payload: mustPayload(t)}
 
 	if err := worker.processOutbox(context.Background(), outbox); err != nil {

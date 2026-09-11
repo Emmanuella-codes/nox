@@ -10,39 +10,55 @@ import (
 )
 
 type Config struct {
-	Port                   string
-	DatabaseURL            string
-	RedisURL               string
-	JWTAccessSecret        string
-	JWTRefreshSecret       string
-	JWTIssuer              string
-	JWTAudience            string
-	JWTAccessTTL           time.Duration
-	JWTRefreshTTL          time.Duration
-	EmailOTPTTL            time.Duration
-	BrevoAPIKey            string
-	BrevoBaseURL           string
-	MailFromEmail          string
-	MailFromName           string
-	MediaUploadBaseURL     string
-	MediaPublicBaseURL     string
-	MediaProcessingSecret  string
-	CloudinaryCloudName    string
-	CloudinaryAPIKey       string
-	CloudinaryAPISecret    string
-	CloudinaryUploadFolder string
-	PushProvider           string
-	PushWorkerBatchSize    int
-	PushWorkerPollInterval time.Duration
-	MediaCleanupBatchSize  int
-	MediaCleanupInterval   time.Duration
-	MediaPendingRetention  time.Duration
-	MediaFailedRetention   time.Duration
-	StoryCleanupBatchSize  int
-	StoryCleanupInterval   time.Duration
-	StoryExpiryRetention   time.Duration
-	GhostPersonaSecret     string
-	Environment            string
+	Port                      string
+	DatabaseURL               string
+	RedisURL                  string
+	JWTAccessSecret           string
+	JWTRefreshSecret          string
+	JWTIssuer                 string
+	JWTAudience               string
+	JWTAccessTTL              time.Duration
+	JWTRefreshTTL             time.Duration
+	AdminJWTAccessSecret      string
+	AdminJWTRefreshSecret     string
+	AdminJWTIssuer            string
+	AdminJWTAudience          string
+	AdminJWTAccessTTL         time.Duration
+	AdminJWTRefreshTTL        time.Duration
+	EmailOTPTTL               time.Duration
+	BrevoAPIKey               string
+	BrevoBaseURL              string
+	MailFromEmail             string
+	MailFromName              string
+	MediaUploadBaseURL        string
+	MediaPublicBaseURL        string
+	MediaProcessingSecret     string
+	CloudinaryCloudName       string
+	CloudinaryAPIKey          string
+	CloudinaryAPISecret       string
+	CloudinaryUploadFolder    string
+	PushProvider              string
+	PushWorkerBatchSize       int
+	PushWorkerPollInterval    time.Duration
+	MediaCleanupBatchSize     int
+	MediaCleanupInterval      time.Duration
+	MediaPendingRetention     time.Duration
+	MediaFailedRetention      time.Duration
+	StoryCleanupBatchSize     int
+	StoryCleanupInterval      time.Duration
+	StoryExpiryRetention      time.Duration
+	CrewCleanupInterval       time.Duration
+	ModerationCleanupInterval time.Duration
+	GhostPersonaSecret        string
+	Environment               string
+	LogLevel                  string
+	LogFormat                 string
+	LogFileEnabled            bool
+	LogFilePath               string
+	LogFileMaxSizeMB          int
+	LogFileMaxBackups         int
+	LogFileMaxAgeDays         int
+	LogFileCompress           bool
 }
 
 func Load() (*Config, error) {
@@ -53,39 +69,55 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:                   getEnv("PORT", "4006"),
-		DatabaseURL:            getEnv("DATABASE_URL", ""),
-		RedisURL:               getEnv("REDIS_URL", ""),
-		JWTAccessSecret:        getEnv("JWT_ACCESS_SECRET", getEnv("JWT_SECRET", "")),
-		JWTRefreshSecret:       getEnv("JWT_REFRESH_SECRET", ""),
-		JWTIssuer:              getEnv("JWT_ISSUER", "nox-api"),
-		JWTAudience:            getEnv("JWT_AUDIENCE", "nox-client"),
-		JWTAccessTTL:           getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
-		JWTRefreshTTL:          getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
-		EmailOTPTTL:            getDurationEnv("EMAIL_OTP_TTL", 10*time.Minute),
-		BrevoAPIKey:            getEnv("BREVO_API_KEY", ""),
-		BrevoBaseURL:           getEnv("BREVO_BASE_URL", "https://api.brevo.com"),
-		MailFromEmail:          getEnv("MAIL_FROM_EMAIL", ""),
-		MailFromName:           getEnv("MAIL_FROM_NAME", "Nox"),
-		MediaUploadBaseURL:     getEnv("MEDIA_UPLOAD_BASE_URL", ""),
-		MediaPublicBaseURL:     getEnv("MEDIA_PUBLIC_BASE_URL", ""),
-		MediaProcessingSecret:  getEnv("MEDIA_PROCESSING_SECRET", ""),
-		CloudinaryCloudName:    getEnv("CLOUDINARY_CLOUD_NAME", ""),
-		CloudinaryAPIKey:       getEnv("CLOUDINARY_API_KEY", ""),
-		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
-		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "nox/posts"),
-		PushProvider:           getEnv("PUSH_PROVIDER", "log"),
-		PushWorkerBatchSize:    getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
-		PushWorkerPollInterval: getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
-		MediaCleanupBatchSize:  getIntEnv("MEDIA_CLEANUP_BATCH_SIZE", 25),
-		MediaCleanupInterval:   getDurationEnv("MEDIA_CLEANUP_INTERVAL", 10*time.Minute),
-		MediaPendingRetention:  getDurationEnv("MEDIA_PENDING_RETENTION", 24*time.Hour),
-		MediaFailedRetention:   getDurationEnv("MEDIA_FAILED_RETENTION", 168*time.Hour),
-		StoryCleanupBatchSize:  getIntEnv("STORY_CLEANUP_BATCH_SIZE", 25),
-		StoryCleanupInterval:   getDurationEnv("STORY_CLEANUP_INTERVAL", 10*time.Minute),
-		StoryExpiryRetention:   getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
-		GhostPersonaSecret:     getEnv("GHOST_PERSONA_SECRET", ""),
-		Environment:            getEnv("ENVIRONMENT", getEnv("ENV", "development")),
+		Port:                      getEnv("PORT", "4006"),
+		DatabaseURL:               getEnv("DATABASE_URL", ""),
+		RedisURL:                  getEnv("REDIS_URL", ""),
+		JWTAccessSecret:           getEnv("JWT_ACCESS_SECRET", getEnv("JWT_SECRET", "")),
+		JWTRefreshSecret:          getEnv("JWT_REFRESH_SECRET", ""),
+		JWTIssuer:                 getEnv("JWT_ISSUER", "nox-api"),
+		JWTAudience:               getEnv("JWT_AUDIENCE", "nox-client"),
+		JWTAccessTTL:              getDurationEnv("JWT_ACCESS_TTL", 15*time.Minute),
+		JWTRefreshTTL:             getDurationEnv("JWT_REFRESH_TTL", 720*time.Hour),
+		AdminJWTAccessSecret:      getEnv("ADMIN_JWT_ACCESS_SECRET", getEnv("JWT_ACCESS_SECRET", getEnv("JWT_SECRET", ""))),
+		AdminJWTRefreshSecret:     getEnv("ADMIN_JWT_REFRESH_SECRET", getEnv("JWT_REFRESH_SECRET", "")),
+		AdminJWTIssuer:            getEnv("ADMIN_JWT_ISSUER", getEnv("JWT_ISSUER", "nox-api")),
+		AdminJWTAudience:          getEnv("ADMIN_JWT_AUDIENCE", "nox-admin"),
+		AdminJWTAccessTTL:         getDurationEnv("ADMIN_JWT_ACCESS_TTL", 15*time.Minute),
+		AdminJWTRefreshTTL:        getDurationEnv("ADMIN_JWT_REFRESH_TTL", 24*time.Hour),
+		EmailOTPTTL:               getDurationEnv("EMAIL_OTP_TTL", 10*time.Minute),
+		BrevoAPIKey:               getEnv("BREVO_API_KEY", ""),
+		BrevoBaseURL:              getEnv("BREVO_BASE_URL", "https://api.brevo.com"),
+		MailFromEmail:             getEnv("MAIL_FROM_EMAIL", ""),
+		MailFromName:              getEnv("MAIL_FROM_NAME", "Nox"),
+		MediaUploadBaseURL:        getEnv("MEDIA_UPLOAD_BASE_URL", ""),
+		MediaPublicBaseURL:        getEnv("MEDIA_PUBLIC_BASE_URL", ""),
+		MediaProcessingSecret:     getEnv("MEDIA_PROCESSING_SECRET", ""),
+		CloudinaryCloudName:       getEnv("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryAPIKey:          getEnv("CLOUDINARY_API_KEY", ""),
+		CloudinaryAPISecret:       getEnv("CLOUDINARY_API_SECRET", ""),
+		CloudinaryUploadFolder:    getEnv("CLOUDINARY_UPLOAD_FOLDER", "nox/posts"),
+		PushProvider:              getEnv("PUSH_PROVIDER", "log"),
+		PushWorkerBatchSize:       getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
+		PushWorkerPollInterval:    getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
+		MediaCleanupBatchSize:     getIntEnv("MEDIA_CLEANUP_BATCH_SIZE", 25),
+		MediaCleanupInterval:      getDurationEnv("MEDIA_CLEANUP_INTERVAL", 10*time.Minute),
+		MediaPendingRetention:     getDurationEnv("MEDIA_PENDING_RETENTION", 24*time.Hour),
+		MediaFailedRetention:      getDurationEnv("MEDIA_FAILED_RETENTION", 168*time.Hour),
+		StoryCleanupBatchSize:     getIntEnv("STORY_CLEANUP_BATCH_SIZE", 25),
+		StoryCleanupInterval:      getDurationEnv("STORY_CLEANUP_INTERVAL", 10*time.Minute),
+		StoryExpiryRetention:      getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
+		CrewCleanupInterval:       getDurationEnv("CREW_CLEANUP_INTERVAL", 10*time.Minute),
+		ModerationCleanupInterval: getDurationEnv("MODERATION_CLEANUP_INTERVAL", 1*time.Hour),
+		GhostPersonaSecret:        getEnv("GHOST_PERSONA_SECRET", ""),
+		Environment:               getEnv("ENVIRONMENT", getEnv("ENV", "development")),
+		LogLevel:                  getEnv("LOG_LEVEL", "info"),
+		LogFormat:                 getEnv("LOG_FORMAT", "json"),
+		LogFileEnabled:            getBoolEnv("LOG_FILE_ENABLED", false),
+		LogFilePath:               getEnv("LOG_FILE_PATH", "logs/nox-api.log"),
+		LogFileMaxSizeMB:          getIntEnv("LOG_FILE_MAX_SIZE_MB", 100),
+		LogFileMaxBackups:         getIntEnv("LOG_FILE_MAX_BACKUPS", 7),
+		LogFileMaxAgeDays:         getIntEnv("LOG_FILE_MAX_AGE_DAYS", 14),
+		LogFileCompress:           getBoolEnv("LOG_FILE_COMPRESS", true),
 	}
 
 	return cfg, cfg.validate()
@@ -103,6 +135,12 @@ func (c *Config) validate() error {
 	}
 	if c.JWTRefreshSecret == "" {
 		return errors.New("JWT_REFRESH_SECRET is required")
+	}
+	if c.AdminJWTAccessSecret == "" {
+		return errors.New("ADMIN_JWT_ACCESS_SECRET is required")
+	}
+	if c.AdminJWTRefreshSecret == "" {
+		return errors.New("ADMIN_JWT_REFRESH_SECRET is required")
 	}
 	if c.GhostPersonaSecret == "" {
 		return errors.New("GHOST_PERSONA_SECRET is required")
@@ -137,6 +175,18 @@ func getIntEnv(key string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func getBoolEnv(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(v)
 	if err != nil {
 		return fallback
 	}

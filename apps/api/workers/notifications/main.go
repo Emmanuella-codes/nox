@@ -9,14 +9,14 @@ func main() {
 	ctx, stop := workerruntime.SignalContext()
 	defer stop()
 
-	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true})
+	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true, ServiceName: "nox-notification-worker"})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to bootstrap notification worker")
 	}
 	defer app.Close()
 
 	provider := newProvider(app.Config)
-	worker := NewWorker(app.Config, app.Repos.Notification, provider)
+	worker := NewWorker(app.Config, app.Repos.Notification, provider, app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("notification worker failed")
 	}

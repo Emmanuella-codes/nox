@@ -10,13 +10,13 @@ func main() {
 	ctx, stop := workerruntime.SignalContext()
 	defer stop()
 
-	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true})
+	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true, ServiceName: "nox-media-worker"})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to bootstrap media worker")
 	}
 	defer app.Close()
 
-	worker := NewWorker(app.Config, media_repo.NewCleanupRepository(app.DB))
+	worker := NewWorker(app.Config, media_repo.NewCleanupRepository(app.DB), app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("media cleanup worker failed")
 	}

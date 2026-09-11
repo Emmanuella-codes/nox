@@ -13,6 +13,7 @@ import (
 	"github.com/emmanuella-codes/nox/shared/push"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,21 +22,24 @@ type Worker struct {
 	repo     notification_repo.NotificationRepository
 	provider push.Provider
 	workerID string
+	redis    *redis.Client
 }
 
-// Builds one worker instance around the configured repository and provider.
-func NewWorker(cfg *config.Config, repo notification_repo.NotificationRepository, provider push.Provider) *Worker {
+func NewWorker(cfg *config.Config, repo notification_repo.NotificationRepository, provider push.Provider, redisClient *redis.Client) *Worker {
 	return &Worker{
 		cfg:      cfg,
 		repo:     repo,
 		provider: provider,
 		workerID: uuid.NewString(),
+		redis:    redisClient,
 	}
 }
 
-// Polls the outbox until shutdown.
 func (w *Worker) Run(ctx context.Context) error {
 	return workerruntime.RunLoop(ctx, w.cfg.PushWorkerPollInterval, func(ctx context.Context) error {
+		if err := workerruntime.RecordHeartbeat(ctx, w.redis, workerruntime.WorkerNotificationsKey, workerruntime.WorkerHeartbeatTTL(w.cfg.PushWorkerPollInterval)); err != nil {
+			log.Error().Err(err).Msg("notification worker heartbeat failed")
+		}
 		if err := w.tick(ctx); err != nil {
 			log.Error().Err(err).Msg("notification worker tick failed")
 		}

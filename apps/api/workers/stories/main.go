@@ -9,13 +9,13 @@ func main() {
 	ctx, stop := workerruntime.SignalContext()
 	defer stop()
 
-	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true})
+	app, err := workerruntime.Bootstrap(ctx, workerruntime.Options{ConnectRedis: true, RunMigrations: true, ServiceName: "nox-story-worker"})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to bootstrap story worker")
 	}
 	defer app.Close()
 
-	worker := NewWorker(app.Config, app.Repos.Story)
+	worker := NewWorker(app.Config, app.Repos.Story, app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("story cleanup worker failed")
 	}

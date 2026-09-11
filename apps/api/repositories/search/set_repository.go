@@ -19,6 +19,9 @@ func (r *pgRepository) searchSets(ctx context.Context, query string, limit int, 
 		INNER JOIN personas p ON p.id = s.persona_id
 		INNER JOIN media_assets m ON m.id = s.media_asset_id
 		WHERE p.persona_type = 'visible'
+		  AND p.moderation_status = 'active'
+		  AND s.moderation_status = 'active'
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = m.id), 'active') = 'active'
 		  AND (
 		    s.title ILIKE $1
 		    OR s.description ILIKE $1
@@ -27,6 +30,7 @@ func (r *pgRepository) searchSets(ctx context.Context, query string, limit int, 
 		    OR similarity(s.description, $3) > 0.18
 		  )
 		ORDER BY
+		  CASE WHEN EXISTS (SELECT 1 FROM set_features sf WHERE sf.set_id = s.id AND (sf.expires_at IS NULL OR sf.expires_at > now())) THEN 0 ELSE 1 END,
 		  CASE WHEN lower(s.title) = lower($3) THEN 0 ELSE 1 END,
 		  CASE WHEN s.title ILIKE $4 THEN 0 ELSE 1 END,
 		  GREATEST(similarity(s.title, $3), similarity(COALESCE(s.description, ''), $3)) DESC,

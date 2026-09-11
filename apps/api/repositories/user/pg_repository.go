@@ -25,7 +25,7 @@ func (r *pgRepository) CreateUser(ctx context.Context, fullname string, email st
 	err := r.db.QueryRow(ctx, `
 		INSERT INTO users (fullname, email, password)
 		VALUES ($1, $2, $3)
-		RETURNING id, fullname, email, password, email_verified, email_verified_at, created_at, updated_at
+		RETURNING id, fullname, email, password, email_verified, email_verified_at, status, created_at, updated_at
 	`, fullname, email, passwordHash).Scan(
 		&user.ID,
 		&user.Fullname,
@@ -33,6 +33,7 @@ func (r *pgRepository) CreateUser(ctx context.Context, fullname string, email st
 		&user.Password,
 		&user.EmailVerified,
 		&user.EmailVerifiedAt,
+		&user.Status,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -48,9 +49,24 @@ func (r *pgRepository) CreateUser(ctx context.Context, fullname string, email st
 func (r *pgRepository) FindUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	err := r.db.QueryRow(ctx,
-		`SELECT id, fullname, email, password, email_verified, email_verified_at, created_at, updated_at FROM users WHERE email = $1`,
+		`SELECT id, fullname, email, password, email_verified, email_verified_at, status, created_at, updated_at FROM users WHERE email = $1`,
 		email,
-	).Scan(&user.ID, &user.Fullname, &user.Email, &user.Password, &user.EmailVerified, &user.EmailVerifiedAt, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.Fullname, &user.Email, &user.Password, &user.EmailVerified, &user.EmailVerifiedAt, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *pgRepository) FindUserByID(ctx context.Context, userID string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.QueryRow(ctx,
+		`SELECT id, fullname, email, password, email_verified, email_verified_at, status, created_at, updated_at FROM users WHERE id = $1`,
+		userID,
+	).Scan(&user.ID, &user.Fullname, &user.Email, &user.Password, &user.EmailVerified, &user.EmailVerifiedAt, &user.Status, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil

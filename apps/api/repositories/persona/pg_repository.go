@@ -52,7 +52,7 @@ func (r *pgRepository) FindPersonaByID(ctx context.Context, personaID uuid.UUID)
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
-		WHERE id = $1
+		WHERE id = $1 AND moderation_status = 'active'
 	`, personaID)
 
 	persona, err := scanPersona(row)
@@ -69,7 +69,7 @@ func (r *pgRepository) FindPersonasByUserID(ctx context.Context, userID uuid.UUI
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
-		WHERE user_id = $1
+		WHERE user_id = $1 AND moderation_status = 'active'
 		ORDER BY created_at ASC
 	`, userID)
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *pgRepository) FindPersonaByHandle(ctx context.Context, handle string) (
 		SELECT id, user_id, handle, display_name, bio, avatar_url, cover_url, persona_type, category, genre_tags,
 		       follower_count, following_count, post_count, created_at, updated_at
 		FROM personas
-		WHERE handle = $1
+		WHERE handle = $1 AND moderation_status = 'active'
 	`, handle)
 
 	persona, err := scanPersona(row)

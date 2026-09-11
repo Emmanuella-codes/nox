@@ -39,7 +39,7 @@ func (r *pgRepository) FindEventByID(ctx context.Context, eventID uuid.UUID) (*m
 		SELECT id, title, venue, location, event_date, description, COALESCE(cover_url, ''),
 		       COALESCE(ticket_url, ''), price_ngn, genre_tags, organizer_id, created_at
 		FROM events
-		WHERE id = $1
+		WHERE id = $1 AND moderation_status = 'active'
 	`, eventID)
 
 	event, err := scanEvent(row)
@@ -54,6 +54,7 @@ func (r *pgRepository) FindEvents(ctx context.Context, limit int) ([]*models.Eve
 		SELECT id, title, venue, location, event_date, description, COALESCE(cover_url, ''),
 		       COALESCE(ticket_url, ''), price_ngn, genre_tags, organizer_id, created_at
 		FROM events
+		WHERE moderation_status = 'active'
 		ORDER BY event_date ASC
 		LIMIT $1
 	`, normalizeLimit(limit))
