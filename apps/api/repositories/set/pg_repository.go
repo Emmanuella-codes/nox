@@ -35,6 +35,18 @@ func (r *pgRepository) CreateSet(ctx context.Context, authorUserID uuid.UUID, du
 	return set, nil
 }
 
+func (r *pgRepository) UpdateSet(ctx context.Context, authorUserID uuid.UUID, setID uuid.UUID, durationSeconds int, dto setdtos.UpdateSetDTO) (*models.Set, error) {
+	row := r.db.QueryRow(ctx, `
+		UPDATE sets
+		SET media_asset_id = COALESCE($4, media_asset_id), title = $5, description = $6,
+			genre_tags = $7, duration_seconds = $3, updated_at = now()
+		WHERE id = $1 AND author_user_id = $2 AND moderation_status = 'active'
+		RETURNING id, author_user_id, persona_id, media_asset_id, title, description, genre_tags,
+		          duration_seconds, like_count, comment_count, play_count, created_at, updated_at
+	`, setID, authorUserID, durationSeconds, dto.MediaAssetID, dto.Title, dto.Description, dto.GenreTags)
+	return scanSet(row)
+}
+
 func (r *pgRepository) FindSetByID(ctx context.Context, setID uuid.UUID) (*models.Set, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT s.id, s.author_user_id, s.persona_id, s.media_asset_id, s.title, s.description, s.genre_tags,

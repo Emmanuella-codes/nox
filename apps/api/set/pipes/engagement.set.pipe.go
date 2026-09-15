@@ -45,12 +45,16 @@ func (p *SetPipe) UnlikeSetPipe(ctx context.Context, userID uuid.UUID, setID uui
 	return shared.PipeSuccess[any](messages.Set_Unliked, nil)
 }
 
-func (p *SetPipe) RecordSetPlayPipe(ctx context.Context, setID uuid.UUID) *shared.PipeRes[any] {
-	if err := p.setRepo.IncrementPlayCount(ctx, setID); err != nil {
+func (p *SetPipe) RecordSetPlayPipe(ctx context.Context, userID, setID uuid.UUID) *shared.PipeRes[any] {
+	counted, err := p.setRepo.RecordSetPlay(ctx, setID, userID)
+	if err != nil {
 		if err == set_repo.ErrSetNotFound {
 			return shared.PipeError[any](messages.Set_Not_Found)
 		}
 		return pipeInternalError[any](err, "set.play")
+	}
+	if !counted {
+		return shared.PipeSuccess[any](messages.Set_Play_Already_Recorded, nil)
 	}
 	return shared.PipeSuccess[any](messages.Set_Play_Recorded, nil)
 }

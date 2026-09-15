@@ -29,7 +29,7 @@ type MediaCleanupResponse struct {
 
 func (p *MediaPipe) InitiateSetVideoUploadPipe(ctx context.Context, userID uuid.UUID, dto dtos.InitiateSetVideoUploadDTO) *shared.PipeRes[InitiateUploadResponse] {
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
-	if !validSetVideoMime(dto.MimeType) || dto.SizeBytes <= 0 {
+	if !validSetVideoMime(dto.MimeType) || !validSetVideoSize(dto.SizeBytes) {
 		return shared.PipeError[InitiateUploadResponse](messages.Invalid_Media)
 	}
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OwnerPersonaID)
@@ -146,7 +146,7 @@ func (p *MediaPipe) CompleteMediaProcessingPipe(ctx context.Context, mediaAssetI
 	dto.PlaybackURL = strings.TrimSpace(dto.PlaybackURL)
 	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
-	if !validSetVideo(dto.MimeType, dto.DurationSeconds) || dto.SizeBytes <= 0 || dto.PlaybackURL == "" {
+	if !validSetVideo(dto.MimeType, dto.DurationSeconds) || !validSetVideoSize(dto.SizeBytes) || dto.PlaybackURL == "" {
 		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
 	}
 	asset, err := p.mediaRepo.MarkMediaAssetReady(ctx, mediaAssetID, dto)

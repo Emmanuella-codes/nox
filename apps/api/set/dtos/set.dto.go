@@ -10,6 +10,13 @@ type CreateSetDTO struct {
 	GenreTags    []string  `json:"genre_tags" validate:"required"`
 }
 
+type UpdateSetDTO struct {
+	MediaAssetID *uuid.UUID `json:"media_asset_id"`
+	Title        string     `json:"title" validate:"required"`
+	Description  string     `json:"description"`
+	GenreTags    []string   `json:"genre_tags" validate:"required"`
+}
+
 type SetPersonaActionDTO struct {
 	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
 }

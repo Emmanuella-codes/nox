@@ -83,15 +83,36 @@ func (r *pgRepository) FindLikedSetIDs(ctx context.Context, personaID uuid.UUID,
 	return liked, rows.Err()
 }
 
-func (r *pgRepository) IncrementPlayCount(ctx context.Context, setID uuid.UUID) error {
-	commandTag, err := r.db.Exec(ctx, `UPDATE sets SET play_count = play_count + 1 WHERE id = $1`, setID)
+func (r *pgRepository) RecordSetPlay(ctx context.Context, setID uuid.UUID, userID uuid.UUID) (bool, error) {
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
-	if commandTag.RowsAffected() == 0 {
-		return ErrSetNotFound
+	defer tx.Rollback(ctx)
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM sets WHERE id = $1 AND moderation_status = 'active')`, setID).Scan(&exists); err != nil {
+		return false, err
 	}
-	return nil
+	if !exists {
+		return false, ErrSetNotFound
+	}
+	result, err := tx.Exec(ctx, `INSERT INTO set_plays (set_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, setID, userID)
+	if err != nil {
+		return false, err
+	}
+	if result.RowsAffected() == 0 {
+		if err := tx.Commit(ctx); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx, `UPDATE sets SET play_count = play_count + 1 WHERE id = $1`, setID); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (r *pgRepository) CreateSetComment(ctx context.Context, personaID uuid.UUID, setID uuid.UUID, body string, parentID uuid.UUID) (*models.SetComment, error) {
