@@ -29,6 +29,7 @@ type SetListResponse struct {
 	Offset     int           `json:"offset"`
 	HasMore    bool          `json:"has_more"`
 	NextOffset *int          `json:"next_offset,omitempty"`
+	NextCursor string        `json:"next_cursor,omitempty"`
 	Sets       []SetResponse `json:"sets"`
 }
 

@@ -140,7 +140,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	notificationController := notification_controllers.NewNotificationController(notificationPipe, notificationHub)
 	preferenceController := preference_controllers.NewPreferenceController(preference_pipes.NewPreferencePipe(repos.Preference, repos.Persona, repos.Post, repos.Event, repos.Set))
 	reportController := report_controllers.NewReportController(report_pipes.NewReportPipe(repos.Admin, repos.Persona))
-	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona))
+	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 
 	api := app.Group("/api/v1")

@@ -2,6 +2,8 @@ package pipes
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"regexp"
 	"sort"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"github.com/emmanuella-codes/nox/models"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	set_repo "github.com/emmanuella-codes/nox/repositories/set"
 	"github.com/emmanuella-codes/nox/set/messages"
 	"github.com/emmanuella-codes/nox/shared"
@@ -18,13 +21,44 @@ import (
 var genreTagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 
 type SetPipe struct {
-	setRepo     set_repo.SetRepository
-	mediaRepo   media_repo.MediaRepository
-	personaRepo persona_repo.PersonaRepository
+	setRepo        set_repo.SetRepository
+	mediaRepo      media_repo.MediaRepository
+	personaRepo    persona_repo.PersonaRepository
+	preferenceRepo preference_repo.PreferenceRepository
 }
 
-func NewSetPipe(setRepo set_repo.SetRepository, mediaRepo media_repo.MediaRepository, personaRepo persona_repo.PersonaRepository) *SetPipe {
-	return &SetPipe{setRepo: setRepo, mediaRepo: mediaRepo, personaRepo: personaRepo}
+func NewSetPipe(setRepo set_repo.SetRepository, mediaRepo media_repo.MediaRepository, personaRepo persona_repo.PersonaRepository, preferences ...preference_repo.PreferenceRepository) *SetPipe {
+	var preferenceRepo preference_repo.PreferenceRepository
+	if len(preferences) > 0 {
+		preferenceRepo = preferences[0]
+	}
+	return &SetPipe{setRepo: setRepo, mediaRepo: mediaRepo, personaRepo: personaRepo, preferenceRepo: preferenceRepo}
+}
+
+type setCursor struct {
+	Offset int    `json:"offset"`
+	Genre  string `json:"genre"`
+	Sort   string `json:"sort"`
+}
+
+func decodeSetCursor(value string, genre string, sort string) (int, bool) {
+	if value == "" {
+		return 0, true
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return 0, false
+	}
+	var cursor setCursor
+	if json.Unmarshal(raw, &cursor) != nil || cursor.Offset < 0 || cursor.Genre != genre || cursor.Sort != sort {
+		return 0, false
+	}
+	return cursor.Offset, true
+}
+
+func encodeSetCursor(offset int, genre string, sort string) string {
+	raw, _ := json.Marshal(setCursor{Offset: offset, Genre: genre, Sort: sort})
+	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
 func pipeInternalError[T any](err error, operation string) *shared.PipeRes[T] {
