@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (p *SetPipe) ListSetsPipe(ctx context.Context, limit int, offset int, genreTag string, sort string, viewerPersonaID *uuid.UUID) *shared.PipeRes[SetListResponse] {
+func (p *SetPipe) ListSetsPipe(ctx context.Context, limit int, offset int, genreTag string, sort string, viewerPersonaID *uuid.UUID, cursors ...string) *shared.PipeRes[SetListResponse] {
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
 	genreTag = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(genreTag, "#")))
@@ -18,45 +18,64 @@ func (p *SetPipe) ListSetsPipe(ctx context.Context, limit int, offset int, genre
 		return shared.PipeError[SetListResponse](messages.Invalid_Set)
 	}
 	sort = strings.TrimSpace(sort)
+	cursor := ""
+	if len(cursors) > 0 {
+		cursor = cursors[0]
+	}
+	if cursorOffset, valid := decodeSetCursor(cursor, genreTag, sort); !valid {
+		return shared.PipeError[SetListResponse](messages.Invalid_Set)
+	} else if cursor != "" {
+		offset = cursorOffset
+	}
 	sets, err := p.setRepo.FindSetsWithFilters(ctx, genreTag, sort, limit+1, offset)
 	if err != nil {
 		return pipeInternalError[SetListResponse](err, "set.list")
 	}
-	if err := p.hydrateSets(ctx, trimForHydration(limit, sets)); err != nil {
+	if err := p.hydrateSets(ctx, sets); err != nil {
 		return pipeInternalError[SetListResponse](err, "set.hydrate_list")
 	}
-	response, err := p.listResponse(ctx, limit, offset, sets, viewerPersonaID)
+	sets, err = p.filterViewerSets(ctx, sets, viewerPersonaID)
+	if err != nil {
+		return pipeInternalError[SetListResponse](err, "set.visibility")
+	}
+	response, err := p.listResponse(ctx, limit, offset, genreTag, sort, sets, viewerPersonaID)
 	if err != nil {
 		return pipeInternalError[SetListResponse](err, "set.viewer_list")
 	}
 	return shared.PipeSuccess(messages.Sets_Listed, response)
 }
 
-func (p *SetPipe) ListPersonaSetsPipe(ctx context.Context, personaID uuid.UUID, limit int, offset int, viewerPersonaID *uuid.UUID) *shared.PipeRes[SetListResponse] {
+func (p *SetPipe) ListPersonaSetsPipe(ctx context.Context, personaID uuid.UUID, limit int, offset int, viewerPersonaID *uuid.UUID, cursors ...string) *shared.PipeRes[SetListResponse] {
 	limit = normalizeLimit(limit)
 	offset = normalizeOffset(offset)
+	cursor := ""
+	if len(cursors) > 0 {
+		cursor = cursors[0]
+	}
+	if cursorOffset, valid := decodeSetCursor(cursor, "", "persona"); !valid {
+		return shared.PipeError[SetListResponse](messages.Invalid_Set)
+	} else if cursor != "" {
+		offset = cursorOffset
+	}
 	sets, err := p.setRepo.FindSetsByPersonaID(ctx, personaID, limit+1, offset)
 	if err != nil {
 		return pipeInternalError[SetListResponse](err, "set.list_persona")
 	}
-	if err := p.hydrateSets(ctx, trimForHydration(limit, sets)); err != nil {
+	if err := p.hydrateSets(ctx, sets); err != nil {
 		return pipeInternalError[SetListResponse](err, "set.hydrate_persona_list")
 	}
-	response, err := p.listResponse(ctx, limit, offset, sets, viewerPersonaID)
+	sets, err = p.filterViewerSets(ctx, sets, viewerPersonaID)
+	if err != nil {
+		return pipeInternalError[SetListResponse](err, "set.visibility")
+	}
+	response, err := p.listResponse(ctx, limit, offset, "", "persona", sets, viewerPersonaID)
 	if err != nil {
 		return pipeInternalError[SetListResponse](err, "set.viewer_persona_list")
 	}
 	return shared.PipeSuccess(messages.Sets_Listed, response)
 }
 
-func trimForHydration(limit int, sets []*models.Set) []*models.Set {
-	if len(sets) > limit {
-		return sets[:limit]
-	}
-	return sets
-}
-
-func (p *SetPipe) listResponse(ctx context.Context, limit int, offset int, sets []*models.Set, viewerPersonaID *uuid.UUID) (*SetListResponse, error) {
+func (p *SetPipe) listResponse(ctx context.Context, limit int, offset int, genre string, sort string, sets []*models.Set, viewerPersonaID *uuid.UUID) (*SetListResponse, error) {
 	hasMore := len(sets) > limit
 	if hasMore {
 		sets = sets[:limit]
@@ -82,8 +101,49 @@ func (p *SetPipe) listResponse(ctx context.Context, limit int, offset int, sets 
 		Offset:     offset,
 		HasMore:    hasMore,
 		NextOffset: nextOffset(limit, offset, hasMore),
+		NextCursor: nextSetCursor(limit, offset, genre, sort, hasMore),
 		Sets:       responses,
 	}, nil
+}
+
+func nextSetCursor(limit int, offset int, genre string, sort string, hasMore bool) string {
+	if !hasMore {
+		return ""
+	}
+	return encodeSetCursor(offset+limit, genre, sort)
+}
+
+func (p *SetPipe) filterViewerSets(ctx context.Context, sets []*models.Set, viewerPersonaID *uuid.UUID) ([]*models.Set, error) {
+	if viewerPersonaID == nil || p.preferenceRepo == nil {
+		return sets, nil
+	}
+	viewer, err := p.personaRepo.FindPersonaByID(ctx, *viewerPersonaID)
+	if err != nil {
+		return nil, err
+	}
+	excluded, err := p.preferenceRepo.FindExcludedUserIDs(ctx, viewer.UserID)
+	if err != nil {
+		return nil, err
+	}
+	muted, err := p.preferenceRepo.FindMutedUserIDs(ctx, viewer.UserID)
+	if err != nil {
+		return nil, err
+	}
+	suppressed, err := p.preferenceRepo.FindSuppressedTargetIDs(ctx, viewer.UserID, models.SetSuppressionTargetType)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]*models.Set, 0, len(sets))
+	for _, set := range sets {
+		if set == nil || set.Persona == nil || suppressed[set.ID] {
+			continue
+		}
+		if set.Persona != nil && (excluded[set.Persona.UserID] || muted[set.Persona.UserID]) {
+			continue
+		}
+		filtered = append(filtered, set)
+	}
+	return filtered, nil
 }
 
 func normalizeLimit(limit int) int {

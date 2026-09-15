@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const maxSetVideoSizeBytes int64 = 2 << 30
+
 const (
 	storyImageDurationSeconds = 5
 	maxStoryMediaDuration     = 120
@@ -51,6 +53,10 @@ func validSetVideo(mimeType string, durationSeconds int) bool {
 		return false
 	}
 	return durationSeconds > 0 && durationSeconds <= 900
+}
+
+func validSetVideoSize(sizeBytes int64) bool {
+	return sizeBytes > 0 && sizeBytes <= maxSetVideoSizeBytes
 }
 
 func validSetVideoMime(mimeType string) bool {

@@ -18,6 +18,7 @@ var (
 
 type SetRepository interface {
 	CreateSet(ctx context.Context, authorUserID uuid.UUID, durationSeconds int, dto setdtos.CreateSetDTO) (*models.Set, error)
+	UpdateSet(ctx context.Context, authorUserID uuid.UUID, setID uuid.UUID, durationSeconds int, dto setdtos.UpdateSetDTO) (*models.Set, error)
 	FindSetByID(ctx context.Context, setID uuid.UUID) (*models.Set, error)
 	FindSets(ctx context.Context, limit int, offset int) ([]*models.Set, error)
 	FindSetsWithFilters(ctx context.Context, genreTag string, sort string, limit int, offset int) ([]*models.Set, error)
@@ -27,7 +28,7 @@ type SetRepository interface {
 	UnlikeSet(ctx context.Context, personaID uuid.UUID, setID uuid.UUID) error
 	HasSetLike(ctx context.Context, personaID uuid.UUID, setID uuid.UUID) (bool, error)
 	FindLikedSetIDs(ctx context.Context, personaID uuid.UUID, setIDs []uuid.UUID) (map[uuid.UUID]bool, error)
-	IncrementPlayCount(ctx context.Context, setID uuid.UUID) error
+	RecordSetPlay(ctx context.Context, setID uuid.UUID, userID uuid.UUID) (bool, error)
 	CreateSetComment(ctx context.Context, personaID uuid.UUID, setID uuid.UUID, body string, parentID uuid.UUID) (*models.SetComment, error)
 	FindSetComments(ctx context.Context, setID uuid.UUID, limit int, offset int) ([]*models.SetComment, error)
 }

@@ -18,7 +18,7 @@ func (p *MediaPipe) CreateSetVideoAssetPipe(ctx context.Context, userID uuid.UUI
 	dto.ThumbnailURL = strings.TrimSpace(dto.ThumbnailURL)
 	dto.MimeType = strings.TrimSpace(dto.MimeType)
 
-	if !validSetVideo(dto.MimeType, dto.DurationSeconds) {
+	if !validSetVideo(dto.MimeType, dto.DurationSeconds) || !validSetVideoSize(dto.SizeBytes) {
 		return shared.PipeError[models.MediaAsset](messages.Invalid_Media)
 	}
 

@@ -54,6 +54,8 @@ type Notification struct {
 	MessageID                  *uuid.UUID       `json:"message_id,omitempty"`
 	PostID                     *uuid.UUID       `json:"post_id,omitempty"`
 	CommentID                  *uuid.UUID       `json:"comment_id,omitempty"`
+	SetID                      *uuid.UUID       `json:"set_id,omitempty"`
+	SetCommentID               *uuid.UUID       `json:"set_comment_id,omitempty"`
 	EventID                    *uuid.UUID       `json:"event_id,omitempty"`
 	StoryID                    *uuid.UUID       `json:"story_id,omitempty"`
 	StoryItemID                *uuid.UUID       `json:"story_item_id,omitempty"`

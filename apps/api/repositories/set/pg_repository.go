@@ -35,6 +35,18 @@ func (r *pgRepository) CreateSet(ctx context.Context, authorUserID uuid.UUID, du
 	return set, nil
 }
 
+func (r *pgRepository) UpdateSet(ctx context.Context, authorUserID uuid.UUID, setID uuid.UUID, durationSeconds int, dto setdtos.UpdateSetDTO) (*models.Set, error) {
+	row := r.db.QueryRow(ctx, `
+		UPDATE sets
+		SET media_asset_id = COALESCE($4, media_asset_id), title = $5, description = $6,
+			genre_tags = $7, duration_seconds = $3, updated_at = now()
+		WHERE id = $1 AND author_user_id = $2 AND moderation_status = 'active'
+		RETURNING id, author_user_id, persona_id, media_asset_id, title, description, genre_tags,
+		          duration_seconds, like_count, comment_count, play_count, created_at, updated_at
+	`, setID, authorUserID, durationSeconds, dto.MediaAssetID, dto.Title, dto.Description, dto.GenreTags)
+	return scanSet(row)
+}
+
 func (r *pgRepository) FindSetByID(ctx context.Context, setID uuid.UUID) (*models.Set, error) {
 	row := r.db.QueryRow(ctx, `
 		SELECT s.id, s.author_user_id, s.persona_id, s.media_asset_id, s.title, s.description, s.genre_tags,
@@ -56,22 +68,27 @@ func (r *pgRepository) FindSets(ctx context.Context, limit int, offset int) ([]*
 }
 
 func (r *pgRepository) FindSetsWithFilters(ctx context.Context, genreTag string, sort string, limit int, offset int) ([]*models.Set, error) {
-	orderBy := "s.created_at DESC"
+	orderBy := "s.created_at DESC, s.id DESC"
 	switch sort {
 	case "most_played":
-		orderBy = "s.play_count DESC, s.created_at DESC"
+		orderBy = "s.play_count DESC, s.created_at DESC, s.id DESC"
 	case "most_liked":
-		orderBy = "s.like_count DESC, s.created_at DESC"
+		orderBy = "s.like_count DESC, s.created_at DESC, s.id DESC"
 	case "most_discussed":
-		orderBy = "s.comment_count DESC, s.created_at DESC"
+		orderBy = "s.comment_count DESC, s.created_at DESC, s.id DESC"
+	case "trending":
+		orderBy = "(s.play_count + (s.like_count * 2) + (s.comment_count * 3)) DESC, s.created_at DESC, s.id DESC"
 	}
 	rows, err := r.db.Query(ctx, `
 		SELECT s.id, s.author_user_id, s.persona_id, s.media_asset_id, s.title, s.description, s.genre_tags,
 		       s.duration_seconds, s.like_count, s.comment_count, s.play_count, s.created_at, s.updated_at
 		FROM sets s
 		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
+		INNER JOIN media_assets m ON m.id = s.media_asset_id
 		WHERE ($1 = '' OR $1 = ANY(s.genre_tags))
 		  AND s.moderation_status = 'active'
+		  AND m.processing_status = 'ready'
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = m.id), 'active') = 'active'
 		ORDER BY CASE WHEN EXISTS (SELECT 1 FROM set_features sf WHERE sf.set_id = s.id AND (sf.expires_at IS NULL OR sf.expires_at > now())) THEN 0 ELSE 1 END,
 		`+orderBy+`
 		LIMIT $2 OFFSET $3
@@ -89,9 +106,12 @@ func (r *pgRepository) FindSetsByPersonaID(ctx context.Context, personaID uuid.U
 		       s.duration_seconds, s.like_count, s.comment_count, s.play_count, s.created_at, s.updated_at
 		FROM sets s
 		INNER JOIN personas p ON p.id = s.persona_id AND p.moderation_status = 'active'
+		INNER JOIN media_assets m ON m.id = s.media_asset_id
 		WHERE s.persona_id = $1 AND s.moderation_status = 'active'
+		  AND m.processing_status = 'ready'
+		  AND COALESCE((SELECT mm.status FROM media_moderation mm WHERE mm.media_asset_id = m.id), 'active') = 'active'
 		ORDER BY CASE WHEN EXISTS (SELECT 1 FROM set_features sf WHERE sf.set_id = s.id AND (sf.expires_at IS NULL OR sf.expires_at > now())) THEN 0 ELSE 1 END,
-		 s.created_at DESC
+		 s.created_at DESC, s.id DESC
 		LIMIT $2 OFFSET $3
 	`, personaID, normalizeLimit(limit), normalizeOffset(offset))
 	if err != nil {

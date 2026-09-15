@@ -130,6 +130,10 @@ func (r *setTestRepo) CreateSet(ctx context.Context, authorUserID uuid.UUID, dur
 	}, nil
 }
 
+func (r *setTestRepo) UpdateSet(ctx context.Context, authorUserID uuid.UUID, setID uuid.UUID, durationSeconds int, dto setdtos.UpdateSetDTO) (*models.Set, error) {
+	return &models.Set{ID: setID, AuthorUserID: authorUserID, DurationSeconds: durationSeconds}, nil
+}
+
 func (r *setTestRepo) FindSetByID(ctx context.Context, setID uuid.UUID) (*models.Set, error) {
 	if r.sets == nil {
 		return nil, nil
@@ -169,8 +173,8 @@ func (r *setTestRepo) FindLikedSetIDs(ctx context.Context, personaID uuid.UUID, 
 	return map[uuid.UUID]bool{}, nil
 }
 
-func (r *setTestRepo) IncrementPlayCount(ctx context.Context, setID uuid.UUID) error {
-	return nil
+func (r *setTestRepo) RecordSetPlay(ctx context.Context, setID uuid.UUID, userID uuid.UUID) (bool, error) {
+	return true, nil
 }
 
 func (r *setTestRepo) CreateSetComment(ctx context.Context, personaID uuid.UUID, setID uuid.UUID, body string, parentID uuid.UUID) (*models.SetComment, error) {

@@ -46,6 +46,8 @@ type NotificationResponse struct {
 	MessageID                  *string                   `json:"message_id,omitempty"`
 	PostID                     *string                   `json:"post_id,omitempty"`
 	CommentID                  *string                   `json:"comment_id,omitempty"`
+	SetID                      *string                   `json:"set_id,omitempty"`
+	SetCommentID               *string                   `json:"set_comment_id,omitempty"`
 	EventID                    *string                   `json:"event_id,omitempty"`
 	StoryID                    *string                   `json:"story_id,omitempty"`
 	StoryItemID                *string                   `json:"story_item_id,omitempty"`
@@ -102,6 +104,8 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 	var messageID *string
 	var postID *string
 	var commentID *string
+	var setID *string
+	var setCommentID *string
 	var eventID *string
 	var storyID *string
 	var storyItemID *string
@@ -122,6 +126,14 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 	if notification.CommentID != nil {
 		value := notification.CommentID.String()
 		commentID = &value
+	}
+	if notification.SetID != nil {
+		value := notification.SetID.String()
+		setID = &value
+	}
+	if notification.SetCommentID != nil {
+		value := notification.SetCommentID.String()
+		setCommentID = &value
 	}
 	if notification.EventID != nil {
 		value := notification.EventID.String()
@@ -151,6 +163,8 @@ func (p *NotificationPipe) notificationResponse(ctx context.Context, notificatio
 		MessageID:                  messageID,
 		PostID:                     postID,
 		CommentID:                  commentID,
+		SetID:                      setID,
+		SetCommentID:               setCommentID,
 		EventID:                    eventID,
 		StoryID:                    storyID,
 		StoryItemID:                storyItemID,

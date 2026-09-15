@@ -22,6 +22,8 @@ type CreateNotificationInput struct {
 	MessageID                  *uuid.UUID
 	PostID                     *uuid.UUID
 	CommentID                  *uuid.UUID
+	SetID                      *uuid.UUID
+	SetCommentID               *uuid.UUID
 	EventID                    *uuid.UUID
 	StoryID                    *uuid.UUID
 	StoryItemID                *uuid.UUID
