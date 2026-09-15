@@ -94,3 +94,71 @@ func (c *SetController) ListSetComments(ctx *fiber.Ctx) error {
 	}
 	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
 }
+
+func (c *SetController) UpdateSetComment(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+	commentID, err := uuid.Parse(ctx.Params("commentID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_comment_id")
+	}
+	var dto dtos.UpdateSetCommentDTO
+	if err := parseAndValidate(ctx, &dto); err != nil {
+		return validationError(ctx, err)
+	}
+	res := c.pipe.UpdateSetCommentPipe(ctx.Context(), userID, commentID, dto)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess(ctx, fiber.StatusOK, res.Message, res.Data)
+}
+
+func (c *SetController) DeleteSetComment(ctx *fiber.Ctx) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+	commentID, err := uuid.Parse(ctx.Params("commentID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_comment_id")
+	}
+	personaID, err := uuid.Parse(ctx.Query("persona_id"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+	res := c.pipe.DeleteSetCommentPipe(ctx.Context(), userID, commentID, personaID)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess[any](ctx, fiber.StatusOK, res.Message, nil)
+}
+
+func (c *SetController) LikeSetComment(ctx *fiber.Ctx) error {
+	return c.setCommentLike(ctx, false)
+}
+
+func (c *SetController) UnlikeSetComment(ctx *fiber.Ctx) error {
+	return c.setCommentLike(ctx, true)
+}
+
+func (c *SetController) setCommentLike(ctx *fiber.Ctx, unlike bool) error {
+	userID, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return pipeError(ctx, fiber.StatusUnauthorized, "invalid_token")
+	}
+	commentID, err := uuid.Parse(ctx.Params("commentID"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_comment_id")
+	}
+	personaID, err := uuid.Parse(ctx.Query("persona_id"))
+	if err != nil {
+		return pipeError(ctx, fiber.StatusBadRequest, "invalid_persona_id")
+	}
+	res := c.pipe.SetCommentLikePipe(ctx.Context(), userID, commentID, personaID, unlike)
+	if !res.Success {
+		return pipeError(ctx, pipeErrorStatus(res.Message), res.Message)
+	}
+	return pipeSuccess[any](ctx, fiber.StatusOK, res.Message, nil)
+}

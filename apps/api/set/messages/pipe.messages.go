@@ -23,4 +23,8 @@ const (
 	Set_Play_Already_Recorded shared.PipeMessage = "set_play_already_recorded"
 	Set_Commented             shared.PipeMessage = "set_comment_created_successfully"
 	Set_Comments_Listed       shared.PipeMessage = "set_comments_listed_successfully"
+	Set_Comment_Updated       shared.PipeMessage = "set_comment_updated_successfully"
+	Set_Comment_Deleted       shared.PipeMessage = "set_comment_deleted_successfully"
+	Set_Comment_Liked         shared.PipeMessage = "set_comment_liked_successfully"
+	Set_Comment_Unliked       shared.PipeMessage = "set_comment_unliked_successfully"
 )

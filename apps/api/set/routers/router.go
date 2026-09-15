@@ -22,5 +22,9 @@ func SetRoutes(controller *controllers.SetController, cfg *config.Config) []api.
 		{RouteMethod: api.RouteMethod("DELETE"), Path: "/:setID/likes", Middlewares: auth, Handler: controller.UnlikeSet},
 		{RouteMethod: api.RouteMethod("POST"), Path: "/:setID/plays", Middlewares: auth, Handler: controller.RecordSetPlay},
 		{RouteMethod: api.RouteMethod("POST"), Path: "/:setID/comments", Middlewares: auth, Handler: controller.CreateSetComment},
+		{RouteMethod: api.RouteMethod("PATCH"), Path: "/comments/:commentID", Middlewares: auth, Handler: controller.UpdateSetComment},
+		{RouteMethod: api.RouteMethod("DELETE"), Path: "/comments/:commentID", Middlewares: auth, Handler: controller.DeleteSetComment},
+		{RouteMethod: api.RouteMethod("POST"), Path: "/comments/:commentID/likes", Middlewares: auth, Handler: controller.LikeSetComment},
+		{RouteMethod: api.RouteMethod("DELETE"), Path: "/comments/:commentID/likes", Middlewares: auth, Handler: controller.UnlikeSetComment},
 	}
 }

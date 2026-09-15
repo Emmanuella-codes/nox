@@ -25,12 +25,14 @@ type Set struct {
 }
 
 type SetComment struct {
-	ID        uuid.UUID `json:"id"`
-	PersonaID uuid.UUID `json:"persona_id"`
-	SetID     uuid.UUID `json:"set_id"`
-	Body      string    `json:"body"`
-	ParentID  uuid.UUID `json:"parent_id,omitempty"`
-	LikeCount int       `json:"like_count"`
-	CreatedAt time.Time `json:"created_at"`
-	Persona   *Persona  `json:"persona,omitempty"`
+	ID        uuid.UUID  `json:"id"`
+	PersonaID uuid.UUID  `json:"persona_id"`
+	SetID     uuid.UUID  `json:"set_id"`
+	Body      string     `json:"body"`
+	ParentID  uuid.UUID  `json:"parent_id,omitempty"`
+	LikeCount int        `json:"like_count"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	Persona   *Persona   `json:"persona,omitempty"`
 }

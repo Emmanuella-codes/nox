@@ -27,6 +27,8 @@ func scanNotification(row scanner) (*models.Notification, error) {
 		&notification.MessageID,
 		&notification.PostID,
 		&notification.CommentID,
+		&notification.SetID,
+		&notification.SetCommentID,
 		&notification.EventID,
 		&notification.StoryID,
 		&notification.StoryItemID,

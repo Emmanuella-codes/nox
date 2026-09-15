@@ -75,6 +75,8 @@ func scanSetComment(scanner setScanner) (*models.SetComment, error) {
 		&comment.ParentID,
 		&comment.LikeCount,
 		&comment.CreatedAt,
+		&comment.UpdatedAt,
+		&comment.DeletedAt,
 	)
 	if err != nil {
 		return nil, err

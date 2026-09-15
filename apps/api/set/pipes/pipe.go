@@ -10,6 +10,7 @@ import (
 
 	"github.com/emmanuella-codes/nox/models"
 	media_repo "github.com/emmanuella-codes/nox/repositories/media"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	preference_repo "github.com/emmanuella-codes/nox/repositories/preference"
 	set_repo "github.com/emmanuella-codes/nox/repositories/set"
@@ -21,18 +22,31 @@ import (
 var genreTagPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 
 type SetPipe struct {
-	setRepo        set_repo.SetRepository
-	mediaRepo      media_repo.MediaRepository
-	personaRepo    persona_repo.PersonaRepository
-	preferenceRepo preference_repo.PreferenceRepository
+	setRepo               set_repo.SetRepository
+	mediaRepo             media_repo.MediaRepository
+	personaRepo           persona_repo.PersonaRepository
+	preferenceRepo        preference_repo.PreferenceRepository
+	notificationRepo      notification_repo.NotificationRepository
+	notificationPublisher interface {
+		PublishCreatedNotification(context.Context, *models.Notification)
+	}
 }
 
-func NewSetPipe(setRepo set_repo.SetRepository, mediaRepo media_repo.MediaRepository, personaRepo persona_repo.PersonaRepository, preferences ...preference_repo.PreferenceRepository) *SetPipe {
-	var preferenceRepo preference_repo.PreferenceRepository
-	if len(preferences) > 0 {
-		preferenceRepo = preferences[0]
+func NewSetPipe(setRepo set_repo.SetRepository, mediaRepo media_repo.MediaRepository, personaRepo persona_repo.PersonaRepository, deps ...any) *SetPipe {
+	pipe := &SetPipe{setRepo: setRepo, mediaRepo: mediaRepo, personaRepo: personaRepo}
+	for _, dep := range deps {
+		switch value := dep.(type) {
+		case preference_repo.PreferenceRepository:
+			pipe.preferenceRepo = value
+		case notification_repo.NotificationRepository:
+			pipe.notificationRepo = value
+		case interface {
+			PublishCreatedNotification(context.Context, *models.Notification)
+		}:
+			pipe.notificationPublisher = value
+		}
 	}
-	return &SetPipe{setRepo: setRepo, mediaRepo: mediaRepo, personaRepo: personaRepo, preferenceRepo: preferenceRepo}
+	return pipe
 }
 
 type setCursor struct {

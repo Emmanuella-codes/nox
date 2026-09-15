@@ -41,6 +41,8 @@ type SetCommentResponse struct {
 	ParentID  string          `json:"parent_id,omitempty"`
 	LikeCount int             `json:"like_count"`
 	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	IsLiked   bool            `json:"is_liked"`
 	Persona   *models.Persona `json:"persona,omitempty"`
 }
 
@@ -80,6 +82,7 @@ func setCommentResponse(comment *models.SetComment) SetCommentResponse {
 		Body:      comment.Body,
 		LikeCount: comment.LikeCount,
 		CreatedAt: comment.CreatedAt,
+		UpdatedAt: comment.UpdatedAt,
 		Persona:   comment.Persona,
 	}
 	if comment.ParentID.String() != "00000000-0000-0000-0000-000000000000" {

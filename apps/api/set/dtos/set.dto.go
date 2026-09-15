@@ -26,3 +26,8 @@ type CreateSetCommentDTO struct {
 	Body      string    `json:"body" validate:"required"`
 	ParentID  uuid.UUID `json:"parent_id"`
 }
+
+type UpdateSetCommentDTO struct {
+	PersonaID uuid.UUID `json:"persona_id" validate:"required"`
+	Body      string    `json:"body" validate:"required"`
+}
