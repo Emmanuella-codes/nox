@@ -17,6 +17,7 @@ import (
 	"github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/repositories/set"
 	"github.com/emmanuella-codes/nox/repositories/story"
+	"github.com/emmanuella-codes/nox/repositories/ticket"
 	"github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -39,6 +40,7 @@ type Repositories struct {
 	Search       search.SearchRepository
 	Follow       follow.FollowRepository
 	Hashtag      hashtag.HashtagRepository
+	Ticket       ticket.TicketRepository
 }
 
 func Init(pool *pgxpool.Pool) *Repositories {
@@ -60,5 +62,6 @@ func Init(pool *pgxpool.Pool) *Repositories {
 		Search:       search.NewSearchRepository(pool),
 		Follow:       follow.NewFollowRepository(pool),
 		Hashtag:      hashtag.NewHashtagRepository(pool),
+		Ticket:       ticket.NewTicketRepository(pool),
 	}
 }

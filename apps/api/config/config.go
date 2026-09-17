@@ -51,6 +51,8 @@ type Config struct {
 	ModerationCleanupInterval time.Duration
 	EventLifecycleInterval    time.Duration
 	EventLifecycleBatchSize   int
+	TicketInventoryInterval   time.Duration
+	TicketInventoryBatchSize  int
 	GhostPersonaSecret        string
 	Environment               string
 	LogLevel                  string
@@ -112,6 +114,8 @@ func Load() (*Config, error) {
 		ModerationCleanupInterval: getDurationEnv("MODERATION_CLEANUP_INTERVAL", 1*time.Hour),
 		EventLifecycleInterval:    getDurationEnv("EVENT_LIFECYCLE_INTERVAL", 1*time.Minute),
 		EventLifecycleBatchSize:   getIntEnv("EVENT_LIFECYCLE_BATCH_SIZE", 100),
+		TicketInventoryInterval:   getDurationEnv("TICKET_INVENTORY_INTERVAL", time.Minute),
+		TicketInventoryBatchSize:  getIntEnv("TICKET_INVENTORY_BATCH_SIZE", 100),
 		GhostPersonaSecret:        getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:               getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 		LogLevel:                  getEnv("LOG_LEVEL", "info"),

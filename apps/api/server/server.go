@@ -66,6 +66,9 @@ import (
 	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
 	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
+	ticket_controllers "github.com/emmanuella-codes/nox/ticket/controllers"
+	ticket_pipes "github.com/emmanuella-codes/nox/ticket/pipes"
+	ticket_routers "github.com/emmanuella-codes/nox/ticket/routers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -142,6 +145,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	reportController := report_controllers.NewReportController(report_pipes.NewReportPipe(repos.Admin, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference, repos.Notification, notificationPipe))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
+	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona))
 
 	api := app.Group("/api/v1")
 
@@ -154,6 +158,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	shared_api.BaseRouter(api, like_routers.LikeRoutes(likeController, cfg))
 	shared_api.BaseRouter(api, follow_routers.FollowRoutes(followController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
+	shared_api.BaseRouter(api, ticket_routers.Routes(ticketController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))

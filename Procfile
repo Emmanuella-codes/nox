@@ -6,3 +6,4 @@ media: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/
 crews: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/crews
 moderation: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/moderation
 events: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/events
+tickets: cd apps/api && GOCACHE=/Users/admin/Desktop/projects/personal/nox/.cache/go-build go run ./workers/tickets
