@@ -9,7 +9,12 @@ const (
 	Forbidden         shared.PipeMessage = "forbidden"
 	Internal_Error    shared.PipeMessage = "internal_error"
 
-	Event_Created shared.PipeMessage = "event_created_successfully"
-	Event_Fetched shared.PipeMessage = "event_fetched_successfully"
-	Events_Listed shared.PipeMessage = "events_listed_successfully"
+	Event_Created      shared.PipeMessage = "event_created_successfully"
+	Event_Fetched      shared.PipeMessage = "event_fetched_successfully"
+	Events_Listed      shared.PipeMessage = "events_listed_successfully"
+	Event_Updated      shared.PipeMessage = "event_updated_successfully"
+	Event_Published    shared.PipeMessage = "event_published_successfully"
+	Event_Closed       shared.PipeMessage = "event_moved_to_follow_up_successfully"
+	Event_Archived     shared.PipeMessage = "event_archived_successfully"
+	Invalid_Transition shared.PipeMessage = "invalid_event_transition"
 )

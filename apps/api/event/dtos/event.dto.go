@@ -7,14 +7,28 @@ import (
 )
 
 type CreateEventDTO struct {
-	Title       string    `json:"title" validate:"required"`
-	Venue       string    `json:"venue" validate:"required"`
-	Location    string    `json:"location" validate:"required"`
-	EventDate   time.Time `json:"event_date" validate:"required"`
-	Description string    `json:"description" validate:"required"`
-	CoverURL    string    `json:"cover_url"`
-	TicketURL   string    `json:"ticket_url"`
-	Price       int       `json:"price_ngn"`
-	GenreTags   []string  `json:"genre_tags"`
-	OrganizerID uuid.UUID `json:"organizer_id" validate:"required"`
+	Title        string    `json:"title" validate:"required"`
+	Venue        string    `json:"venue" validate:"required"`
+	Location     string    `json:"location" validate:"required"`
+	EventDate    time.Time `json:"event_date" validate:"required"`
+	EventEndDate time.Time `json:"event_end_date"`
+	Description  string    `json:"description" validate:"required"`
+	CoverURL     string    `json:"cover_url"`
+	TicketURL    string    `json:"ticket_url"`
+	Price        int       `json:"price_ngn"`
+	GenreTags    []string  `json:"genre_tags"`
+	OrganizerID  uuid.UUID `json:"organizer_id" validate:"required"`
+}
+
+type UpdateEventDTO struct {
+	Title        string    `json:"title" validate:"required"`
+	Venue        string    `json:"venue" validate:"required"`
+	Location     string    `json:"location" validate:"required"`
+	EventDate    time.Time `json:"event_date" validate:"required"`
+	EventEndDate time.Time `json:"event_end_date" validate:"required"`
+	Description  string    `json:"description" validate:"required"`
+	CoverURL     string    `json:"cover_url"`
+	TicketURL    string    `json:"ticket_url"`
+	Price        int       `json:"price_ngn"`
+	GenreTags    []string  `json:"genre_tags"`
 }

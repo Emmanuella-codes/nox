@@ -327,6 +327,22 @@ func (r *storyHighlightEventRepo) FindEvents(ctx context.Context, limit int) ([]
 	panic("unexpected call to FindEvents")
 }
 
+func (r *storyHighlightEventRepo) UpdateEvent(ctx context.Context, userID, eventID uuid.UUID, dto event_dtos.UpdateEventDTO) (*models.Event, error) {
+	panic("unexpected call to UpdateEvent")
+}
+func (r *storyHighlightEventRepo) PublishEvent(ctx context.Context, userID, eventID uuid.UUID) (*models.Event, error) {
+	panic("unexpected call to PublishEvent")
+}
+func (r *storyHighlightEventRepo) CloseEvent(ctx context.Context, userID, eventID uuid.UUID) (*models.Event, error) {
+	panic("unexpected call to CloseEvent")
+}
+func (r *storyHighlightEventRepo) ArchiveEvent(ctx context.Context, userID, eventID uuid.UUID) (*models.Event, error) {
+	panic("unexpected call to ArchiveEvent")
+}
+func (r *storyHighlightEventRepo) AdvanceLifecycle(ctx context.Context, now time.Time, limit int) (int, error) {
+	panic("unexpected call to AdvanceLifecycle")
+}
+
 // storyHighlightPersonaRepo returns persona fixtures by id.
 type storyHighlightPersonaRepo struct {
 	personas map[uuid.UUID]*models.Persona
