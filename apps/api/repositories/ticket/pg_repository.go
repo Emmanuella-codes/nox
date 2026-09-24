@@ -2,13 +2,90 @@ package ticket
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/ticket/dtos"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"strings"
 	"time"
 )
+
+func (r *pgRepository) CreateOrder(ctx context.Context, reservationID, userID uuid.UUID) (*models.TicketOrder, error) {
+	reference := "nox_" + uuid.NewString()
+	row := r.db.QueryRow(ctx, `INSERT INTO ticket_orders(user_id,event_id,reservation_id,subtotal_minor,provider_fee_minor,platform_fee_minor,total_minor,currency,provider_reference,expires_at) SELECT r.user_id,w.event_id,r.id,t.price_minor*r.quantity,0,0,t.price_minor*r.quantity,t.currency,$3,r.expires_at FROM ticket_reservations r JOIN ticket_tiers t ON t.id=r.tier_id JOIN ticket_waves w ON w.id=t.wave_id WHERE r.id=$1 AND r.user_id=$2 AND r.status IN ('active','converted') ON CONFLICT (reservation_id) DO UPDATE SET updated_at=now() RETURNING id,user_id,event_id,reservation_id,subtotal_minor,provider_fee_minor,platform_fee_minor,total_minor,currency,status,provider_reference,expires_at`, reservationID, userID, reference)
+	return scanOrder(row)
+}
+
+func (r *pgRepository) FindOrder(ctx context.Context, orderID, userID uuid.UUID) (*models.TicketOrder, error) {
+	row := r.db.QueryRow(ctx, `SELECT id,user_id,event_id,reservation_id,subtotal_minor,provider_fee_minor,platform_fee_minor,total_minor,currency,status,provider_reference,expires_at FROM ticket_orders WHERE id=$1 AND user_id=$2`, orderID, userID)
+	return scanOrder(row)
+}
+
+func (r *pgRepository) SettlePayment(ctx context.Context, reference, providerEventID string, amount int64, currency string, payload json.RawMessage) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var orderID, reservationID, tierID uuid.UUID
+	var userID, eventID uuid.UUID
+	var quantity, attendees int
+	var subtotal int64
+	var orderCurrency string
+	var status, reservationStatus string
+	if err := tx.QueryRow(ctx, `SELECT o.id,o.user_id,o.event_id,o.reservation_id,o.subtotal_minor,o.currency,o.status,r.status,r.quantity,r.tier_id,t.attendees_per_purchase FROM ticket_orders o JOIN ticket_reservations r ON r.id=o.reservation_id JOIN ticket_tiers t ON t.id=r.tier_id WHERE o.provider_reference=$1 FOR UPDATE`, reference).Scan(&orderID, &userID, &eventID, &reservationID, &subtotal, &orderCurrency, &status, &reservationStatus, &quantity, &tierID, &attendees); err != nil {
+		return ErrNotFound
+	}
+	if status == "paid" {
+		return nil
+	}
+	if amount < subtotal || !strings.EqualFold(currency, orderCurrency) {
+		return ErrUnavailable
+	}
+	if reservationStatus == "expired" {
+		result, err := tx.Exec(ctx, `UPDATE ticket_tiers SET remaining_inventory=remaining_inventory-$2,updated_at=now() WHERE id=$1 AND remaining_inventory >= $2`, tierID, quantity)
+		if err != nil {
+			return err
+		}
+		if result.RowsAffected() != 1 {
+			return ErrUnavailable
+		}
+		if _, err := tx.Exec(ctx, `UPDATE ticket_reservations SET status='active',updated_at=now() WHERE id=$1`, reservationID); err != nil {
+			return err
+		}
+	} else if reservationStatus != "active" {
+		return ErrUnavailable
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO ticket_payments(order_id,provider_event_id,provider_reference,status,amount_minor,currency,payload,processed_at) VALUES($1,$2,$3,'success',$4,$5,$6,now()) ON CONFLICT(provider_event_id) DO NOTHING`, orderID, providerEventID, reference, amount, currency, payload); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE ticket_orders SET status='paid',total_minor=$2,provider_fee_minor=GREATEST($2-subtotal_minor,0),updated_at=now() WHERE id=$1`, orderID, amount); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE ticket_reservations SET status='converted',updated_at=now() WHERE id=$1`, reservationID); err != nil {
+		return err
+	}
+	for i := 0; i < quantity; i++ {
+		var ticketID uuid.UUID
+		if err := tx.QueryRow(ctx, `INSERT INTO tickets(order_id,event_id,tier_id,credential) VALUES($1,$2,$3,$4) RETURNING id`, orderID, eventID, tierID, "nox_"+uuid.NewString()).Scan(&ticketID); err != nil {
+			return err
+		}
+		for j := 0; j < attendees; j++ {
+			if _, err := tx.Exec(ctx, `INSERT INTO attendee_entitlements(ticket_id,event_id,user_id) VALUES($1,$2,$3)`, ticketID, eventID, userID); err != nil {
+				return err
+			}
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func scanOrder(s interface{ Scan(...any) error }) (*models.TicketOrder, error) {
+	var o models.TicketOrder
+	err := s.Scan(&o.ID, &o.UserID, &o.EventID, &o.ReservationID, &o.SubtotalMinor, &o.ProviderFeeMinor, &o.PlatformFeeMinor, &o.TotalMinor, &o.Currency, &o.Status, &o.ProviderReference, &o.ExpiresAt)
+	return &o, err
+}
 
 type pgRepository struct{ db *pgxpool.Pool }
 
@@ -144,6 +221,9 @@ func (r *pgRepository) ReleaseExpired(ctx context.Context, now time.Time, limit 
 			return 0, err
 		}
 		if _, err = tx.Exec(ctx, `UPDATE ticket_reservations SET status='expired',updated_at=now() WHERE id=$1`, id); err != nil {
+			return 0, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE ticket_orders SET status='expired',updated_at=now() WHERE reservation_id=$1 AND status='pending'`, id); err != nil {
 			return 0, err
 		}
 		if _, err = tx.Exec(ctx, `UPDATE ticket_tiers SET remaining_inventory=LEAST(inventory,remaining_inventory+$2),updated_at=now() WHERE id=$1`, tier, qty); err != nil {

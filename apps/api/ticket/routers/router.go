@@ -16,5 +16,8 @@ func Routes(c *controllers.Controller, cfg *config.Config) []api.RouterSchema {
 		{RouteMethod: "POST", Path: "/ticket-waves/:waveID/release", Middlewares: auth, Handler: c.ReleaseWave},
 		{RouteMethod: "POST", Path: "/ticket-waves/:waveID/ticket-tiers", Middlewares: auth, Handler: c.CreateTier},
 		{RouteMethod: "POST", Path: "/ticket-tiers/:tierID/reservations", Middlewares: auth, Handler: c.Reserve},
+		{RouteMethod: "GET", Path: "/ticket-orders/:orderID", Middlewares: auth, Handler: c.Order},
+		{RouteMethod: "POST", Path: "/ticket-orders/:orderID/payment/initialize", Middlewares: auth, Handler: c.InitializePayment},
+		{RouteMethod: "POST", Path: "/payments/paystack/webhook", Handler: c.PaystackWebhook},
 	}
 }

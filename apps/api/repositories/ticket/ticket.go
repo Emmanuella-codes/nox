@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/ticket/dtos"
@@ -21,6 +22,9 @@ type TicketRepository interface {
 	AdvanceSales(context.Context, time.Time, int) (int64, error)
 	Reserve(context.Context, uuid.UUID, uuid.UUID, dtos.ReserveDTO, time.Duration) (*models.TicketReservation, error)
 	ReleaseExpired(context.Context, time.Time, int) (int64, error)
+	CreateOrder(context.Context, uuid.UUID, uuid.UUID) (*models.TicketOrder, error)
+	FindOrder(context.Context, uuid.UUID, uuid.UUID) (*models.TicketOrder, error)
+	SettlePayment(context.Context, string, string, int64, string, json.RawMessage) error
 }
 
 func NewTicketRepository(db *pgxpool.Pool) TicketRepository { return &pgRepository{db: db} }

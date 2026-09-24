@@ -38,6 +38,8 @@ type Config struct {
 	CloudinaryAPISecret       string
 	CloudinaryUploadFolder    string
 	PushProvider              string
+	PaystackSecretKey         string
+	PaystackBaseURL           string
 	PushWorkerBatchSize       int
 	PushWorkerPollInterval    time.Duration
 	MediaCleanupBatchSize     int
@@ -101,6 +103,8 @@ func Load() (*Config, error) {
 		CloudinaryAPISecret:       getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder:    getEnv("CLOUDINARY_UPLOAD_FOLDER", "nox/posts"),
 		PushProvider:              getEnv("PUSH_PROVIDER", "log"),
+		PaystackSecretKey:         getEnv("PAYSTACK_SECRET_KEY", ""),
+		PaystackBaseURL:           getEnv("PAYSTACK_BASE_URL", "https://api.paystack.co"),
 		PushWorkerBatchSize:       getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
 		PushWorkerPollInterval:    getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
 		MediaCleanupBatchSize:     getIntEnv("MEDIA_CLEANUP_BATCH_SIZE", 25),

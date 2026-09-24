@@ -102,3 +102,46 @@ func (c *Controller) Reserve(ctx *fiber.Ctx) error {
 	}
 	return success(ctx, 201, r.Message, r.Data)
 }
+
+func (c *Controller) Order(ctx *fiber.Ctx) error {
+	u, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return failure(ctx, messages.Forbidden)
+	}
+	o, err := uuid.Parse(ctx.Params("orderID"))
+	if err != nil {
+		return failure(ctx, messages.Invalid)
+	}
+	r := c.pipe.Order(ctx.Context(), u, o)
+	if !r.Success {
+		return failure(ctx, r.Message)
+	}
+	return success(ctx, fiber.StatusOK, r.Message, r.Data)
+}
+
+func (c *Controller) InitializePayment(ctx *fiber.Ctx) error {
+	u, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return failure(ctx, messages.Forbidden)
+	}
+	o, err := uuid.Parse(ctx.Params("orderID"))
+	if err != nil {
+		return failure(ctx, messages.Invalid)
+	}
+	r := c.pipe.InitializePayment(ctx.Context(), u, o)
+	if !r.Success {
+		return failure(ctx, r.Message)
+	}
+	return success(ctx, fiber.StatusOK, r.Message, r.Data)
+}
+
+func (c *Controller) PaystackWebhook(ctx *fiber.Ctx) error {
+	signature := ctx.Get("x-paystack-signature")
+	if !c.pipe.VerifyWebhook(ctx.Body(), signature) {
+		return ctx.SendStatus(fiber.StatusUnauthorized)
+	}
+	if err := c.pipe.HandleWebhook(ctx.Context(), ctx.Body()); err != nil {
+		return ctx.SendStatus(fiber.StatusBadRequest)
+	}
+	return ctx.SendStatus(fiber.StatusOK)
+}

@@ -62,6 +62,7 @@ import (
 	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	"github.com/emmanuella-codes/nox/shared/payments"
 	"github.com/emmanuella-codes/nox/shared/realtime"
 	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
 	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
@@ -145,7 +146,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	reportController := report_controllers.NewReportController(report_pipes.NewReportPipe(repos.Admin, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference, repos.Notification, notificationPipe))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
-	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona))
+	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona, repos.User, payments.NewPaystack(cfg.PaystackSecretKey, cfg.PaystackBaseURL)))
 
 	api := app.Group("/api/v1")
 

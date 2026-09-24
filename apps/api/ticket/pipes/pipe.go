@@ -2,10 +2,15 @@ package pipes
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/repositories/persona"
 	ticketrepo "github.com/emmanuella-codes/nox/repositories/ticket"
+	userrepo "github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/emmanuella-codes/nox/shared"
+	"github.com/emmanuella-codes/nox/shared/payments"
 	"github.com/emmanuella-codes/nox/ticket/dtos"
 	"github.com/emmanuella-codes/nox/ticket/messages"
 	"github.com/google/uuid"
@@ -16,10 +21,21 @@ import (
 type TicketPipe struct {
 	repo        ticketrepo.TicketRepository
 	personaRepo persona.PersonaRepository
+	userRepo    userrepo.UserRepository
+	payment     payments.Provider
 }
 
-func NewTicketPipe(repo ticketrepo.TicketRepository, personas persona.PersonaRepository) *TicketPipe {
-	return &TicketPipe{repo: repo, personaRepo: personas}
+func NewTicketPipe(repo ticketrepo.TicketRepository, personas persona.PersonaRepository, deps ...any) *TicketPipe {
+	p := &TicketPipe{repo: repo, personaRepo: personas}
+	for _, dep := range deps {
+		switch value := dep.(type) {
+		case userrepo.UserRepository:
+			p.userRepo = value
+		case payments.Provider:
+			p.payment = value
+		}
+	}
+	return p
 }
 func (p *TicketPipe) CreateWave(ctx context.Context, userID, eventID uuid.UUID, dto dtos.CreateWaveDTO) *shared.PipeRes[models.TicketWave] {
 	if strings.TrimSpace(dto.Name) == "" {
@@ -66,5 +82,64 @@ func (p *TicketPipe) Reserve(ctx context.Context, userID, tierID uuid.UUID, dto 
 		}
 		return shared.PipeError[models.TicketReservation](messages.Internal)
 	}
+	order, err := p.repo.CreateOrder(ctx, item.ID, userID)
+	if err != nil {
+		return shared.PipeError[models.TicketReservation](messages.Internal)
+	}
+	item.OrderID = order.ID
 	return shared.PipeSuccess(messages.Reserved, item)
+}
+
+func (p *TicketPipe) Order(ctx context.Context, userID, orderID uuid.UUID) *shared.PipeRes[models.TicketOrder] {
+	order, err := p.repo.FindOrder(ctx, orderID, userID)
+	if err != nil {
+		return shared.PipeError[models.TicketOrder](messages.NotFound)
+	}
+	return shared.PipeSuccess(messages.OrderReady, order)
+}
+
+func (p *TicketPipe) InitializePayment(ctx context.Context, userID, orderID uuid.UUID) *shared.PipeRes[models.TicketOrder] {
+	if p.payment == nil || p.userRepo == nil {
+		return shared.PipeError[models.TicketOrder](messages.Internal)
+	}
+	order, err := p.repo.FindOrder(ctx, orderID, userID)
+	if err != nil || order.Status != "pending" {
+		return shared.PipeError[models.TicketOrder](messages.NotFound)
+	}
+	user, err := p.userRepo.FindUserByID(ctx, userID.String())
+	if err != nil {
+		return shared.PipeError[models.TicketOrder](messages.Internal)
+	}
+	result, err := p.payment.Initialize(ctx, payments.InitRequest{Email: user.Email, AmountMinor: order.SubtotalMinor, Currency: order.Currency, Reference: order.ProviderReference})
+	if err != nil {
+		return shared.PipeError[models.TicketOrder](messages.Internal)
+	}
+	order.AuthorizationURL = result.AuthorizationURL
+	return shared.PipeSuccess(messages.PaymentReady, order)
+}
+
+func (p *TicketPipe) HandleWebhook(ctx context.Context, body []byte) error {
+	var input struct {
+		Event string `json:"event"`
+		Data  struct {
+			ID        string `json:"id"`
+			Reference string `json:"reference"`
+			Amount    int64  `json:"amount"`
+			Currency  string `json:"currency"`
+			Status    string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &input); err != nil || input.Event != "charge.success" || input.Data.Status != "success" || input.Data.Reference == "" {
+		return ticketrepo.ErrUnavailable
+	}
+	eventID := input.Data.ID
+	if eventID == "" {
+		hash := sha256.Sum256(body)
+		eventID = hex.EncodeToString(hash[:])
+	}
+	return p.repo.SettlePayment(ctx, input.Data.Reference, eventID, input.Data.Amount, input.Data.Currency, body)
+}
+
+func (p *TicketPipe) VerifyWebhook(body []byte, signature string) bool {
+	return p.payment != nil && p.payment.VerifyWebhook(body, signature)
 }
