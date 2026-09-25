@@ -25,6 +25,9 @@ import (
 	follow_controllers "github.com/emmanuella-codes/nox/follow/controllers"
 	follow_pipes "github.com/emmanuella-codes/nox/follow/pipes"
 	follow_routers "github.com/emmanuella-codes/nox/follow/routers"
+	guest_controllers "github.com/emmanuella-codes/nox/guest/controllers"
+	guest_pipes "github.com/emmanuella-codes/nox/guest/pipes"
+	guest_routers "github.com/emmanuella-codes/nox/guest/routers"
 	hashtag_controllers "github.com/emmanuella-codes/nox/hashtag/controllers"
 	hashtag_pipes "github.com/emmanuella-codes/nox/hashtag/pipes"
 	hashtag_routers "github.com/emmanuella-codes/nox/hashtag/routers"
@@ -147,6 +150,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference, repos.Notification, notificationPipe))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona, repos.User, payments.NewPaystack(cfg.PaystackSecretKey, cfg.PaystackBaseURL)))
+	guestController := guest_controllers.NewController(guest_pipes.NewGuestPipe(repos.Guest, mailProvider))
 
 	api := app.Group("/api/v1")
 
@@ -160,6 +164,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	shared_api.BaseRouter(api, follow_routers.FollowRoutes(followController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
 	shared_api.BaseRouter(api, ticket_routers.Routes(ticketController, cfg))
+	shared_api.BaseRouter(api, guest_routers.Routes(guestController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))

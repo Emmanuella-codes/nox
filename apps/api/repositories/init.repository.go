@@ -6,6 +6,7 @@ import (
 	"github.com/emmanuella-codes/nox/repositories/crew"
 	"github.com/emmanuella-codes/nox/repositories/event"
 	"github.com/emmanuella-codes/nox/repositories/follow"
+	"github.com/emmanuella-codes/nox/repositories/guest"
 	"github.com/emmanuella-codes/nox/repositories/hashtag"
 	"github.com/emmanuella-codes/nox/repositories/like"
 	"github.com/emmanuella-codes/nox/repositories/media"
@@ -41,6 +42,7 @@ type Repositories struct {
 	Follow       follow.FollowRepository
 	Hashtag      hashtag.HashtagRepository
 	Ticket       ticket.TicketRepository
+	Guest        guest.GuestRepository
 }
 
 func Init(pool *pgxpool.Pool) *Repositories {
@@ -63,5 +65,6 @@ func Init(pool *pgxpool.Pool) *Repositories {
 		Follow:       follow.NewFollowRepository(pool),
 		Hashtag:      hashtag.NewHashtagRepository(pool),
 		Ticket:       ticket.NewTicketRepository(pool),
+		Guest:        guest.NewGuestRepository(pool),
 	}
 }
