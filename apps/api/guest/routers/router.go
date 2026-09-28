@@ -38,6 +38,24 @@ func Routes(c *controllers.Controller, cfg *config.Config) []api.RouterSchema {
 		},
 		{
 			RouteMethod: "POST",
+			Path:        "/guest-invitations/decline",
+			Middlewares: optional,
+			Handler:     c.Decline,
+		},
+		{
+			RouteMethod: "POST",
+			Path:        "/guest-passes/:entryID/attach",
+			Middlewares: auth,
+			Handler:     c.Attach,
+		},
+		{
+			RouteMethod: "POST",
+			Path:        "/guest-passes/:entryID/revoke",
+			Middlewares: auth,
+			Handler:     c.Revoke,
+		},
+		{
+			RouteMethod: "POST",
 			Path:        "/events/:eventID/guest-list/check-in",
 			Middlewares: auth,
 			Handler:     c.CheckIn,

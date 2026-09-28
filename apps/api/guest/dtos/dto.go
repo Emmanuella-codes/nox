@@ -9,7 +9,8 @@ type QuotaDTO struct {
 	Capacity    int    `json:"capacity"`
 }
 type GuestDTO struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Phone string `json:"phone"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+	Quantity int    `json:"quantity"`
 }

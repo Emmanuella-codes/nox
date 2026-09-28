@@ -9,6 +9,9 @@ const (
 	Created   shared.PipeMessage = "guest_list_resource_created"
 	Claimed   shared.PipeMessage = "guest_pass_claimed"
 	CheckedIn shared.PipeMessage = "guest_checked_in"
+	Declined  shared.PipeMessage = "guest_invitation_declined"
+	Revoked   shared.PipeMessage = "guest_pass_revoked"
+	Attached  shared.PipeMessage = "guest_pass_attached"
 	Conflict  shared.PipeMessage = "guest_list_capacity_or_status_conflict"
 	Internal  shared.PipeMessage = "internal_error"
 )

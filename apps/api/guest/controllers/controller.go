@@ -88,6 +88,43 @@ func (c *Controller) Claim(ctx *fiber.Ctx) error {
 	}
 	return ctx.Status(200).JSON(r)
 }
+func (c *Controller) Decline(ctx *fiber.Ctx) error {
+	r := c.pipe.Decline(ctx.Context(), ctx.Query("token"))
+	if !r.Success {
+		return fail(ctx, r.Message)
+	}
+	return ctx.Status(200).JSON(r)
+}
+func (c *Controller) Revoke(ctx *fiber.Ctx) error {
+	u, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return fail(ctx, messages.Forbidden)
+	}
+	id, err := uuid.Parse(ctx.Params("entryID"))
+	if err != nil {
+		return fail(ctx, messages.Invalid)
+	}
+	r := c.pipe.Revoke(ctx.Context(), u, id)
+	if !r.Success {
+		return fail(ctx, r.Message)
+	}
+	return ctx.Status(200).JSON(r)
+}
+func (c *Controller) Attach(ctx *fiber.Ctx) error {
+	u, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return fail(ctx, messages.Forbidden)
+	}
+	id, err := uuid.Parse(ctx.Params("entryID"))
+	if err != nil {
+		return fail(ctx, messages.Invalid)
+	}
+	r := c.pipe.Attach(ctx.Context(), u, id)
+	if !r.Success {
+		return fail(ctx, r.Message)
+	}
+	return ctx.Status(200).JSON(r)
+}
 func (c *Controller) CheckIn(ctx *fiber.Ctx) error {
 	u, ok := middleware.CurrentUserID(ctx)
 	if !ok {
