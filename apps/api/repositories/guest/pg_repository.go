@@ -95,9 +95,9 @@ func (r *pgRepository) AddGuest(ctx context.Context, userID, eventID, quotaID uu
 	}
 	entries := make([]*models.GuestEntry, 0, dto.Quantity)
 	for i := 0; i < dto.Quantity; i++ {
-		row = tx.QueryRow(ctx, `INSERT INTO event_guest_entries(event_id,quota_id,added_by,name,email,phone,matched_user_id,invitation_hash,invitation_expires_at) SELECT $1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),u.id,$7,e.event_date+interval '1 day' FROM events e LEFT JOIN users u ON lower(u.email)=lower(NULLIF($5,'')) WHERE e.id=$1 RETURNING id,event_id,quota_id,name,COALESCE(email,''),COALESCE(phone,''),status,created_at`, eventID, quota, userID, strings.TrimSpace(dto.Name), strings.TrimSpace(dto.Email), strings.TrimSpace(dto.Phone), invitationHashes[i])
+		row = tx.QueryRow(ctx, `INSERT INTO event_guest_entries(event_id,quota_id,added_by,name,email,phone,matched_user_id,invitation_hash,invitation_expires_at) SELECT $1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''),u.id,$7,e.event_date+interval '1 day' FROM events e LEFT JOIN users u ON lower(u.email)=lower(NULLIF($5,'')) WHERE e.id=$1 RETURNING id,event_id,quota_id,name,COALESCE(email,''),COALESCE(phone,''),matched_user_id,status,created_at`, eventID, quota, userID, strings.TrimSpace(dto.Name), strings.TrimSpace(dto.Email), strings.TrimSpace(dto.Phone), invitationHashes[i])
 		entry := &models.GuestEntry{}
-		if err := row.Scan(&entry.ID, &entry.EventID, &entry.QuotaID, &entry.Name, &entry.Email, &entry.Phone, &entry.Status, &entry.CreatedAt); err != nil {
+		if err := row.Scan(&entry.ID, &entry.EventID, &entry.QuotaID, &entry.Name, &entry.Email, &entry.Phone, &entry.MatchedUserID, &entry.Status, &entry.CreatedAt); err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
@@ -195,6 +195,45 @@ func (r *pgRepository) CheckIn(ctx context.Context, eventID, staffID uuid.UUID, 
 		return nil, ErrConflict
 	}
 	return &entry, nil
+}
+
+func (r *pgRepository) Report(ctx context.Context, userID, eventID uuid.UUID) (*models.GuestListReport, error) {
+	var report models.GuestListReport
+	report.EventID = eventID
+	if err := r.db.QueryRow(ctx, `SELECT s.capacity FROM event_guest_settings s JOIN events e ON e.id=s.event_id WHERE s.event_id=$1 AND e.organizer_id=$2`, eventID, userID).Scan(&report.Capacity); err != nil {
+		return nil, ErrNotFound
+	}
+	rows, err := r.db.Query(ctx, `SELECT id,event_id,owner_user_id,label,capacity,reserved_count,status FROM event_guest_quotas WHERE event_id=$1 ORDER BY label,id`, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		quota, err := scanQuota(rows)
+		if err != nil {
+			return nil, err
+		}
+		report.Reserved += quota.ReservedCount
+		report.Quotas = append(report.Quotas, quota)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows, err = r.db.Query(ctx, `SELECT status,COUNT(*) FROM event_guest_entries WHERE event_id=$1 GROUP BY status`, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	report.Statuses = map[string]int{}
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		report.Statuses[status] = count
+	}
+	return &report, rows.Err()
 }
 
 func hashToken(value string) string {

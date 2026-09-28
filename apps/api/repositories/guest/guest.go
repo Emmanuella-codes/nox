@@ -17,6 +17,7 @@ type GuestRepository interface {
 	Revoke(context.Context, uuid.UUID, uuid.UUID) error
 	Attach(context.Context, uuid.UUID, uuid.UUID) error
 	CheckIn(context.Context, uuid.UUID, uuid.UUID, string) (*models.GuestEntry, error)
+	Report(context.Context, uuid.UUID, uuid.UUID) (*models.GuestListReport, error)
 	ExpireInvitations(context.Context, time.Time) (int64, error)
 	MarkNoShows(context.Context, time.Time) (int64, error)
 }

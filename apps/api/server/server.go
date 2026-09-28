@@ -150,7 +150,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference, repos.Notification, notificationPipe))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona, repos.User, payments.NewPaystack(cfg.PaystackSecretKey, cfg.PaystackBaseURL)))
-	guestController := guest_controllers.NewController(guest_pipes.NewGuestPipe(repos.Guest, mailProvider))
+	guestController := guest_controllers.NewController(guest_pipes.NewGuestPipe(repos.Guest, mailProvider, repos.Persona, repos.Notification, notificationPipe))
 
 	api := app.Group("/api/v1")
 

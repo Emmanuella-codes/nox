@@ -12,6 +12,7 @@ const (
 	Declined  shared.PipeMessage = "guest_invitation_declined"
 	Revoked   shared.PipeMessage = "guest_pass_revoked"
 	Attached  shared.PipeMessage = "guest_pass_attached"
+	Reported  shared.PipeMessage = "guest_list_reported"
 	Conflict  shared.PipeMessage = "guest_list_capacity_or_status_conflict"
 	Internal  shared.PipeMessage = "internal_error"
 )

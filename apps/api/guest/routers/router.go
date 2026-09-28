@@ -60,5 +60,11 @@ func Routes(c *controllers.Controller, cfg *config.Config) []api.RouterSchema {
 			Middlewares: auth,
 			Handler:     c.CheckIn,
 		},
+		{
+			RouteMethod: "GET",
+			Path:        "/events/:eventID/guest-list/report",
+			Middlewares: auth,
+			Handler:     c.Report,
+		},
 	}
 }

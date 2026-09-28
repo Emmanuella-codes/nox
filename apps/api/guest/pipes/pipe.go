@@ -8,6 +8,8 @@ import (
 	"github.com/emmanuella-codes/nox/guest/messages"
 	"github.com/emmanuella-codes/nox/models"
 	guest_repo "github.com/emmanuella-codes/nox/repositories/guest"
+	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
+	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/google/uuid"
@@ -15,14 +17,30 @@ import (
 )
 
 type GuestPipe struct {
-	repo guest_repo.GuestRepository
-	mail mail.Provider
+	repo          guest_repo.GuestRepository
+	mail          mail.Provider
+	personas      persona_repo.PersonaRepository
+	notifications notification_repo.NotificationRepository
+	publisher     interface {
+		PublishCreatedNotification(context.Context, *models.Notification)
+	}
 }
 
-func NewGuestPipe(repo guest_repo.GuestRepository, providers ...mail.Provider) *GuestPipe {
+func NewGuestPipe(repo guest_repo.GuestRepository, deps ...any) *GuestPipe {
 	p := &GuestPipe{repo: repo}
-	if len(providers) > 0 {
-		p.mail = providers[0]
+	for _, dep := range deps {
+		switch value := dep.(type) {
+		case mail.Provider:
+			p.mail = value
+		case persona_repo.PersonaRepository:
+			p.personas = value
+		case notification_repo.NotificationRepository:
+			p.notifications = value
+		case interface {
+			PublishCreatedNotification(context.Context, *models.Notification)
+		}:
+			p.publisher = value
+		}
 	}
 	return p
 }
@@ -64,8 +82,29 @@ func (p *GuestPipe) Add(ctx context.Context, userID, eventID, quotaID uuid.UUID,
 		if p.mail != nil && strings.TrimSpace(item.Email) != "" {
 			_ = p.mail.Send(ctx, mail.Message{ToEmail: item.Email, ToName: item.Name, Subject: "Your Nox guest pass", TextContent: "Claim your guest pass: " + item.InvitationURL, HTMLContent: "<p>Claim your guest pass: <a href=\"" + item.InvitationURL + "\">open invitation</a></p>"})
 		}
+		p.notifyMatchedUser(ctx, item)
 	}
 	return shared.PipeSuccess(messages.Created, &items)
+}
+
+func (p *GuestPipe) notifyMatchedUser(ctx context.Context, entry *models.GuestEntry) {
+	if entry.MatchedUserID == nil || p.personas == nil || p.notifications == nil {
+		return
+	}
+	personas, err := p.personas.FindPersonasByUserID(ctx, *entry.MatchedUserID)
+	if err != nil {
+		return
+	}
+	for _, persona := range personas {
+		if persona.PersonaType != models.VisiblePersonaType {
+			continue
+		}
+		created, err := p.notifications.CreateNotifications(ctx, []notification_repo.CreateNotificationInput{{RecipientUserID: *entry.MatchedUserID, RecipientPersonaID: persona.ID, EventID: &entry.EventID, NotificationType: models.GuestInvitationNotificationType}})
+		if err == nil && len(created) > 0 && p.publisher != nil {
+			p.publisher.PublishCreatedNotification(ctx, created[0])
+		}
+		return
+	}
 }
 func (p *GuestPipe) Claim(ctx context.Context, token string, userID *uuid.UUID) *shared.PipeRes[models.GuestEntry] {
 	if strings.TrimSpace(token) == "" {
@@ -110,6 +149,13 @@ func (p *GuestPipe) CheckIn(ctx context.Context, staffID, eventID uuid.UUID, cre
 		return shared.PipeError[models.GuestEntry](messages.Conflict)
 	}
 	return shared.PipeSuccess(messages.CheckedIn, item)
+}
+func (p *GuestPipe) Report(ctx context.Context, userID, eventID uuid.UUID) *shared.PipeRes[models.GuestListReport] {
+	item, err := p.repo.Report(ctx, userID, eventID)
+	if err != nil {
+		return shared.PipeError[models.GuestListReport](messages.Forbidden)
+	}
+	return shared.PipeSuccess(messages.Reported, item)
 }
 func hashToken(value string) string {
 	sum := sha256.Sum256([]byte(value))

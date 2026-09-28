@@ -146,3 +146,18 @@ func (c *Controller) CheckIn(ctx *fiber.Ctx) error {
 	}
 	return ctx.Status(200).JSON(r)
 }
+func (c *Controller) Report(ctx *fiber.Ctx) error {
+	u, ok := middleware.CurrentUserID(ctx)
+	if !ok {
+		return fail(ctx, messages.Forbidden)
+	}
+	e, err := uuid.Parse(ctx.Params("eventID"))
+	if err != nil {
+		return fail(ctx, messages.Invalid)
+	}
+	r := c.pipe.Report(ctx.Context(), u, e)
+	if !r.Success {
+		return fail(ctx, r.Message)
+	}
+	return ctx.Status(200).JSON(r)
+}

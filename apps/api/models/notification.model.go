@@ -25,6 +25,7 @@ const (
 	StoryHighlightAddedNotificationType       NotificationType = "story_highlight_added"
 	StoryHighlightRemovedNotificationType     NotificationType = "story_highlight_removed"
 	StoryReactionNotificationType             NotificationType = "story_reaction"
+	GuestInvitationNotificationType           NotificationType = "guest_invitation"
 )
 
 const (
