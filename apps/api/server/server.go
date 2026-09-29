@@ -67,6 +67,9 @@ import (
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/emmanuella-codes/nox/shared/payments"
 	"github.com/emmanuella-codes/nox/shared/realtime"
+	staff_controllers "github.com/emmanuella-codes/nox/staff/controllers"
+	staff_pipes "github.com/emmanuella-codes/nox/staff/pipes"
+	staff_routers "github.com/emmanuella-codes/nox/staff/routers"
 	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
 	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
@@ -150,7 +153,8 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference, repos.Notification, notificationPipe))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
 	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona, repos.User, payments.NewPaystack(cfg.PaystackSecretKey, cfg.PaystackBaseURL)))
-	guestController := guest_controllers.NewController(guest_pipes.NewGuestPipe(repos.Guest, mailProvider, repos.Persona, repos.Notification, notificationPipe))
+	guestController := guest_controllers.NewController(guest_pipes.NewGuestPipe(repos.Guest, mailProvider, repos.Persona, repos.Notification, notificationPipe, repos.Staff))
+	staffController := staff_controllers.NewController(staff_pipes.NewStaffPipe(repos.Staff))
 
 	api := app.Group("/api/v1")
 
@@ -165,6 +169,7 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
 	shared_api.BaseRouter(api, ticket_routers.Routes(ticketController, cfg))
 	shared_api.BaseRouter(api, guest_routers.Routes(guestController, cfg))
+	shared_api.BaseRouter(api, staff_routers.Routes(staffController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))

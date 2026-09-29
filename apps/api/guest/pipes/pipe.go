@@ -10,10 +10,12 @@ import (
 	guest_repo "github.com/emmanuella-codes/nox/repositories/guest"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
+	staff_repo "github.com/emmanuella-codes/nox/repositories/staff"
 	"github.com/emmanuella-codes/nox/shared"
 	"github.com/emmanuella-codes/nox/shared/mail"
 	"github.com/google/uuid"
 	"strings"
+	"time"
 )
 
 type GuestPipe struct {
@@ -24,6 +26,7 @@ type GuestPipe struct {
 	publisher     interface {
 		PublishCreatedNotification(context.Context, *models.Notification)
 	}
+	staff staff_repo.StaffRepository
 }
 
 func NewGuestPipe(repo guest_repo.GuestRepository, deps ...any) *GuestPipe {
@@ -40,6 +43,8 @@ func NewGuestPipe(repo guest_repo.GuestRepository, deps ...any) *GuestPipe {
 			PublishCreatedNotification(context.Context, *models.Notification)
 		}:
 			p.publisher = value
+		case staff_repo.StaffRepository:
+			p.staff = value
 		}
 	}
 	return p
@@ -143,6 +148,11 @@ func (p *GuestPipe) Attach(ctx context.Context, userID, entryID uuid.UUID) *shar
 func (p *GuestPipe) CheckIn(ctx context.Context, staffID, eventID uuid.UUID, credential string) *shared.PipeRes[models.GuestEntry] {
 	if strings.TrimSpace(credential) == "" {
 		return shared.PipeError[models.GuestEntry](messages.Invalid)
+	}
+	if p.staff != nil {
+		if err := p.staff.Authorize(ctx, staffID, eventID, "gate", time.Now().UTC()); err != nil {
+			return shared.PipeError[models.GuestEntry](messages.Forbidden)
+		}
 	}
 	item, err := p.repo.CheckIn(ctx, eventID, staffID, credential)
 	if err != nil {
