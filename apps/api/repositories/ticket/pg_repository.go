@@ -2,6 +2,8 @@ package ticket
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/ticket/dtos"
@@ -69,11 +71,27 @@ func (r *pgRepository) SettlePayment(ctx context.Context, reference, providerEve
 	}
 	for i := 0; i < quantity; i++ {
 		var ticketID uuid.UUID
-		if err := tx.QueryRow(ctx, `INSERT INTO tickets(order_id,event_id,tier_id,credential) VALUES($1,$2,$3,$4) RETURNING id`, orderID, eventID, tierID, "nox_"+uuid.NewString()).Scan(&ticketID); err != nil {
+		ticketCredential := "nox_" + uuid.NewString()
+		if err := tx.QueryRow(ctx, `INSERT INTO tickets(order_id,event_id,tier_id,credential) VALUES($1,$2,$3,$4) RETURNING id`, orderID, eventID, tierID, ticketCredential).Scan(&ticketID); err != nil {
 			return err
 		}
 		for j := 0; j < attendees; j++ {
-			if _, err := tx.Exec(ctx, `INSERT INTO attendee_entitlements(ticket_id,event_id,user_id) VALUES($1,$2,$3)`, ticketID, eventID, userID); err != nil {
+			var entitlementID, attendeeID uuid.UUID
+			if err := tx.QueryRow(ctx, `INSERT INTO attendee_entitlements(ticket_id,event_id,user_id) VALUES($1,$2,$3) RETURNING id`, ticketID, eventID, userID).Scan(&entitlementID); err != nil {
+				return err
+			}
+			if err := tx.QueryRow(ctx, `INSERT INTO event_attendees(event_id,user_id,display_name) SELECT $1,$2,COALESCE(fullname,'Attendee') FROM users WHERE id=$2 RETURNING id`, eventID, userID).Scan(&attendeeID); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO event_admissions(attendee_id,event_id,source_type,source_id) VALUES($1,$2,'paid_ticket',$3)`, attendeeID, eventID, entitlementID); err != nil {
+				return err
+			}
+			credential := ticketCredential
+			if j > 0 {
+				credential = "nox_" + uuid.NewString()
+			}
+			hash := sha256.Sum256([]byte(credential))
+			if _, err := tx.Exec(ctx, `INSERT INTO admission_credentials(admission_id,credential_hash) SELECT id,$2 FROM event_admissions WHERE source_type='paid_ticket' AND source_id=$1`, entitlementID, hex.EncodeToString(hash[:])); err != nil {
 				return err
 			}
 		}

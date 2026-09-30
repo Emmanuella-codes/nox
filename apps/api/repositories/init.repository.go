@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/emmanuella-codes/nox/repositories/admin"
+	"github.com/emmanuella-codes/nox/repositories/admission"
 	"github.com/emmanuella-codes/nox/repositories/comment"
 	"github.com/emmanuella-codes/nox/repositories/crew"
 	"github.com/emmanuella-codes/nox/repositories/event"
@@ -45,6 +46,7 @@ type Repositories struct {
 	Ticket       ticket.TicketRepository
 	Guest        guest.GuestRepository
 	Staff        staff.StaffRepository
+	Admission    admission.AdmissionRepository
 }
 
 func Init(pool *pgxpool.Pool) *Repositories {
@@ -69,5 +71,6 @@ func Init(pool *pgxpool.Pool) *Repositories {
 		Ticket:       ticket.NewTicketRepository(pool),
 		Guest:        guest.NewGuestRepository(pool),
 		Staff:        staff.NewStaffRepository(pool),
+		Admission:    admission.NewAdmissionRepository(pool, staff.NewStaffRepository(pool)),
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/emmanuella-codes/nox/guest/dtos"
 	"github.com/emmanuella-codes/nox/guest/messages"
 	"github.com/emmanuella-codes/nox/models"
+	admission_repo "github.com/emmanuella-codes/nox/repositories/admission"
 	guest_repo "github.com/emmanuella-codes/nox/repositories/guest"
 	notification_repo "github.com/emmanuella-codes/nox/repositories/notification"
 	persona_repo "github.com/emmanuella-codes/nox/repositories/persona"
@@ -26,7 +27,8 @@ type GuestPipe struct {
 	publisher     interface {
 		PublishCreatedNotification(context.Context, *models.Notification)
 	}
-	staff staff_repo.StaffRepository
+	staff     staff_repo.StaffRepository
+	admission admission_repo.AdmissionRepository
 }
 
 func NewGuestPipe(repo guest_repo.GuestRepository, deps ...any) *GuestPipe {
@@ -45,6 +47,8 @@ func NewGuestPipe(repo guest_repo.GuestRepository, deps ...any) *GuestPipe {
 			p.publisher = value
 		case staff_repo.StaffRepository:
 			p.staff = value
+		case admission_repo.AdmissionRepository:
+			p.admission = value
 		}
 	}
 	return p
@@ -118,6 +122,11 @@ func (p *GuestPipe) Claim(ctx context.Context, token string, userID *uuid.UUID) 
 	item, err := p.repo.Claim(ctx, token, userID)
 	if err != nil {
 		return shared.PipeError[models.GuestEntry](messages.NotFound)
+	}
+	if p.admission != nil {
+		if err := p.admission.EnsureGuest(ctx, item.EventID, item.ID, item.Credential, item.Name, item.Email, item.Phone); err != nil {
+			return shared.PipeError[models.GuestEntry](messages.Internal)
+		}
 	}
 	return shared.PipeSuccess(messages.Claimed, item)
 }

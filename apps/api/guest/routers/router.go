@@ -55,12 +55,6 @@ func Routes(c *controllers.Controller, cfg *config.Config) []api.RouterSchema {
 			Handler:     c.Revoke,
 		},
 		{
-			RouteMethod: "POST",
-			Path:        "/events/:eventID/guest-list/check-in",
-			Middlewares: auth,
-			Handler:     c.CheckIn,
-		},
-		{
 			RouteMethod: "GET",
 			Path:        "/events/:eventID/guest-list/report",
 			Middlewares: auth,
