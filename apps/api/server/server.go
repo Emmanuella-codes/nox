@@ -86,7 +86,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, redisClient *redis.Client, repos *repositories.Repositories) {
+func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, redisClient *redis.Client) {
 	app := fiber.New(fiber.Config{
 		AppName:      "nox-api",
 		ReadTimeout:  10 * time.Second,
@@ -102,6 +102,9 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 		AllowMethods: "GET,POST,PUT,PATCH,OPTIONS,DELETE",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
+
+	repositories.InitRepositories(dbPool)
+	repos := repositories.Current()
 
 	mailProvider := mail.NewBrevoProvider(mail.BrevoConfig{
 		APIKey:      cfg.BrevoAPIKey,

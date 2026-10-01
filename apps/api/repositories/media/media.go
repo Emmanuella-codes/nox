@@ -21,6 +21,8 @@ type MediaRepository interface {
 	DeleteOrphanedMediaAssets(ctx context.Context, olderThan time.Time, limit int) (int64, error)
 }
 
-func NewMediaRepository(db *pgxpool.Pool) MediaRepository {
-	return newPgRepository(db)
+var MediaRepo MediaRepository
+
+func InitMediaRepo(db *pgxpool.Pool) {
+	MediaRepo = newPgRepository(db)
 }

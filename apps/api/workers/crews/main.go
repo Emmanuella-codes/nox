@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/crew"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
@@ -13,7 +14,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to bootstrap crew worker")
 	}
 	defer app.Close()
-	if err := NewWorker(app.Config, app.Repos.Crew, app.Redis).Run(app.Context); err != nil {
+	if err := NewWorker(app.Config, crew.CrewRepo, app.Redis).Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("crew worker failed")
 	}
 }

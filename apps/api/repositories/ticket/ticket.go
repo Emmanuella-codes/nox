@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
+
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/ticket/dtos"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"time"
 )
 
 var ErrNotFound = errors.New("ticket resource not found")
@@ -27,4 +28,8 @@ type TicketRepository interface {
 	SettlePayment(context.Context, string, string, int64, string, json.RawMessage) error
 }
 
-func NewTicketRepository(db *pgxpool.Pool) TicketRepository { return &pgRepository{db: db} }
+var TicketRepo TicketRepository
+
+func InitTicketRepo(db *pgxpool.Pool) {
+	TicketRepo = newPgRepository(db)
+}

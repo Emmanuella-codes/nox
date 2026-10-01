@@ -25,52 +25,26 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Repositories struct {
-	Admin        admin.AdminRepository
-	User         user.UserRepository
-	Persona      persona.PersonaRepository
-	Post         post.PostRepository
-	Preference   preference.PreferenceRepository
-	Comment      comment.CommentRepository
-	Crew         crew.CrewRepository
-	Like         like.LikeRepository
-	Event        event.EventRepository
-	Media        media.MediaRepository
-	Messaging    messaging.MessagingRepository
-	Notification notification.NotificationRepository
-	Set          set.SetRepository
-	Story        story.StoryRepository
-	Search       search.SearchRepository
-	Follow       follow.FollowRepository
-	Hashtag      hashtag.HashtagRepository
-	Ticket       ticket.TicketRepository
-	Guest        guest.GuestRepository
-	Staff        staff.StaffRepository
-	Admission    admission.AdmissionRepository
-}
-
-func Init(pool *pgxpool.Pool) *Repositories {
-	return &Repositories{
-		Admin:        admin.NewAdminRepository(pool),
-		User:         user.NewUserRepository(pool),
-		Persona:      persona.NewPersonaRepository(pool),
-		Post:         post.NewPostRepository(pool),
-		Preference:   preference.NewPreferenceRepository(pool),
-		Comment:      comment.NewCommentRepository(pool),
-		Crew:         crew.NewCrewRepository(pool),
-		Like:         like.NewLikeRepository(pool),
-		Event:        event.NewEventRepository(pool),
-		Media:        media.NewMediaRepository(pool),
-		Messaging:    messaging.NewMessagingRepository(pool),
-		Notification: notification.NewNotificationRepository(pool),
-		Set:          set.NewSetRepository(pool),
-		Story:        story.NewStoryRepository(pool),
-		Search:       search.NewSearchRepository(pool),
-		Follow:       follow.NewFollowRepository(pool),
-		Hashtag:      hashtag.NewHashtagRepository(pool),
-		Ticket:       ticket.NewTicketRepository(pool),
-		Guest:        guest.NewGuestRepository(pool),
-		Staff:        staff.NewStaffRepository(pool),
-		Admission:    admission.NewAdmissionRepository(pool, staff.NewStaffRepository(pool)),
-	}
+func InitRepositories(db *pgxpool.Pool) {
+	admin.InitAdminRepo(db)
+	user.InitUserRepo(db)
+	persona.InitPersonaRepo(db)
+	post.InitPostRepo(db)
+	preference.InitPreferenceRepo(db)
+	comment.InitCommentRepo(db)
+	crew.InitCrewRepo(db)
+	like.InitLikeRepo(db)
+	event.InitEventRepo(db)
+	media.InitMediaRepo(db)
+	messaging.InitMessagingRepo(db)
+	notification.InitNotificationRepo(db)
+	set.InitSetRepo(db)
+	story.InitStoryRepo(db)
+	search.InitSearchRepo(db)
+	follow.InitFollowRepo(db)
+	hashtag.InitHashtagRepo(db)
+	ticket.InitTicketRepo(db)
+	guest.InitGuestRepo(db)
+	staff.InitStaffRepo(db)
+	admission.InitAdmissionRepo(db, staff.StaffRepo)
 }

@@ -15,7 +15,6 @@ type pgRepository struct {
 	db *pgxpool.Pool
 }
 
-// newPgRepository builds the Postgres-backed comment repository.
 func newPgRepository(db *pgxpool.Pool) *pgRepository {
 	return &pgRepository{db: db}
 }

@@ -5,13 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
+	"time"
+
 	"github.com/emmanuella-codes/nox/models"
 	staff_repo "github.com/emmanuella-codes/nox/repositories/staff"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"strings"
-	"time"
 )
 
 var ErrNotFound = errors.New("admission not found")
@@ -27,7 +28,7 @@ type pgRepository struct {
 	staff staff_repo.StaffRepository
 }
 
-func NewAdmissionRepository(db *pgxpool.Pool, staff staff_repo.StaffRepository) AdmissionRepository {
+func newPgRepository(db *pgxpool.Pool, staff staff_repo.StaffRepository) *pgRepository {
 	return &pgRepository{db: db, staff: staff}
 }
 
@@ -90,7 +91,9 @@ func (r *pgRepository) check(ctx context.Context, userID, eventID uuid.UUID, cre
 	if err := tx.QueryRow(ctx, query, args...).Scan(&admissionID, &attendeeID, &actualEvent, &status, &credentialStatus, &eventStatus, &attendeeStatus, &user); err != nil {
 		return nil, ErrNotFound
 	}
-	if method != "override" { reason = "" }
+	if method != "override" {
+		reason = ""
+	}
 	var existing uuid.UUID
 	if err := tx.QueryRow(ctx, `SELECT id FROM event_check_ins WHERE admission_id=$1`, admissionID).Scan(&existing); err == nil {
 		_, _ = tx.Exec(ctx, `INSERT INTO event_admission_audits(event_id,admission_id,actor_user_id,action) VALUES($1,$2,$3,'duplicate_scan')`, actualEvent, admissionID, userID)

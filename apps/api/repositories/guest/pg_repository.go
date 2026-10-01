@@ -5,20 +5,23 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
+	"time"
+
 	"github.com/emmanuella-codes/nox/guest/dtos"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"strings"
-	"time"
 )
 
 var ErrNotFound = errors.New("guest entry not found")
 var ErrConflict = errors.New("guest list conflict")
 
-type pgRepository struct{ db *pgxpool.Pool }
+type pgRepository struct {
+	db *pgxpool.Pool
+}
 
-func NewGuestRepository(db *pgxpool.Pool) GuestRepository { return &pgRepository{db: db} }
+func newPgRepository(db *pgxpool.Pool) *pgRepository { return &pgRepository{db: db} }
 
 func (r *pgRepository) Configure(ctx context.Context, userID, eventID uuid.UUID, dto dtos.ConfigureDTO) error {
 	tx, err := r.db.Begin(ctx)

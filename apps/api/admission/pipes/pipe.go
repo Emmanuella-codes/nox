@@ -14,6 +14,7 @@ import (
 type AdmissionPipe struct{ repo repo.AdmissionRepository }
 
 func NewAdmissionPipe(r repo.AdmissionRepository) *AdmissionPipe { return &AdmissionPipe{repo: r} }
+
 func (p *AdmissionPipe) Create(ctx context.Context, actor, event uuid.UUID, d dtos.CreateAdmissionDTO) *shared.PipeRes[models.Admission] {
 	sourceID, userID := uuid.Nil, uuid.Nil
 	if d.SourceID != "" {

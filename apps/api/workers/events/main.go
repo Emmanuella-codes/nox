@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/event"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
@@ -13,7 +14,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to bootstrap event worker")
 	}
 	defer app.Close()
-	if err := NewWorker(app.Config, app.Repos.Event, app.Redis).Run(app.Context); err != nil {
+	if err := NewWorker(app.Config, event.EventRepo, app.Redis).Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("event lifecycle worker failed")
 	}
 }

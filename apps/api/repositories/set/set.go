@@ -33,6 +33,8 @@ type SetRepository interface {
 	FindSetComments(ctx context.Context, setID uuid.UUID, limit int, offset int) ([]*models.SetComment, error)
 }
 
-func NewSetRepository(db *pgxpool.Pool) SetRepository {
-	return newPgRepository(db)
+var SetRepo SetRepository
+
+func InitSetRepo(db *pgxpool.Pool) {
+	SetRepo = newPgRepository(db)
 }

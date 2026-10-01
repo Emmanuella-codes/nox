@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/guest"
+	"github.com/emmanuella-codes/nox/repositories/ticket"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
@@ -13,7 +15,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to bootstrap ticket worker")
 	}
 	defer app.Close()
-	if err := NewWorker(app.Config, app.Repos.Ticket, app.Redis, app.Repos.Guest).Run(app.Context); err != nil {
+	if err := NewWorker(app.Config, ticket.TicketRepo, app.Redis, guest.GuestRepo).Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("ticket worker failed")
 	}
 }

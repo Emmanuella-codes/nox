@@ -12,7 +12,7 @@ import (
 
 func TestHashtagRepositorySyncsSearchesAndDeletesCounts(t *testing.T) {
 	pool := testPool(t)
-	repo := NewHashtagRepository(pool)
+	repo := newPgRepository(pool)
 	ctx := context.Background()
 
 	postID := createTestPost(t, pool, "first #Amapiano post")

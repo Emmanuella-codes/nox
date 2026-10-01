@@ -35,6 +35,8 @@ type CrewRepository interface {
 	DeleteExpiredCrewLocations(ctx context.Context, now time.Time) (int64, error)
 }
 
-func NewCrewRepository(db *pgxpool.Pool) CrewRepository {
-	return newPgRepository(db)
+var CrewRepo CrewRepository
+
+func InitCrewRepo(db *pgxpool.Pool) {
+	CrewRepo = newPgRepository(db)
 }

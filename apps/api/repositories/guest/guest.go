@@ -2,10 +2,12 @@ package guest
 
 import (
 	"context"
+	"time"
+
 	"github.com/emmanuella-codes/nox/guest/dtos"
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/google/uuid"
-	"time"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type GuestRepository interface {
@@ -20,4 +22,11 @@ type GuestRepository interface {
 	Report(context.Context, uuid.UUID, uuid.UUID) (*models.GuestListReport, error)
 	ExpireInvitations(context.Context, time.Time) (int64, error)
 	MarkNoShows(context.Context, time.Time) (int64, error)
+}
+
+
+var GuestRepo GuestRepository
+
+func InitGuestRepo(db *pgxpool.Pool) {
+	GuestRepo = newPgRepository(db)
 }

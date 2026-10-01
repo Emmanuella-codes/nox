@@ -30,6 +30,8 @@ type PreferenceRepository interface {
 	DeleteFollowRelationsBetweenUsers(ctx context.Context, userA uuid.UUID, userB uuid.UUID) error
 }
 
-func NewPreferenceRepository(db *pgxpool.Pool) PreferenceRepository {
-	return newPgRepository(db)
+var PreferenceRepo PreferenceRepository
+
+func InitPreferenceRepo(db *pgxpool.Pool) {
+	PreferenceRepo = newPgRepository(db)
 }

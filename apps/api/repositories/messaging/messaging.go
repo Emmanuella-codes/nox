@@ -50,6 +50,8 @@ type MessagingRepository interface {
 	FindConversationEventsAfter(ctx context.Context, userID uuid.UUID, afterID int64, limit int) ([]*models.ConversationEvent, error)
 }
 
-func NewMessagingRepository(db *pgxpool.Pool) MessagingRepository {
-	return newPgRepository(db)
+var MessagingRepo MessagingRepository
+
+func InitMessagingRepo(db *pgxpool.Pool) {
+	MessagingRepo = newPgRepository(db)
 }

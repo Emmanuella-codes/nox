@@ -20,8 +20,10 @@ type HashtagRepository interface {
 	Search(ctx context.Context, query string, limit int, offset int) ([]*models.Hashtag, error)
 }
 
-func NewHashtagRepository(db *pgxpool.Pool) HashtagRepository {
-	return newPgRepository(db)
+var HashtagRepo HashtagRepository
+
+func InitHashtagRepo(db *pgxpool.Pool) {
+	HashtagRepo = newPgRepository(db)
 }
 
 var hashtagPattern = regexp.MustCompile(`#([A-Za-z0-9_][A-Za-z0-9_-]*)`)

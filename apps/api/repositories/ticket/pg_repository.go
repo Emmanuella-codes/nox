@@ -14,6 +14,14 @@ import (
 	"time"
 )
 
+type pgRepository struct {
+	db *pgxpool.Pool
+}
+
+func newPgRepository(db *pgxpool.Pool) *pgRepository {
+	return &pgRepository{db: db}
+}
+
 func (r *pgRepository) CreateOrder(ctx context.Context, reservationID, userID uuid.UUID) (*models.TicketOrder, error) {
 	reference := "nox_" + uuid.NewString()
 	row := r.db.QueryRow(ctx, `INSERT INTO ticket_orders(user_id,event_id,reservation_id,subtotal_minor,provider_fee_minor,platform_fee_minor,total_minor,currency,provider_reference,expires_at) SELECT r.user_id,w.event_id,r.id,t.price_minor*r.quantity,0,0,t.price_minor*r.quantity,t.currency,$3,r.expires_at FROM ticket_reservations r JOIN ticket_tiers t ON t.id=r.tier_id JOIN ticket_waves w ON w.id=t.wave_id WHERE r.id=$1 AND r.user_id=$2 AND r.status IN ('active','converted') ON CONFLICT (reservation_id) DO UPDATE SET updated_at=now() RETURNING id,user_id,event_id,reservation_id,subtotal_minor,provider_fee_minor,platform_fee_minor,total_minor,currency,status,provider_reference,expires_at`, reservationID, userID, reference)
@@ -104,8 +112,6 @@ func scanOrder(s interface{ Scan(...any) error }) (*models.TicketOrder, error) {
 	err := s.Scan(&o.ID, &o.UserID, &o.EventID, &o.ReservationID, &o.SubtotalMinor, &o.ProviderFeeMinor, &o.PlatformFeeMinor, &o.TotalMinor, &o.Currency, &o.Status, &o.ProviderReference, &o.ExpiresAt)
 	return &o, err
 }
-
-type pgRepository struct{ db *pgxpool.Pool }
 
 func (r *pgRepository) CreateWave(ctx context.Context, eventID, userID uuid.UUID, dto dtos.CreateWaveDTO) (*models.TicketWave, error) {
 	start, end, err := parseTimes(dto.SaleStartAt, dto.SaleEndAt)

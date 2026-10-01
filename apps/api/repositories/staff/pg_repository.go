@@ -3,19 +3,22 @@ package staff
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/emmanuella-codes/nox/models"
 	"github.com/emmanuella-codes/nox/staff/dtos"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"time"
 )
 
 var ErrNotFound = errors.New("staff resource not found")
 var ErrForbidden = errors.New("staff permission denied")
 
-type pgRepository struct{ db *pgxpool.Pool }
+type pgRepository struct {
+	db *pgxpool.Pool
+}
 
-func NewStaffRepository(db *pgxpool.Pool) StaffRepository { return &pgRepository{db: db} }
+func newPgRepository(db *pgxpool.Pool) *pgRepository { return &pgRepository{db: db} }
 
 func (r *pgRepository) Invite(ctx context.Context, actor, eventID, userID uuid.UUID) (*models.EventStaffMembership, error) {
 	if err := r.manage(ctx, actor, eventID); err != nil {

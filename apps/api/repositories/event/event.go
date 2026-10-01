@@ -25,6 +25,8 @@ type EventRepository interface {
 	FindEvents(ctx context.Context, limit int) ([]*models.Event, error)
 }
 
-func NewEventRepository(db *pgxpool.Pool) EventRepository {
-	return newPgRepository(db)
+var EventRepo EventRepository
+
+func InitEventRepo(db *pgxpool.Pool) {
+	EventRepo = newPgRepository(db)
 }
