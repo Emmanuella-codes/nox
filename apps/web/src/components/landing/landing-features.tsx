@@ -1,85 +1,172 @@
 "use client";
 
-import { Grid2X2, CalendarDays, AudioLines, Star, User, Hash } from "lucide-react";
-import { SectionHead } from "@/src/components/landing/landing-primitives";
-import type { LucideIcon } from "lucide-react";
+const ACCENT = "#16b8a4";
 
-interface Feature {
-  icon: LucideIcon;
-  title: string;
-  body: string;
-  tag: string;
-}
-
-const FEATURES: Feature[] = [
-  {
-    icon: Grid2X2,
-    title: "An unfiltered feed",
-    body: "Real posts from real people on the floor — the gist, the gossip, the recommendations. Nothing smoothed over, nothing sponsored.",
-    tag: "the feed",
-  },
-  {
-    icon: CalendarDays,
-    title: "Tonight, not next month",
-    body: "An events board built for the way Lagos actually decides — one nudge at 11pm. Filter by sound, by area, by who's already on the floor.",
-    tag: "events",
-  },
-  {
-    icon: AudioLines,
-    title: "Sets you can scrub",
-    body: "Recorded sets attach to the night they were played. Tap to scrub the waveform, save the cue, pull the tracklist.",
-    tag: "set archive",
-  },
-  {
-    icon: Star,
-    title: "Venue reputation, honestly",
-    body: "Door policy, sound quality, women's review, security — rated by the people who actually got in last weekend.",
-    tag: "venues",
-  },
-  {
-    icon: User,
-    title: "Post your way",
-    body: "Some takes you want signed. Some you don't. Choose to post as yourself or anonymously, per post — not a default someone else chose for you.",
-    tag: "profile",
-  },
-  {
-    icon: Hash,
-    title: "Scene archive",
-    body: "Hashtags as living tags — #amapiano-vi, #afro-house-thursdays, #onikan-after-hours. Every scene gets a page, and a memory.",
-    tag: "archive",
-  },
+const SOCIAL_FEATURES = [
+  { t: "Posts", d: "Text-first. Say it plainly." },
+  { t: "Stories", d: "Photos and videos that expire per item after 24 hours." },
+  { t: "Sets", d: "Share DJ sets with genre tags and audience engagement." },
+  { t: "Hashtags", d: "Find posts by venue, genre, or scene." },
+  { t: "Messages", d: "DMs for the after-party plan." },
+  { t: "Profiles", d: "Your visible profile, posts, sets, and public activity." },
 ];
 
-function FeatureCard({ icon: Icon, title, body, tag }: Feature) {
+const EVENT_FEATURES = [
+  { t: "Discovery", d: "Browse published events and upcoming nights out." },
+  { t: "Ticketing", d: "Buy in-app, scan at the door." },
+  { t: "Crews", d: "Temporary groups per event." },
+  { t: "Safety", d: "Reports, admission checks, and temporary location sharing." },
+];
+
+function FeatureGrid({ items }: { items: { t: string; d: string }[] }) {
   return (
-    <div className="flex min-h-60 flex-col gap-3.5 bg-(--l-bg) px-8 py-9">
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-(--l-accent-line) bg-(--l-accent-soft) text-(--l-accent)">
-        <Icon size={20} strokeWidth={1.6} />
-      </div>
-      <h3 className="text-[20px] font-semibold text-(--l-ink)">{title}</h3>
-      <p className="text-[14.5px] leading-[1.55] text-(--l-ink-mid)">{body}</p>
-      <span className="mt-auto font-mono text-[10.5px] font-medium uppercase text-(--l-ink-soft)">
-        {tag}
-      </span>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: 1,
+        background: "#232321",
+        border: "1px solid #232321",
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
+      {items.map((f) => (
+        <div
+          key={f.t}
+          style={{
+            background: "#121211",
+            padding: 18,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: 16 }}>{f.t}</span>
+          <span style={{ color: "#8a8a84", fontSize: 14, lineHeight: 1.45 }}>{f.d}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-export function LandingFeatures() {
+export function LandingTwoLayers() {
   return (
-    <section id="what" className="relative py-25">
-      <div className="mx-auto max-w-310 px-8">
-        <SectionHead
-          eyebrow="what nox does"
-          title={<>Built for the people,<br />not the feed.</>}
-          body="Every other social app smooths the city out. nox keeps the texture — the inside jokes, the slow nights, the friend-of-a-friend who runs the door, the rooms only forty people know about."
-        />
+    <section id="how" style={{ borderTop: "1px solid #1d1d1b" }}>
+      <div
+        style={{
+          maxWidth: 1320,
+          margin: "0 auto",
+          padding: "96px clamp(20px,4vw,56px)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 48,
+        }}
+      >
         <div
-          className="landing-features grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-(--l-border) bg-(--l-border)"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
         >
-          {FEATURES.map((f) => (
-            <FeatureCard key={f.tag} {...f} />
-          ))}
+          <h2
+            style={
+              {
+                margin: 0,
+                fontSize: "clamp(36px,4.6vw,64px)",
+                lineHeight: 1,
+                letterSpacing: "-.035em",
+                fontWeight: 700,
+                maxWidth: 760,
+                textWrap: "balance",
+              } as React.CSSProperties
+            }
+          >
+            Two halves of one night out.
+          </h2>
+          <p style={{ margin: 0, maxWidth: 380, color: "#9a9a94", fontSize: 17, lineHeight: 1.55 }}>
+            Talk about the scene. Then go be in it. Nox keeps both on the same account.
+          </p>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
+            gap: 16,
+          }}
+        >
+          <div
+            id="social"
+            style={{
+              background: "#121211",
+              border: "1px solid #232321",
+              borderRadius: 24,
+              padding: "clamp(28px,3vw,44px)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 28,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                fontSize: 13,
+                letterSpacing: ".12em",
+                color: ACCENT,
+              }}
+            >
+              01 · THE SOCIAL LAYER
+            </span>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "clamp(28px,2.6vw,38px)",
+                lineHeight: 1.05,
+                letterSpacing: "-.025em",
+                fontWeight: 600,
+              }}
+            >
+              A text-first feed for what happened, what&apos;s happening, and who played.
+            </h3>
+            <FeatureGrid items={SOCIAL_FEATURES} />
+          </div>
+          <div
+            style={{
+              background: "#121211",
+              border: "1px solid #232321",
+              borderRadius: 24,
+              padding: "clamp(28px,3vw,44px)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 28,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                fontSize: 13,
+                letterSpacing: ".12em",
+                color: ACCENT,
+              }}
+            >
+              02 · THE EVENT LAYER
+            </span>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "clamp(28px,2.6vw,38px)",
+                lineHeight: 1.05,
+                letterSpacing: "-.025em",
+                fontWeight: 600,
+              }}
+            >
+              Find the party, buy the ticket, move with your people, and check in at the door.
+            </h3>
+            <FeatureGrid items={EVENT_FEATURES} />
+          </div>
         </div>
       </div>
     </section>

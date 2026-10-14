@@ -5,9 +5,9 @@ import (
 
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/models"
-	adminrepo "github.com/emmanuella-codes/nox/repositories/admin"
+	admin_repo "github.com/emmanuella-codes/nox/repositories/admin"
 	"github.com/emmanuella-codes/nox/shared"
-	sharedtoken "github.com/emmanuella-codes/nox/shared/token"
+	shared_token "github.com/emmanuella-codes/nox/shared/token"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -22,7 +22,7 @@ func JWT(cfg *config.Config) fiber.Handler {
 			return unauthorized(c)
 		}
 
-		claims, err := sharedtoken.VerifyWithOptions(token, cfg.JWTAccessSecret, sharedtoken.AccessTokenType, cfg.JWTIssuer, cfg.JWTAudience)
+		claims, err := shared_token.VerifyWithOptions(token, cfg.JWTAccessSecret, shared_token.AccessTokenType, cfg.JWTIssuer, cfg.JWTAudience)
 		if err != nil {
 			return unauthorized(c)
 		}
@@ -39,7 +39,7 @@ func OptionalJWT(cfg *config.Config) fiber.Handler {
 			return c.Next()
 		}
 
-		claims, err := sharedtoken.VerifyWithOptions(token, cfg.JWTAccessSecret, sharedtoken.AccessTokenType, cfg.JWTIssuer, cfg.JWTAudience)
+		claims, err := shared_token.VerifyWithOptions(token, cfg.JWTAccessSecret, shared_token.AccessTokenType, cfg.JWTIssuer, cfg.JWTAudience)
 		if err != nil {
 			return unauthorized(c)
 		}
@@ -54,14 +54,14 @@ func CurrentUserID(c *fiber.Ctx) (uuid.UUID, bool) {
 	return userID, ok
 }
 
-func AdminJWT(cfg *config.Config, adminRepo adminrepo.AdminRepository) fiber.Handler {
+func AdminJWT(cfg *config.Config, adminRepo admin_repo.AdminRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token, ok := bearerToken(c.Get(fiber.HeaderAuthorization))
 		if !ok {
 			return unauthorized(c)
 		}
 
-		claims, err := sharedtoken.VerifyWithOptions(token, cfg.AdminJWTAccessSecret, sharedtoken.AccessTokenType, cfg.AdminJWTIssuer, cfg.AdminJWTAudience)
+		claims, err := shared_token.VerifyWithOptions(token, cfg.AdminJWTAccessSecret, shared_token.AccessTokenType, cfg.AdminJWTIssuer, cfg.AdminJWTAudience)
 		if err != nil {
 			return unauthorized(c)
 		}

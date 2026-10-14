@@ -3,6 +3,7 @@ package pipes
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/emmanuella-codes/nox/event/dtos"
 	"github.com/emmanuella-codes/nox/event/messages"
@@ -19,6 +20,12 @@ func (p *EventPipe) CreateEventPipe(ctx context.Context, userID uuid.UUID, dto d
 	dto.Description = strings.TrimSpace(dto.Description)
 	dto.CoverURL = strings.TrimSpace(dto.CoverURL)
 	dto.TicketURL = strings.TrimSpace(dto.TicketURL)
+	if dto.EventEndDate.IsZero() {
+		dto.EventEndDate = dto.EventDate.Add(6 * time.Hour)
+	}
+	if !dto.EventDate.Before(dto.EventEndDate) {
+		return shared.PipeError[models.Event](messages.Invalid_Payload)
+	}
 
 	persona, err := p.personaRepo.FindPersonaByID(ctx, dto.OrganizerID)
 	if err != nil {

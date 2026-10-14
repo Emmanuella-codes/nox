@@ -38,6 +38,8 @@ type Config struct {
 	CloudinaryAPISecret       string
 	CloudinaryUploadFolder    string
 	PushProvider              string
+	PaystackSecretKey         string
+	PaystackBaseURL           string
 	PushWorkerBatchSize       int
 	PushWorkerPollInterval    time.Duration
 	MediaCleanupBatchSize     int
@@ -49,6 +51,10 @@ type Config struct {
 	StoryExpiryRetention      time.Duration
 	CrewCleanupInterval       time.Duration
 	ModerationCleanupInterval time.Duration
+	EventLifecycleInterval    time.Duration
+	EventLifecycleBatchSize   int
+	TicketInventoryInterval   time.Duration
+	TicketInventoryBatchSize  int
 	GhostPersonaSecret        string
 	Environment               string
 	LogLevel                  string
@@ -97,6 +103,8 @@ func Load() (*Config, error) {
 		CloudinaryAPISecret:       getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder:    getEnv("CLOUDINARY_UPLOAD_FOLDER", "nox/posts"),
 		PushProvider:              getEnv("PUSH_PROVIDER", "log"),
+		PaystackSecretKey:         getEnv("PAYSTACK_SECRET_KEY", ""),
+		PaystackBaseURL:           getEnv("PAYSTACK_BASE_URL", "https://api.paystack.co"),
 		PushWorkerBatchSize:       getIntEnv("PUSH_WORKER_BATCH_SIZE", 25),
 		PushWorkerPollInterval:    getDurationEnv("PUSH_WORKER_POLL_INTERVAL", 5*time.Second),
 		MediaCleanupBatchSize:     getIntEnv("MEDIA_CLEANUP_BATCH_SIZE", 25),
@@ -108,6 +116,10 @@ func Load() (*Config, error) {
 		StoryExpiryRetention:      getDurationEnv("STORY_EXPIRY_RETENTION", 168*time.Hour),
 		CrewCleanupInterval:       getDurationEnv("CREW_CLEANUP_INTERVAL", 10*time.Minute),
 		ModerationCleanupInterval: getDurationEnv("MODERATION_CLEANUP_INTERVAL", 1*time.Hour),
+		EventLifecycleInterval:    getDurationEnv("EVENT_LIFECYCLE_INTERVAL", 1*time.Minute),
+		EventLifecycleBatchSize:   getIntEnv("EVENT_LIFECYCLE_BATCH_SIZE", 100),
+		TicketInventoryInterval:   getDurationEnv("TICKET_INVENTORY_INTERVAL", time.Minute),
+		TicketInventoryBatchSize:  getIntEnv("TICKET_INVENTORY_BATCH_SIZE", 100),
 		GhostPersonaSecret:        getEnv("GHOST_PERSONA_SECRET", ""),
 		Environment:               getEnv("ENVIRONMENT", getEnv("ENV", "development")),
 		LogLevel:                  getEnv("LOG_LEVEL", "info"),

@@ -55,6 +55,8 @@ type NotificationRepository interface {
 	MarkNotificationPushSkipped(ctx context.Context, outboxID uuid.UUID, reason string) error
 }
 
-func NewNotificationRepository(db *pgxpool.Pool) NotificationRepository {
-	return newPgRepository(db)
+var NotificationRepo NotificationRepository
+
+func InitNotificationRepo(db *pgxpool.Pool) {
+	NotificationRepo = newPgRepository(db)
 }

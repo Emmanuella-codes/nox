@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/story"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
@@ -15,7 +16,7 @@ func main() {
 	}
 	defer app.Close()
 
-	worker := NewWorker(app.Config, app.Repos.Story, app.Redis)
+	worker := NewWorker(app.Config, story.StoryRepo, app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("story cleanup worker failed")
 	}

@@ -32,8 +32,10 @@ type SearchRepository interface {
 	Search(ctx context.Context, query string, options Options) (*Results, error)
 }
 
-func NewSearchRepository(db *pgxpool.Pool) SearchRepository {
-	return newPgRepository(db)
+var SearchRepo SearchRepository
+
+func InitSearchRepo(db *pgxpool.Pool) {
+	SearchRepo = newPgRepository(db)
 }
 
 func NormalizeOptions(options Options) Options {

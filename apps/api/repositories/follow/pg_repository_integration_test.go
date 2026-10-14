@@ -12,7 +12,7 @@ import (
 
 func TestFollowRepositoryUpdatesCountsAndHandlesDuplicates(t *testing.T) {
 	pool := testPool(t)
-	repo := NewFollowRepository(pool)
+	repo := newPgRepository(pool)
 	ctx := context.Background()
 
 	followerID := createTestPersona(t, pool, "follow_follower")

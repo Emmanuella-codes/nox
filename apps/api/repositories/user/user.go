@@ -17,6 +17,8 @@ type UserRepository interface {
 	MarkEmailVerified(ctx context.Context, userID string) error
 }
 
-func NewUserRepository(db *pgxpool.Pool) UserRepository {
-	return newPgRepository(db)
+var UserRepo UserRepository
+
+func InitUserRepo(db *pgxpool.Pool) {
+	UserRepo = newPgRepository(db)
 }

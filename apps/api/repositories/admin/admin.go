@@ -224,6 +224,8 @@ type AdminRepository interface {
 	RemoveAdminHighlight(ctx context.Context, highlightType string, highlightID uuid.UUID) error
 }
 
-func NewAdminRepository(db *pgxpool.Pool) AdminRepository {
-	return newPgRepository(db)
+var AdminRepo AdminRepository
+
+func InitAdminRepo(db *pgxpool.Pool) {
+	AdminRepo = newPgRepository(db)
 }

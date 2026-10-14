@@ -8,6 +8,9 @@ import (
 	admin_pipes "github.com/emmanuella-codes/nox/admin/pipes"
 	admin_routers "github.com/emmanuella-codes/nox/admin/routers"
 	admin_services "github.com/emmanuella-codes/nox/admin/services"
+	admission_controllers "github.com/emmanuella-codes/nox/admission/controllers"
+	admission_pipes "github.com/emmanuella-codes/nox/admission/pipes"
+	admission_routers "github.com/emmanuella-codes/nox/admission/routers"
 	"github.com/emmanuella-codes/nox/auth/controllers"
 	"github.com/emmanuella-codes/nox/auth/pipes"
 	"github.com/emmanuella-codes/nox/auth/routers"
@@ -25,6 +28,9 @@ import (
 	follow_controllers "github.com/emmanuella-codes/nox/follow/controllers"
 	follow_pipes "github.com/emmanuella-codes/nox/follow/pipes"
 	follow_routers "github.com/emmanuella-codes/nox/follow/routers"
+	guest_controllers "github.com/emmanuella-codes/nox/guest/controllers"
+	guest_pipes "github.com/emmanuella-codes/nox/guest/pipes"
+	guest_routers "github.com/emmanuella-codes/nox/guest/routers"
 	hashtag_controllers "github.com/emmanuella-codes/nox/hashtag/controllers"
 	hashtag_pipes "github.com/emmanuella-codes/nox/hashtag/pipes"
 	hashtag_routers "github.com/emmanuella-codes/nox/hashtag/routers"
@@ -62,10 +68,17 @@ import (
 	set_routers "github.com/emmanuella-codes/nox/set/routers"
 	shared_api "github.com/emmanuella-codes/nox/shared/api"
 	"github.com/emmanuella-codes/nox/shared/mail"
+	"github.com/emmanuella-codes/nox/shared/payments"
 	"github.com/emmanuella-codes/nox/shared/realtime"
+	staff_controllers "github.com/emmanuella-codes/nox/staff/controllers"
+	staff_pipes "github.com/emmanuella-codes/nox/staff/pipes"
+	staff_routers "github.com/emmanuella-codes/nox/staff/routers"
 	story_controllers "github.com/emmanuella-codes/nox/story/controllers"
 	story_pipes "github.com/emmanuella-codes/nox/story/pipes"
 	story_routers "github.com/emmanuella-codes/nox/story/routers"
+	ticket_controllers "github.com/emmanuella-codes/nox/ticket/controllers"
+	ticket_pipes "github.com/emmanuella-codes/nox/ticket/pipes"
+	ticket_routers "github.com/emmanuella-codes/nox/ticket/routers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -73,7 +86,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, redisClient *redis.Client, repos *repositories.Repositories) {
+func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, redisClient *redis.Client) {
 	app := fiber.New(fiber.Config{
 		AppName:      "nox-api",
 		ReadTimeout:  10 * time.Second,
@@ -89,6 +102,9 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 		AllowMethods: "GET,POST,PUT,PATCH,OPTIONS,DELETE",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
+
+	repositories.InitRepositories(dbPool)
+	repos := repositories.Current()
 
 	mailProvider := mail.NewBrevoProvider(mail.BrevoConfig{
 		APIKey:      cfg.BrevoAPIKey,
@@ -142,6 +158,10 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	reportController := report_controllers.NewReportController(report_pipes.NewReportPipe(repos.Admin, repos.Persona))
 	setController := set_controllers.NewSetController(set_pipes.NewSetPipe(repos.Set, repos.Media, repos.Persona, repos.Preference, repos.Notification, notificationPipe))
 	storyController := story_controllers.NewStoryController(story_pipes.NewStoryPipe(repos.Story, repos.Event, repos.Persona, repos.Media, repos.Follow, repos.Messaging, repos.Notification, notificationPipe, realtimeHub))
+	ticketController := ticket_controllers.NewController(ticket_pipes.NewTicketPipe(repos.Ticket, repos.Persona, repos.User, payments.NewPaystack(cfg.PaystackSecretKey, cfg.PaystackBaseURL)))
+	guestController := guest_controllers.NewController(guest_pipes.NewGuestPipe(repos.Guest, mailProvider, repos.Persona, repos.Notification, notificationPipe, repos.Staff, repos.Admission))
+	staffController := staff_controllers.NewController(staff_pipes.NewStaffPipe(repos.Staff))
+	admissionController := admission_controllers.NewController(admission_pipes.NewAdmissionPipe(repos.Admission))
 
 	api := app.Group("/api/v1")
 
@@ -154,6 +174,10 @@ func RunServer(ctx context.Context, cfg *config.Config, dbPool *pgxpool.Pool, re
 	shared_api.BaseRouter(api, like_routers.LikeRoutes(likeController, cfg))
 	shared_api.BaseRouter(api, follow_routers.FollowRoutes(followController, cfg))
 	shared_api.BaseRouter(api.Group("/events"), event_routers.EventRoutes(eventController, cfg))
+	shared_api.BaseRouter(api, ticket_routers.Routes(ticketController, cfg))
+	shared_api.BaseRouter(api, guest_routers.Routes(guestController, cfg))
+	shared_api.BaseRouter(api, staff_routers.Routes(staffController, cfg))
+	shared_api.BaseRouter(api, admission_routers.Routes(admissionController, cfg))
 	shared_api.BaseRouter(api.Group("/search"), search_routers.SearchRoutes(searchController, cfg))
 	shared_api.BaseRouter(api.Group("/hashtags"), hashtag_routers.HashtagRoutes(hashtagController))
 	shared_api.BaseRouter(api.Group("/media-assets"), media_routers.MediaRoutes(mediaController, cfg))

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/emmanuella-codes/nox/models"
-	storydtos "github.com/emmanuella-codes/nox/story/dtos"
+	story_dtos "github.com/emmanuella-codes/nox/story/dtos"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -24,25 +24,25 @@ var (
 )
 
 type StoryRepository interface {
-	CreateStory(ctx context.Context, ownerUserID uuid.UUID, dto storydtos.CreateStoryDTO) (*models.Story, error)
+	CreateStory(ctx context.Context, ownerUserID uuid.UUID, dto story_dtos.CreateStoryDTO) (*models.Story, error)
 	FindStoryByID(ctx context.Context, storyID uuid.UUID) (*models.Story, error)
 	FindStoryByIDAny(ctx context.Context, storyID uuid.UUID) (*models.Story, error)
 	FindStoriesByEventID(ctx context.Context, eventID uuid.UUID, limit int, offset int) ([]*models.Story, error)
 	FindStoriesByOwnerPersonaID(ctx context.Context, personaID uuid.UUID, limit int, offset int) ([]*models.Story, error)
 	StoryAcceptsAdditions(ctx context.Context, storyID uuid.UUID) (bool, error)
 	DeleteStory(ctx context.Context, storyID uuid.UUID) error
-	AddStoryItem(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, durationSeconds int, anonymousLabel string, dto storydtos.AddStoryItemDTO) (*models.StoryItem, error)
+	AddStoryItem(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, durationSeconds int, anonymousLabel string, dto story_dtos.AddStoryItemDTO) (*models.StoryItem, error)
 	FindStoryItemByID(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error)
 	FindStoryItems(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error)
 	FindStoryItemsAny(ctx context.Context, storyID uuid.UUID) ([]*models.StoryItem, error)
 	DeleteStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID) (*models.StoryItem, error)
 	ReorderStoryItem(ctx context.Context, storyID uuid.UUID, itemID uuid.UUID, position int) (*models.StoryItem, error)
-	CreateStoryContributionRequest(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, dto storydtos.CreateStoryContributionRequestDTO) (*models.StoryContributionRequest, error)
+	CreateStoryContributionRequest(ctx context.Context, storyID uuid.UUID, contributorUserID uuid.UUID, dto story_dtos.CreateStoryContributionRequestDTO) (*models.StoryContributionRequest, error)
 	FindStoryContributionRequestByID(ctx context.Context, storyID uuid.UUID, requestID uuid.UUID) (*models.StoryContributionRequest, error)
 	FindStoryContributionRequests(ctx context.Context, storyID uuid.UUID, status *models.StoryContributionRequestStatus, limit int, offset int) ([]*models.StoryContributionRequest, error)
 	AcceptStoryContributionRequest(ctx context.Context, story *models.Story, requestID uuid.UUID, reviewerPersonaID uuid.UUID, durationSeconds int) (*models.StoryContributionRequest, *models.StoryItem, error)
 	RejectStoryContributionRequest(ctx context.Context, storyID uuid.UUID, requestID uuid.UUID, reviewerPersonaID uuid.UUID) (*models.StoryContributionRequest, error)
-	AddEventHighlightStory(ctx context.Context, eventID uuid.UUID, dto storydtos.AddEventHighlightStoryDTO) (*models.EventHighlightStory, error)
+	AddEventHighlightStory(ctx context.Context, eventID uuid.UUID, dto story_dtos.AddEventHighlightStoryDTO) (*models.EventHighlightStory, error)
 	FindEventHighlightStories(ctx context.Context, eventID uuid.UUID) ([]*models.EventHighlightStory, error)
 	ReorderEventHighlightStory(ctx context.Context, eventID uuid.UUID, storyID uuid.UUID, position int) (*models.EventHighlightStory, error)
 	RemoveEventHighlightStory(ctx context.Context, eventID uuid.UUID, storyID uuid.UUID) error
@@ -63,6 +63,8 @@ type StoryRepository interface {
 	DeleteRetainedEmptyStories(ctx context.Context, olderThan time.Time, limit int) (int64, error)
 }
 
-func NewStoryRepository(db *pgxpool.Pool) StoryRepository {
-	return newPgRepository(db)
+var StoryRepo StoryRepository
+
+func InitStoryRepo(db *pgxpool.Pool) {
+	StoryRepo = newPgRepository(db)
 }

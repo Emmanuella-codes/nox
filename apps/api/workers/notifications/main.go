@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/emmanuella-codes/nox/repositories/notification"
 	workerruntime "github.com/emmanuella-codes/nox/workers/runtime"
 	"github.com/rs/zerolog/log"
 )
@@ -16,7 +17,7 @@ func main() {
 	defer app.Close()
 
 	provider := newProvider(app.Config)
-	worker := NewWorker(app.Config, app.Repos.Notification, provider, app.Redis)
+	worker := NewWorker(app.Config, notification.NotificationRepo, provider, app.Redis)
 	if err := worker.Run(app.Context); err != nil {
 		log.Fatal().Err(err).Msg("notification worker failed")
 	}

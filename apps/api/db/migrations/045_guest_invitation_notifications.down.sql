@@ -1,0 +1,2 @@
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_notification_type_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_notification_type_check CHECK (notification_type IN ('follow','like','comment','repost','mention','message_direct','message_group','story_contribution_request','story_contribution_accepted','story_contribution_rejected','story_highlight_added','story_highlight_removed','story_reaction'));

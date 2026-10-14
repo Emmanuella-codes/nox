@@ -2,10 +2,12 @@ package repositories
 
 import (
 	"github.com/emmanuella-codes/nox/repositories/admin"
+	"github.com/emmanuella-codes/nox/repositories/admission"
 	"github.com/emmanuella-codes/nox/repositories/comment"
 	"github.com/emmanuella-codes/nox/repositories/crew"
 	"github.com/emmanuella-codes/nox/repositories/event"
 	"github.com/emmanuella-codes/nox/repositories/follow"
+	"github.com/emmanuella-codes/nox/repositories/guest"
 	"github.com/emmanuella-codes/nox/repositories/hashtag"
 	"github.com/emmanuella-codes/nox/repositories/like"
 	"github.com/emmanuella-codes/nox/repositories/media"
@@ -16,49 +18,33 @@ import (
 	"github.com/emmanuella-codes/nox/repositories/preference"
 	"github.com/emmanuella-codes/nox/repositories/search"
 	"github.com/emmanuella-codes/nox/repositories/set"
+	"github.com/emmanuella-codes/nox/repositories/staff"
 	"github.com/emmanuella-codes/nox/repositories/story"
+	"github.com/emmanuella-codes/nox/repositories/ticket"
 	"github.com/emmanuella-codes/nox/repositories/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Repositories struct {
-	Admin        admin.AdminRepository
-	User         user.UserRepository
-	Persona      persona.PersonaRepository
-	Post         post.PostRepository
-	Preference   preference.PreferenceRepository
-	Comment      comment.CommentRepository
-	Crew         crew.CrewRepository
-	Like         like.LikeRepository
-	Event        event.EventRepository
-	Media        media.MediaRepository
-	Messaging    messaging.MessagingRepository
-	Notification notification.NotificationRepository
-	Set          set.SetRepository
-	Story        story.StoryRepository
-	Search       search.SearchRepository
-	Follow       follow.FollowRepository
-	Hashtag      hashtag.HashtagRepository
-}
-
-func Init(pool *pgxpool.Pool) *Repositories {
-	return &Repositories{
-		Admin:        admin.NewAdminRepository(pool),
-		User:         user.NewUserRepository(pool),
-		Persona:      persona.NewPersonaRepository(pool),
-		Post:         post.NewPostRepository(pool),
-		Preference:   preference.NewPreferenceRepository(pool),
-		Comment:      comment.NewCommentRepository(pool),
-		Crew:         crew.NewCrewRepository(pool),
-		Like:         like.NewLikeRepository(pool),
-		Event:        event.NewEventRepository(pool),
-		Media:        media.NewMediaRepository(pool),
-		Messaging:    messaging.NewMessagingRepository(pool),
-		Notification: notification.NewNotificationRepository(pool),
-		Set:          set.NewSetRepository(pool),
-		Story:        story.NewStoryRepository(pool),
-		Search:       search.NewSearchRepository(pool),
-		Follow:       follow.NewFollowRepository(pool),
-		Hashtag:      hashtag.NewHashtagRepository(pool),
-	}
+func InitRepositories(db *pgxpool.Pool) {
+	admin.InitAdminRepo(db)
+	user.InitUserRepo(db)
+	persona.InitPersonaRepo(db)
+	post.InitPostRepo(db)
+	preference.InitPreferenceRepo(db)
+	comment.InitCommentRepo(db)
+	crew.InitCrewRepo(db)
+	like.InitLikeRepo(db)
+	event.InitEventRepo(db)
+	media.InitMediaRepo(db)
+	messaging.InitMessagingRepo(db)
+	notification.InitNotificationRepo(db)
+	set.InitSetRepo(db)
+	story.InitStoryRepo(db)
+	search.InitSearchRepo(db)
+	follow.InitFollowRepo(db)
+	hashtag.InitHashtagRepo(db)
+	ticket.InitTicketRepo(db)
+	guest.InitGuestRepo(db)
+	staff.InitStaffRepo(db)
+	admission.InitAdmissionRepo(db, staff.StaffRepo)
 }

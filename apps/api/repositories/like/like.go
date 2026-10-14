@@ -14,6 +14,8 @@ type LikeRepository interface {
 	FindLikedPostIDs(ctx context.Context, personaID uuid.UUID, postIDs []uuid.UUID) (map[uuid.UUID]bool, error)
 }
 
-func NewLikeRepository(db *pgxpool.Pool) LikeRepository {
-	return newPgRepository(db)
+var LikeRepo LikeRepository
+
+func InitLikeRepo(db *pgxpool.Pool) {
+	LikeRepo = newPgRepository(db)
 }

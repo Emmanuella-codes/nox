@@ -24,7 +24,6 @@ type App struct {
 	Config  *config.Config
 	DB      *pgxpool.Pool
 	Redis   *redis.Client
-	Repos   *repositories.Repositories
 	stop    context.CancelFunc
 }
 
@@ -60,12 +59,12 @@ func Bootstrap(ctx context.Context, options Options) (*App, error) {
 		}
 	}
 	childCtx, stop := context.WithCancel(ctx)
+	repositories.InitRepositories(pool)
 	return &App{
 		Context: childCtx,
 		Config:  cfg,
 		DB:      pool,
 		Redis:   redisClient,
-		Repos:   repositories.Init(pool),
 		stop:    stop,
 	}, nil
 }

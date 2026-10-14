@@ -24,8 +24,10 @@ type FollowRepository interface {
 	FindFollowing(ctx context.Context, personaID uuid.UUID, options ListOptions) ([]*models.Persona, error)
 }
 
-func NewFollowRepository(db *pgxpool.Pool) FollowRepository {
-	return newPgRepository(db)
+var FollowRepo FollowRepository
+
+func InitFollowRepo(db *pgxpool.Pool) {
+	FollowRepo = newPgRepository(db)
 }
 
 type ListOptions struct {

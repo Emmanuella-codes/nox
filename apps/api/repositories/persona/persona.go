@@ -25,6 +25,8 @@ type PersonaRepository interface {
 	UpdatePersona(ctx context.Context, personaID uuid.UUID, dto dtos.UpdatePersonaDTO) (*models.Persona, error)
 }
 
-func NewPersonaRepository(db *pgxpool.Pool) PersonaRepository {
-	return newPgRepository(db)
+var PersonaRepo PersonaRepository
+
+func InitPersonaRepo(db *pgxpool.Pool) {
+	PersonaRepo = newPgRepository(db)
 }

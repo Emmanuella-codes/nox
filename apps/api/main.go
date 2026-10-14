@@ -7,7 +7,6 @@ import (
 
 	"github.com/emmanuella-codes/nox/config"
 	"github.com/emmanuella-codes/nox/db"
-	"github.com/emmanuella-codes/nox/repositories"
 	"github.com/emmanuella-codes/nox/server"
 	shared_logger "github.com/emmanuella-codes/nox/shared/logger"
 	"github.com/rs/zerolog/log"
@@ -45,7 +44,5 @@ func main() {
 		}
 	}()
 
-	repos := repositories.Init(pool)
-
-	server.RunServer(ctx, cfg, pool, redisClient, repos)
+	server.RunServer(ctx, cfg, pool, redisClient)
 }
