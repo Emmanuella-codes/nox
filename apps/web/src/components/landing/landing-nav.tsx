@@ -1,74 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { Sun, Moon } from "lucide-react";
-import { BrandDot } from "@/src/components/landing/landing-primitives";
-import type { Theme } from "@/src/components/landing/landing-theme";
 
-interface LandingNavProps {
-  theme: Theme;
-  onToggleTheme: () => void;
-}
+const ACCENT = "#16b8a4";
 
 const NAV_LINKS = [
-  { label: "what", href: "#what" },
-  { label: "scenes", href: "#scenes" },
-  { label: "manifesto", href: "#manifesto" },
-  { label: "start", href: "#start" },
+  { label: "feed", href: "#social" },
+  { label: "events", href: "#events" },
+  { label: "crews", href: "#crews" },
+  { label: "safety", href: "#safety" },
 ];
 
-export function LandingNav({ theme, onToggleTheme }: LandingNavProps) {
+export function LandingNav() {
   return (
-    <nav
-      className="sticky top-0 z-50 border-b border-[var(--l-divider)] backdrop-blur-[18px]"
+    <header
       style={{
-        background: theme === "dark" ? "rgba(9,9,9,0.8)" : "rgba(247,248,248,0.85)",
+        position: "sticky",
+        top: 0,
+        zIndex: 20,
+        background: "rgba(11,11,10,.82)",
+        backdropFilter: "blur(14px)",
+        borderBottom: "1px solid #1d1d1b",
       }}
     >
-      <div className="mx-auto flex max-w-[1240px] items-center justify-between px-8 py-4">
-        {/* Brand */}
-        <div className="flex items-center gap-2.5 text-[22px] font-bold text-[var(--l-ink)]">
-          <BrandDot />
-          <span>nox</span>
-        </div>
+      <nav
+        style={{
+          maxWidth: 1320,
+          margin: "0 auto",
+          padding: "18px clamp(20px,4vw,56px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 24,
+        }}
+      >
+        <Link
+          href="#top"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            fontWeight: 700,
+            fontSize: 22,
+            letterSpacing: "-.03em",
+            color: "#f2f1ec",
+            textDecoration: "none",
+          }}
+        >
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              border: "1.5px solid #f2f1ec",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 15,
+            }}
+          >
+            N
+          </span>
+          nox
+        </Link>
 
-        {/* Links — hidden on mobile */}
-        <div className="landing-nav-links flex gap-7">
+        <div
+          className="landing-nav-links"
+          style={{ display: "flex", gap: 28, fontSize: 15, color: "#9a9a94" }}
+        >
           {NAV_LINKS.map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className="text-[13.5px] font-medium text-[var(--l-ink-mid)] no-underline transition-colors hover:text-[var(--l-ink)]"
-            >
+            <a key={label} href={href} style={{ color: "#9a9a94", textDecoration: "none" }}>
               {label}
             </a>
           ))}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3.5">
-          {/* Theme toggle */}
-          <button
-            onClick={onToggleTheme}
-            aria-label="Toggle theme"
-            className="relative flex h-7 w-14 cursor-pointer items-center rounded-lg border border-[var(--l-border)] bg-[var(--l-surface-alt)] p-0.5"
-          >
-            <span
-              className="flex size-[22px] items-center justify-center rounded-full bg-[var(--l-ink)] text-[var(--l-bg)] transition-transform duration-300"
-              style={{ transform: theme === "dark" ? "translateX(0)" : "translateX(28px)" }}
-            >
-              {theme === "dark" ? <Moon size={13} strokeWidth={1.8} /> : <Sun size={13} strokeWidth={1.8} />}
-            </span>
-          </button>
-
-          <Link
-            href="/auth"
-            className="inline-flex items-center gap-2 rounded-lg border border-[var(--l-ink)] bg-[var(--l-ink)] px-[18px] py-[11px] text-[13.5px] font-semibold text-[var(--l-bg)] no-underline transition-colors hover:bg-[var(--l-accent)] hover:border-[var(--l-accent)] hover:text-white"
-          >
-            open nox
-          </Link>
-        </div>
-      </div>
-    </nav>
+        <Link
+          href="/auth"
+          style={{
+            background: ACCENT,
+            color: "#0b0b0a",
+            fontWeight: 600,
+            fontSize: 15,
+            padding: "10px 18px",
+            borderRadius: 10,
+            textDecoration: "none",
+          }}
+        >
+          open nox →
+        </Link>
+      </nav>
+    </header>
   );
 }

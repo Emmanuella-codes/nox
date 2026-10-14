@@ -186,21 +186,9 @@ body {
 
 /* Landing page responsive overrides */
 @media (max-width: 920px) {
-  .landing-hero-grid { grid-template-columns: 1fr !important; }
-  .landing-features { grid-template-columns: 1fr !important; }
-  .landing-showcase { grid-template-columns: repeat(2,1fr) !important; }
-  .landing-cta { grid-template-columns: 1fr !important; padding: 40px 28px !important; }
-  .landing-foot { grid-template-columns: 1fr 1fr !important; }
   .landing-nav-links { display: none !important; }
   .landing-phone-wrap { display: none !important; }
-}
-
-@media (max-width: 640px) {
-  .landing-foot { grid-template-columns: 1fr !important; gap: 28px !important; }
-  .landing-foot-bottom {
-    align-items: flex-start !important;
-    flex-direction: column !important;
-  }
+  .landing-foot { flex-direction: column !important; gap: 16px !important; }
 }
 
 .no-scrollbar {
